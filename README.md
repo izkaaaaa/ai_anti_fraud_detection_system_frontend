@@ -139,7 +139,43 @@ flutter build ios
 - 验证工具
 - 加密工具
 
-## 🎨 开发规范
+## 🎨 设计规范
+
+### 色彩系统 - Skip Gradient（渐变色系）
+
+本项目采用温暖渐变的配色方案，营造活力、友好的视觉体验。
+
+#### 主色调 - Skip Gradient
+- **Primary（主色）**: `#FA8D75` - 珊瑚橙，用于主要按钮、强调元素
+- **Primary Light**: `#FFC4A9` - 浅桃色，用于渐变、高亮
+- **Primary Dark**: `#BE5944` - 深橙棕，用于深色元素
+
+#### 辅助色
+- **Secondary（辅助色）**: `#F3DD4F` - 明黄色，用于次要按钮、提示元素
+- **Secondary Light**: `#F9E87A` - 浅黄色
+- **Secondary Dark**: `#D4BE2A` - 深黄色
+
+#### 背景色
+- **Background**: `#FFFBF5` - 极浅米色背景，温暖柔和
+- **Background Light**: `#FFFFFF` - 纯白色，用于卡片、容器
+
+#### 文字颜色
+- **Text Primary**: `#2D2D2D` - 主要文字
+- **Text Secondary**: `#666666` - 次要文字
+- **Text Light**: `#999999` - 辅助文字
+- **Text White**: `#FFFFFF` - 白色文字
+
+#### 功能色
+- **Success**: `#52C41A` - 成功状态
+- **Warning**: `#F3DD4F` - 警告状态（使用辅助色）
+- **Error**: `#BE5944` - 错误状态（使用深橙棕）
+- **Info**: `#FFC4A9` - 信息提示（使用浅桃色）
+
+#### 设计原则
+- **温暖渐变**: 使用 Skip Gradient 色系，营造温暖友好的氛围
+- **视觉层次**: 通过颜色深浅和阴影营造空间感
+- **简洁明快**: 保持界面清爽，避免过度装饰
+- **一致性**: 统一的圆角、间距、字体大小
 
 ### 命名规范
 - 文件名：使用小写字母和下划线，如 `user_profile_page.dart`

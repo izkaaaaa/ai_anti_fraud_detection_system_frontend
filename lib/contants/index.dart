@@ -31,6 +31,7 @@ class HttpConstants {
   // 认证相关接口
   static const String LOGIN = "/api/users/login"; // 登录请求地址
   static const String REGISTER = "/api/users/register"; // 注册请求地址
+  static const String SEND_SMS_CODE = "/api/users/send-code"; // 发送验证码地址
   static const String USER_PROFILE = "/api/users/profile"; // 用户信息接口地址
   
   // 系统接口

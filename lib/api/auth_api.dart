@@ -29,6 +29,62 @@ Future<LoginResponse> loginAPI(String phone, String password) async {
   }
 }
 
+/// 发送短信验证码 API
+/// 
+/// 参数:
+/// - phone: 手机号（作为查询参数）
+/// 
+/// 返回: Map 包含 code, message, data
+Future<Map<String, dynamic>> sendSmsCodeAPI(String phone) async {
+  try {
+    // phone 参数作为查询参数传递
+    final response = await dioRequest.post(
+      '${HttpConstants.SEND_SMS_CODE}?phone=$phone',
+    );
+    
+    return response as Map<String, dynamic>;
+  } catch (e) {
+    rethrow;
+  }
+}
+
+/// 注册 API
+/// 
+/// 参数:
+/// - phone: 手机号
+/// - username: 用户名
+/// - name: 姓名
+/// - password: 密码
+/// - smsCode: 短信验证码
+/// 
+/// 返回: RegisterResponse 对象
+Future<RegisterResponse> registerAPI({
+  required String phone,
+  required String username,
+  required String name,
+  required String password,
+  required String smsCode,
+}) async {
+  try {
+    final requestData = RegisterRequest(
+      phone: phone,
+      username: username,
+      name: name,
+      password: password,
+      smsCode: smsCode,
+    ).toJson();
+    
+    final response = await dioRequest.post(
+      HttpConstants.REGISTER,
+      data: requestData,
+    );
+    
+    return RegisterResponse.fromJson(response as Map<String, dynamic>);
+  } catch (e) {
+    rethrow;
+  }
+}
+
 /// 获取用户信息 API
 /// 
 /// 返回: User 对象
@@ -40,4 +96,5 @@ Future<User> getUserInfoAPI() async {
     rethrow;
   }
 }
+
 
