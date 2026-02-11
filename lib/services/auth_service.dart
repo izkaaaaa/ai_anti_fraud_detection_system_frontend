@@ -1,0 +1,216 @@
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dio/dio.dart';
+
+/// 认证服务 - 管理 Token 和用户信息
+class AuthService {
+  static final AuthService _instance = AuthService._internal();
+  factory AuthService() => _instance;
+  AuthService._internal();
+
+  // Token 和用户信息
+  String? _accessToken;
+  Map<String, dynamic>? _userInfo;
+
+  // Dio 实例
+  final Dio _dio = Dio(BaseOptions(
+    baseUrl: 'http://localhost:8000',
+    connectTimeout: Duration(seconds: 30),
+    receiveTimeout: Duration(seconds: 30),
+  ));
+
+  /// 获取当前 Token
+  String? get accessToken => _accessToken;
+
+  /// 获取当前用户信息
+  Map<String, dynamic>? get userInfo => _userInfo;
+
+  /// 是否已登录
+  bool get isLoggedIn => _accessToken != null;
+
+  /// 初始化 - 从本地存储读取 Token
+  Future<void> init() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _accessToken = prefs.getString('access_token');
+      final userInfoStr = prefs.getString('user_info');
+      
+      if (userInfoStr != null) {
+        _userInfo = Map<String, dynamic>.from(
+          // 这里需要 json decode，但为了简单先这样
+          {} // TODO: 实际应该用 json.decode
+        );
+      }
+      
+      print('🔑 AuthService 初始化');
+      print('   Token: ${_accessToken != null ? "已加载" : "未登录"}');
+    } catch (e) {
+      print('❌ AuthService 初始化失败: $e');
+    }
+  }
+
+  /// 登录
+  Future<bool> login(String account, String password) async {
+    try {
+      print('🔐 开始登录: $account');
+      
+      final response = await _dio.post(
+        '/api/users/login',
+        data: {
+          'phone': account,
+          'password': password,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        _accessToken = response.data['access_token'];
+        _userInfo = response.data['user'];
+
+        // 保存到本地
+        await _saveToLocal();
+
+        print('✅ 登录成功');
+        print('   用户: ${_userInfo?['username']}');
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      print('❌ 登录失败: $e');
+      return false;
+    }
+  }
+
+  /// 注册
+  Future<bool> register({
+    required String phone,
+    required String username,
+    String? name,
+    required String password,
+    required String smsCode,
+  }) async {
+    try {
+      print('📝 开始注册: $phone');
+      
+      final response = await _dio.post(
+        '/api/users/register',
+        data: {
+          'phone': phone,
+          'username': username,
+          'name': name,
+          'password': password,
+          'sms_code': smsCode,
+        },
+      );
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        print('✅ 注册成功');
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      print('❌ 注册失败: $e');
+      return false;
+    }
+  }
+
+  /// 获取当前用户信息
+  Future<Map<String, dynamic>?> getCurrentUser() async {
+    if (_accessToken == null) {
+      print('⚠️ 未登录，无法获取用户信息');
+      return null;
+    }
+
+    try {
+      print('👤 获取用户信息');
+      
+      final response = await _dio.get(
+        '/api/users/me',
+        options: Options(
+          headers: {'Authorization': 'Bearer $_accessToken'},
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        _userInfo = response.data;
+        await _saveToLocal();
+        
+        print('✅ 用户信息获取成功');
+        return _userInfo;
+      }
+
+      return null;
+    } catch (e) {
+      print('❌ 获取用户信息失败: $e');
+      
+      // 如果是 401，说明 Token 过期
+      if (e is DioException && e.response?.statusCode == 401) {
+        print('   Token 已过期，清除登录状态');
+        await logout();
+      }
+      
+      return null;
+    }
+  }
+
+  /// 登出
+  Future<void> logout() async {
+    print('👋 登出');
+    
+    _accessToken = null;
+    _userInfo = null;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('access_token');
+    await prefs.remove('user_info');
+    
+    print('✅ 登出成功');
+  }
+
+  /// 保存到本地存储
+  Future<void> _saveToLocal() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      if (_accessToken != null) {
+        await prefs.setString('access_token', _accessToken!);
+      }
+      
+      // TODO: 保存用户信息（需要 json.encode）
+      
+      print('💾 Token 已保存到本地');
+    } catch (e) {
+      print('❌ 保存失败: $e');
+    }
+  }
+
+  /// 创建带 Token 的 Dio 实例（供其他页面使用）
+  Dio createAuthDio() {
+    final dio = Dio(BaseOptions(
+      baseUrl: 'http://localhost:8000',
+      connectTimeout: Duration(seconds: 30),
+      receiveTimeout: Duration(seconds: 30),
+    ));
+
+    // 添加拦截器，自动添加 Token
+    dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) {
+        if (_accessToken != null) {
+          options.headers['Authorization'] = 'Bearer $_accessToken';
+        }
+        return handler.next(options);
+      },
+      onError: (error, handler) {
+        // 如果是 401，自动登出
+        if (error.response?.statusCode == 401) {
+          print('⚠️ Token 过期，需要重新登录');
+          logout();
+        }
+        return handler.next(error);
+      },
+    ));
+
+    return dio;
+  }
+}
+

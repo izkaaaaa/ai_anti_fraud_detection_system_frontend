@@ -38,6 +38,10 @@ dependencies:
   dio: ^5.9.1
   get: ^4.7.3
   shared_preferences: ^2.5.4
+  video_player: ^2.8.0
+  http: ^1.2.0
+  path_provider: ^2.1.5
+  file_picker: ^8.1.6
 
 dev_dependencies:
   flutter_test:
@@ -64,6 +68,8 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - lib/assets/登录界面图标.jpg
+    - lib/assets/test_video.mp4
+    - lib/assets/test_video2.mp4
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

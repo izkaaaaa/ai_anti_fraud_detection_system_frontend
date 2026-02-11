@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
-import 'package:ai_anti_fraud_detection_system_frontend/api/auth_api.dart';
-import 'package:ai_anti_fraud_detection_system_frontend/stores/user_store.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
 
 class LoginPage extends StatefulWidget {
@@ -136,30 +134,23 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     });
 
     try {
-      final loginResponse = await loginAPI(
+      // 使用 AuthService 登录
+      final success = await AuthService().login(
         _accountController.text.trim(),
-        _loginMode == 0 ? _passwordController.text : '',
+        _passwordController.text,
       );
 
-      await userStore.login(loginResponse);
-      _showSuccess('登录成功！');
-      await Future.delayed(const Duration(milliseconds: 500));
+      if (success) {
+        _showSuccess('登录成功！');
+        await Future.delayed(const Duration(milliseconds: 500));
 
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/');
+        if (mounted) {
+          // 登录成功后跳转到主页
+          Navigator.of(context).pushReplacementNamed('/');
+        }
+      } else {
+        _showError('账号或密码错误');
       }
-    } on DioException catch (e) {
-      String errorMessage = '登录失败';
-      
-      if (e.response?.statusCode == 422) {
-        errorMessage = '账号或密码格式不正确';
-      } else if (e.response?.statusCode == 401) {
-        errorMessage = '账号或密码错误';
-      } else if (e.message != null) {
-        errorMessage = e.message!;
-      }
-      
-      _showError(errorMessage);
     } catch (e) {
       _showError('登录失败: ${e.toString()}');
     } finally {
@@ -192,24 +183,15 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     });
 
     try {
-      await sendSmsCodeAPI(phone);
-      _showSuccess('验证码已发送');
+      // TODO: 实现发送验证码功能
+      // await AuthService().sendSmsCode(phone);
+      _showSuccess('验证码已发送（功能待实现）');
       
       setState(() {
         _countdown = 60;
       });
       
       _startCountdown();
-    } on DioException catch (e) {
-      String errorMessage = '发送失败';
-      
-      if (e.response?.statusCode == 422) {
-        errorMessage = '手机号格式不正确';
-      } else if (e.message != null) {
-        errorMessage = e.message!;
-      }
-      
-      _showError(errorMessage);
     } catch (e) {
       _showError('发送失败: ${e.toString()}');
     } finally {
@@ -296,7 +278,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   Widget _buildGradientDecorations() {
     return Stack(
       children: [
-        // 左上角 - 黄色 #F3DD4F
+        // 左上角 - 明黄色（无勾线）
         Positioned(
           top: -60,
           left: -60,
@@ -305,16 +287,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             height: 180,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  Color(0xFFF3DD4F).withOpacity(0.3),
-                  Color(0xFFF3DD4F).withOpacity(0.1),
-                ],
-              ),
+              color: AppColors.secondary.withOpacity(0.15),
             ),
           ),
         ),
-        // 右上角 - 浅桃色 #FFC4A9
+        // 右上角 - 浅桃色（无勾线）
         Positioned(
           top: 100,
           right: -50,
@@ -323,16 +300,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             height: 160,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  Color(0xFFFFC4A9).withOpacity(0.4),
-                  Color(0xFFFFC4A9).withOpacity(0.1),
-                ],
-              ),
+              color: AppColors.accent.withOpacity(0.2),
             ),
           ),
         ),
-        // 左下角 - 珊瑚橙 #FA8D75
+        // 左下角 - 珊瑚橙（无勾线）
         Positioned(
           bottom: 120,
           left: -40,
@@ -341,16 +313,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             height: 140,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  Color(0xFFFA8D75).withOpacity(0.35),
-                  Color(0xFFFA8D75).withOpacity(0.1),
-                ],
-              ),
+              color: AppColors.primary.withOpacity(0.18),
             ),
           ),
         ),
-        // 右下角 - 深橙棕 #BE5944
+        // 右下角 - 深橙棕（无勾线）
         Positioned(
           bottom: -80,
           right: -60,
@@ -359,12 +326,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             height: 200,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  Color(0xFFBE5944).withOpacity(0.25),
-                  Color(0xFFBE5944).withOpacity(0.05),
-                ],
-              ),
+              color: AppColors.brown.withOpacity(0.12),
             ),
           ),
         ),
@@ -375,7 +337,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   Widget _buildHeader() {
     return Column(
       children: [
-        // 大Logo图片（去除白色背景）
+        // 大Logo图片（原图，无背景）
         Container(
           width: 160,
           height: 160,
@@ -385,27 +347,21 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            child: ColorFiltered(
-              colorFilter: ColorFilter.mode(
-                Colors.white.withOpacity(0.9),
-                BlendMode.dstOut,
-              ),
-              child: Image.asset(
-                'lib/assets/登录界面图标.jpg',
-                fit: BoxFit.contain,
-              ),
+            child: Image.asset(
+              'lib/assets/登录界面图标.jpg',
+              fit: BoxFit.contain,
             ),
           ),
         ),
         SizedBox(height: AppTheme.paddingLarge),
         
-        // 欢迎登录标题
+        // 欢迎登录标题（无勾线）
         Text(
           '欢迎登录',
           style: TextStyle(
             fontSize: AppTheme.fontSizeTitle,
             fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+            color: AppColors.primary,
             letterSpacing: 1,
           ),
         ),
@@ -419,8 +375,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
         border: Border.all(
-          color: AppColors.border,
-          width: AppTheme.borderThin,
+          color: AppColors.borderDark,
+          width: 2.0,
         ),
         boxShadow: AppTheme.shadowMedium,
       ),
@@ -472,6 +428,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                         },
                         activeColor: AppColors.primary,
                         checkColor: AppColors.textWhite,
+                        side: BorderSide(
+                          color: AppColors.borderMedium,
+                          width: 1.5,
+                        ),
                       ),
                     ),
                     SizedBox(width: AppTheme.paddingSmall),
@@ -521,8 +481,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 color: _loginMode == 0 ? AppColors.primary : Colors.transparent,
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                 border: Border.all(
-                  color: _loginMode == 0 ? AppColors.primary : AppColors.border,
-                  width: AppTheme.borderThin,
+                  color: _loginMode == 0 ? AppColors.borderDark : AppColors.borderMedium,
+                  width: 2.0,
                 ),
               ),
               child: Text(
@@ -551,8 +511,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 color: _loginMode == 1 ? AppColors.primary : Colors.transparent,
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                 border: Border.all(
-                  color: _loginMode == 1 ? AppColors.primary : AppColors.border,
-                  width: AppTheme.borderThin,
+                  color: _loginMode == 1 ? AppColors.borderDark : AppColors.borderMedium,
+                  width: 2.0,
                 ),
               ),
               child: Text(
@@ -621,23 +581,23 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             fillColor: AppColors.inputBackground,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.border, width: AppTheme.borderThin),
+              borderSide: BorderSide(color: AppColors.borderMedium, width: 1.5),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.border, width: AppTheme.borderThin),
+              borderSide: BorderSide(color: AppColors.borderMedium, width: 1.5),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.primary, width: AppTheme.borderMedium),
+              borderSide: BorderSide(color: AppColors.borderDark, width: 2.0),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.error, width: AppTheme.borderThin),
+              borderSide: BorderSide(color: AppColors.error, width: 1.5),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.error, width: AppTheme.borderMedium),
+              borderSide: BorderSide(color: AppColors.error, width: 2.0),
             ),
             contentPadding: EdgeInsets.symmetric(
               horizontal: AppTheme.paddingMedium,
@@ -679,23 +639,23 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   fillColor: AppColors.inputBackground,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.border, width: AppTheme.borderThin),
+                    borderSide: BorderSide(color: AppColors.borderMedium, width: 1.5),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.border, width: AppTheme.borderThin),
+                    borderSide: BorderSide(color: AppColors.borderMedium, width: 1.5),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.primary, width: AppTheme.borderMedium),
+                    borderSide: BorderSide(color: AppColors.borderDark, width: 2.0),
                   ),
                   errorBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.error, width: AppTheme.borderThin),
+                    borderSide: BorderSide(color: AppColors.error, width: 1.5),
                   ),
                   focusedErrorBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.error, width: AppTheme.borderMedium),
+                    borderSide: BorderSide(color: AppColors.error, width: 2.0),
                   ),
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: AppTheme.paddingMedium,
@@ -709,9 +669,15 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
               height: 48,
               decoration: BoxDecoration(
                 color: (_isSendingCode || _countdown > 0 || _isLoading) 
-                    ? AppColors.border 
-                    : AppColors.secondary,
+                    ? AppColors.borderLight 
+                    : AppColors.secondaryLight,
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                border: Border.all(
+                  color: (_isSendingCode || _countdown > 0 || _isLoading)
+                      ? AppColors.borderMedium
+                      : AppColors.borderDark,
+                  width: 2.0,
+                ),
               ),
               child: ElevatedButton(
                 onPressed: (_isSendingCode || _countdown > 0 || _isLoading) ? null : _sendSmsCode,
@@ -752,15 +718,12 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     return Container(
       height: 50,
       decoration: BoxDecoration(
-        gradient: _isLoading 
-            ? null 
-            : LinearGradient(
-                colors: [AppColors.primary, AppColors.primaryLight],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
-        color: _isLoading ? AppColors.border : null,
+        color: _isLoading ? AppColors.borderLight : AppColors.primary,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(
+          color: AppColors.borderDark,
+          width: 2.0,
+        ),
         boxShadow: _isLoading ? [] : AppTheme.shadowMedium,
       ),
       child: ElevatedButton(

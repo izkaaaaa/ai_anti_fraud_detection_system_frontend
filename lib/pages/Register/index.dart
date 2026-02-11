@@ -354,7 +354,11 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        boxShadow: AppTheme.shadowSmall,
+        border: Border.all(
+          color: AppColors.borderDark,
+          width: 2.0,
+        ),
+        boxShadow: AppTheme.shadowMedium,
       ),
       padding: EdgeInsets.all(AppTheme.paddingLarge),
       child: Column(
@@ -465,13 +469,13 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: AppColors.textLight, fontSize: AppTheme.fontSizeSmall),
-            prefixIcon: Icon(icon, color: AppColors.secondary, size: 18),
+            prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
             suffixIcon: isPassword
                 ? IconButton(
                     icon: Icon(
                       isPasswordVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                       color: AppColors.textLight,
-                      size: 18,
+                      size: 20,
                     ),
                     onPressed: onTogglePassword,
                   )
@@ -480,27 +484,27 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
             fillColor: AppColors.inputBackground,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide.none,
+              borderSide: BorderSide(color: AppColors.borderMedium, width: 1.5),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: AppColors.borderMedium, width: 1.5),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+              borderSide: BorderSide(color: AppColors.borderDark, width: 2.0),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.error),
+              borderSide: BorderSide(color: AppColors.error, width: 1.5),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.error, width: 1.5),
+              borderSide: BorderSide(color: AppColors.error, width: 2.0),
             ),
             contentPadding: EdgeInsets.symmetric(
               horizontal: AppTheme.paddingMedium,
-              vertical: AppTheme.paddingSmall + 4,
+              vertical: AppTheme.paddingMedium,
             ),
           ),
         ),
@@ -533,59 +537,69 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
                 decoration: InputDecoration(
                   hintText: '请输入验证码',
                   hintStyle: TextStyle(color: AppColors.textLight, fontSize: AppTheme.fontSizeSmall),
-                  prefixIcon: Icon(Icons.sms_outlined, color: AppColors.secondary, size: 18),
+                  prefixIcon: Icon(Icons.sms_outlined, color: AppColors.primary, size: 20),
                   filled: true,
                   fillColor: AppColors.inputBackground,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide.none,
+                    borderSide: BorderSide(color: AppColors.borderMedium, width: 1.5),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.border),
+                    borderSide: BorderSide(color: AppColors.borderMedium, width: 1.5),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+                    borderSide: BorderSide(color: AppColors.borderDark, width: 2.0),
                   ),
                   errorBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.error),
+                    borderSide: BorderSide(color: AppColors.error, width: 1.5),
                   ),
                   focusedErrorBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.error, width: 1.5),
+                    borderSide: BorderSide(color: AppColors.error, width: 2.0),
                   ),
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: AppTheme.paddingMedium,
-                    vertical: AppTheme.paddingSmall + 4,
+                    vertical: AppTheme.paddingMedium,
                   ),
                 ),
               ),
             ),
             SizedBox(width: AppTheme.paddingMedium),
-            SizedBox(
-              width: 100,
-              height: 44,
+            Container(
+              height: 48,
+              decoration: BoxDecoration(
+                color: (_isSendingCode || _countdown > 0 || _isLoading) 
+                    ? AppColors.borderLight 
+                    : AppColors.secondaryLight,
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                border: Border.all(
+                  color: (_isSendingCode || _countdown > 0 || _isLoading)
+                      ? AppColors.borderMedium
+                      : AppColors.borderDark,
+                  width: 2.0,
+                ),
+              ),
               child: ElevatedButton(
                 onPressed: (_isSendingCode || _countdown > 0 || _isLoading) ? null : _sendSmsCode,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.secondary,
-                  foregroundColor: AppColors.textWhite,
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: AppColors.textPrimary,
+                  shadowColor: Colors.transparent,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                   ),
-                  elevation: 0,
-                  disabledBackgroundColor: AppColors.border,
-                  padding: EdgeInsets.symmetric(horizontal: AppTheme.paddingSmall),
+                  padding: EdgeInsets.symmetric(horizontal: AppTheme.paddingMedium),
                 ),
                 child: _isSendingCode
                     ? SizedBox(
-                        width: 14,
-                        height: 14,
+                        width: 16,
+                        height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.textWhite),
+                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.textPrimary),
                         ),
                       )
                     : Text(
@@ -607,8 +621,8 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
     return Row(
       children: [
         SizedBox(
-          width: 18,
-          height: 18,
+          width: 20,
+          height: 20,
           child: Checkbox(
             value: _agreeToTerms,
             onChanged: (value) {
@@ -617,6 +631,11 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
               });
             },
             activeColor: AppColors.primary,
+            checkColor: AppColors.textWhite,
+            side: BorderSide(
+              color: AppColors.borderMedium,
+              width: 1.5,
+            ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(4),
             ),
@@ -668,35 +687,45 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
   }
 
   Widget _buildRegisterButton() {
-    return ElevatedButton(
-      onPressed: _isLoading ? null : _handleRegister,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.textWhite,
-        padding: EdgeInsets.symmetric(vertical: AppTheme.paddingMedium + 2),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+    return Container(
+      height: 50,
+      decoration: BoxDecoration(
+        color: _isLoading ? AppColors.borderLight : AppColors.primary,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(
+          color: AppColors.borderDark,
+          width: 2.0,
         ),
-        elevation: 0,
-        disabledBackgroundColor: AppColors.border,
+        boxShadow: _isLoading ? [] : AppTheme.shadowMedium,
       ),
-      child: _isLoading
-          ? SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.textWhite),
+      child: ElevatedButton(
+        onPressed: _isLoading ? null : _handleRegister,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          foregroundColor: AppColors.textWhite,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          ),
+        ),
+        child: _isLoading
+            ? SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.textWhite),
+                ),
+              )
+            : Text(
+                '注册',
+                style: TextStyle(
+                  fontSize: AppTheme.fontSizeLarge,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1,
+                ),
               ),
-            )
-          : Text(
-              '注册',
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeLarge,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1,
-              ),
-            ),
+      ),
     );
   }
 }
