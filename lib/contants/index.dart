@@ -6,18 +6,29 @@ import 'package:flutter/foundation.dart';
 class GlobalConstants {
   // 根据平台自动切换 API 地址
   static String get BASE_URL {
+    // 打印平台信息（调试用）
+    print('🔍 平台检测:');
+    print('   kIsWeb: $kIsWeb');
+    if (!kIsWeb) {
+      print('   Platform.isAndroid: ${Platform.isAndroid}');
+      print('   Platform.isIOS: ${Platform.isIOS}');
+    }
+    
     if (kIsWeb) {
       // Web 平台使用 localhost
+      print('   ✅ 使用 Web 配置');
       return "http://localhost:8000";
     } else if (!kIsWeb && Platform.isAndroid) {
-      // Android 模拟器使用特殊 IP (10.0.2.2 指向宿主机)
-      // 如果是真机，请改成你电脑的局域网 IP，例如: http://192.168.1.100:8000
-      return "http://10.0.2.2:8000";
+      // Android 使用后端电脑的局域网 IP
+      print('   ✅ 使用 Android 配置');
+      return "http://172.20.16.1:8000";
     } else if (!kIsWeb && Platform.isIOS) {
-      // iOS 模拟器可以使用 localhost
-      return "http://localhost:8000";
+      // iOS 使用后端电脑的局域网 IP
+      print('   ✅ 使用 iOS 配置');
+      return "http://172.20.16.1:8000";
     } else {
       // 其他平台默认使用 localhost
+      print('   ⚠️ 使用默认配置');
       return "http://localhost:8000";
     }
   }

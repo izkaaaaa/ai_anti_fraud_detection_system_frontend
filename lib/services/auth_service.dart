@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/utils/DioRequest.dart';
 
 /// 认证服务 - 管理 Token 和用户信息
 class AuthService {
@@ -10,13 +11,6 @@ class AuthService {
   // Token 和用户信息
   String? _accessToken;
   Map<String, dynamic>? _userInfo;
-
-  // Dio 实例
-  final Dio _dio = Dio(BaseOptions(
-    baseUrl: 'http://localhost:8000',
-    connectTimeout: Duration(seconds: 30),
-    receiveTimeout: Duration(seconds: 30),
-  ));
 
   /// 获取当前 Token
   String? get accessToken => _accessToken;
@@ -53,7 +47,7 @@ class AuthService {
     try {
       print('🔐 开始登录: $account');
       
-      final response = await _dio.post(
+      final response = await dioRequest.post(
         '/api/users/login',
         data: {
           'phone': account,
@@ -61,14 +55,15 @@ class AuthService {
         },
       );
 
-      if (response.statusCode == 200) {
-        _accessToken = response.data['access_token'];
-        _userInfo = response.data['user'];
+      if (response != null) {
+        _accessToken = response['access_token'];
+        _userInfo = response['user'];
 
         // 保存到本地
         await _saveToLocal();
 
         print('✅ 登录成功');
+        print('   Token: $_accessToken');
         print('   用户: ${_userInfo?['username']}');
         return true;
       }
@@ -91,7 +86,7 @@ class AuthService {
     try {
       print('📝 开始注册: $phone');
       
-      final response = await _dio.post(
+      final response = await dioRequest.post(
         '/api/users/register',
         data: {
           'phone': phone,
@@ -102,7 +97,7 @@ class AuthService {
         },
       );
 
-      if (response.statusCode == 201 || response.statusCode == 200) {
+      if (response != null) {
         print('✅ 注册成功');
         return true;
       }
@@ -116,26 +111,31 @@ class AuthService {
 
   /// 获取当前用户信息
   Future<Map<String, dynamic>?> getCurrentUser() async {
+    print('👤 getCurrentUser 被调用');
+    print('   当前 Token: ${_accessToken ?? "无"}');
+    print('   缓存的用户信息: ${_userInfo ?? "无"}');
+    
+    // 如果有缓存的用户信息，直接返回
+    if (_userInfo != null) {
+      print('✅ 返回缓存的用户信息');
+      return _userInfo;
+    }
+    
     if (_accessToken == null) {
       print('⚠️ 未登录，无法获取用户信息');
       return null;
     }
 
     try {
-      print('👤 获取用户信息');
+      print('📡 从服务器获取用户信息');
       
-      final response = await _dio.get(
-        '/api/users/me',
-        options: Options(
-          headers: {'Authorization': 'Bearer $_accessToken'},
-        ),
-      );
+      final response = await dioRequest.get('/api/users/me');
 
-      if (response.statusCode == 200) {
-        _userInfo = response.data;
+      if (response != null) {
+        _userInfo = response;
         await _saveToLocal();
         
-        print('✅ 用户信息获取成功');
+        print('✅ 用户信息获取成功: ${_userInfo?['username']}');
         return _userInfo;
       }
 
@@ -186,8 +186,12 @@ class AuthService {
 
   /// 创建带 Token 的 Dio 实例（供其他页面使用）
   Dio createAuthDio() {
+    // 注意：这个方法已废弃，建议直接使用 dioRequest
+    // dioRequest 会自动从 tokenManager 获取 token
+    print('⚠️ createAuthDio 已废弃，请直接使用 dioRequest');
+    
     final dio = Dio(BaseOptions(
-      baseUrl: 'http://localhost:8000',
+      baseUrl: 'http://172.20.16.1:8000',
       connectTimeout: Duration(seconds: 30),
       receiveTimeout: Duration(seconds: 30),
     ));
@@ -213,4 +217,3 @@ class AuthService {
     return dio;
   }
 }
-

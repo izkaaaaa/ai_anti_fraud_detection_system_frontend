@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/pages/NetworkTest/index.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -758,29 +759,51 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   }
 
   Widget _buildFooter() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Column(
       children: [
-        Text(
-          '还没有账户？',
-          style: TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: AppTheme.fontSizeMedium,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              '还没有账户？',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: AppTheme.fontSizeMedium,
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pushNamed('/register');
+              },
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.symmetric(horizontal: AppTheme.paddingSmall),
+              ),
+              child: Text(
+                '立即注册',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: AppTheme.fontSizeMedium,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
-        TextButton(
+        SizedBox(height: AppTheme.paddingSmall),
+        // 网络测试按钮
+        TextButton.icon(
           onPressed: () {
-            Navigator.of(context).pushNamed('/register');
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => NetworkTestPage()),
+            );
           },
-          style: TextButton.styleFrom(
-            padding: EdgeInsets.symmetric(horizontal: AppTheme.paddingSmall),
-          ),
-          child: Text(
-            '立即注册',
+          icon: Icon(Icons.wifi_find, size: 18, color: AppColors.textSecondary),
+          label: Text(
+            '网络测试',
             style: TextStyle(
-              color: AppColors.primary,
-              fontSize: AppTheme.fontSizeMedium,
-              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+              fontSize: AppTheme.fontSizeSmall,
             ),
           ),
         ),

@@ -6,8 +6,12 @@ class DioRequest {
   final _dio = Dio();
   
   DioRequest() {
+    // 根据实际情况使用 IP 地址
+    // 如果 10.0.2.2 不工作，使用电脑的局域网 IP
+    final baseUrl = "http://172.20.16.1:8000";
+    
     // 设置基础配置
-    _dio.options.baseUrl = GlobalConstants.BASE_URL;
+    _dio.options.baseUrl = baseUrl;
     _dio.options.connectTimeout = Duration(seconds: GlobalConstants.TIME_OUT);
     _dio.options.receiveTimeout = Duration(seconds: GlobalConstants.TIME_OUT);
     _dio.options.sendTimeout = Duration(seconds: GlobalConstants.TIME_OUT);
@@ -15,6 +19,16 @@ class DioRequest {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
+
+    // 打印配置信息（调试用）
+    print('');
+    print('='.padRight(60, '='));
+    print('🌐 DioRequest 初始化');
+    print('   BASE_URL: $baseUrl');
+    print('   TIMEOUT: ${GlobalConstants.TIME_OUT}s');
+    print('   如果看到这行，说明已经重启成功！');
+    print('='.padRight(60, '='));
+    print('');
 
     // 拦截器
     _addInterceptors();
@@ -24,6 +38,13 @@ class DioRequest {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (request, handler) {
+          // 打印请求信息
+          print('📤 请求: ${request.method} ${request.uri}');
+          print('   Headers: ${request.headers}');
+          if (request.data != null) {
+            print('   Data: ${request.data}');
+          }
+          
           // 如果有 token，自动添加到请求头
           if (tokenManager.getToken().isNotEmpty) {
             request.headers['Authorization'] = 
@@ -32,12 +53,25 @@ class DioRequest {
           handler.next(request);
         },
         onResponse: (response, handler) {
+          // 打印响应信息
+          print('📥 响应: ${response.statusCode} ${response.requestOptions.uri}');
+          print('   Data: ${response.data}');
+          
           // HTTP 状态码 200-299 都认为是成功
           if (response.statusCode! >= 200 && response.statusCode! < 300) {
             handler.next(response);
           }
         },
         onError: (error, handler) {
+          // 打印错误信息
+          print('❌ 错误: ${error.requestOptions.uri}');
+          print('   Type: ${error.type}');
+          print('   Message: ${error.message}');
+          if (error.response != null) {
+            print('   Status: ${error.response?.statusCode}');
+            print('   Data: ${error.response?.data}');
+          }
+          
           // 处理错误响应
           String errorMessage = '请求失败';
           
@@ -51,13 +85,13 @@ class DioRequest {
                             '请求失败';
             }
           } else if (error.type == DioExceptionType.connectionTimeout) {
-            errorMessage = '连接超时';
+            errorMessage = '连接超时，请检查网络';
           } else if (error.type == DioExceptionType.receiveTimeout) {
-            errorMessage = '响应超时';
+            errorMessage = '响应超时，请检查网络';
           } else if (error.type == DioExceptionType.sendTimeout) {
-            errorMessage = '发送超时';
+            errorMessage = '发送超时，请检查网络';
           } else if (error.type == DioExceptionType.connectionError) {
-            errorMessage = '网络连接失败';
+            errorMessage = '网络连接失败，请检查后端服务是否启动';
           }
           
           handler.reject(
