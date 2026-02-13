@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/DioRequest.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/utils/token_manager.dart';
 
 /// 认证服务 - 管理 Token 和用户信息
 class AuthService {
@@ -35,8 +36,12 @@ class AuthService {
         );
       }
       
+      // 同步加载到 TokenManager（重要！）
+      await tokenManager.loadToken();
+      
       print('🔑 AuthService 初始化');
       print('   Token: ${_accessToken != null ? "已加载" : "未登录"}');
+      print('   TokenManager: ${tokenManager.isLoggedIn() ? "已同步" : "未同步"}');
     } catch (e) {
       print('❌ AuthService 初始化失败: $e');
     }
@@ -58,13 +63,21 @@ class AuthService {
       if (response != null) {
         _accessToken = response['access_token'];
         _userInfo = response['user'];
+        
+        // 获取 token_type，默认为 bearer
+        final tokenType = response['token_type'] ?? 'bearer';
 
         // 保存到本地
         await _saveToLocal();
+        
+        // 同步保存到 TokenManager（重要！）
+        await tokenManager.saveToken(_accessToken!, tokenType: tokenType);
 
         print('✅ 登录成功');
         print('   Token: $_accessToken');
+        print('   Token Type: $tokenType');
         print('   用户: ${_userInfo?['username']}');
+        print('   已同步到 TokenManager ✅');
         return true;
       }
 
@@ -164,7 +177,11 @@ class AuthService {
     await prefs.remove('access_token');
     await prefs.remove('user_info');
     
+    // 同步清除 TokenManager（重要！）
+    await tokenManager.clearToken();
+    
     print('✅ 登出成功');
+    print('   TokenManager 已清除 ✅');
   }
 
   /// 保存到本地存储

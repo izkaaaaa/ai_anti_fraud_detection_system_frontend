@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
-import 'package:video_player/video_player.dart';
-import 'package:dio/dio.dart';
-import 'dart:convert';
-import 'package:flutter/services.dart';
-import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
-import 'package:file_picker/file_picker.dart';
-import 'dart:io';
+import 'dart:math' as math;
 
 class DetectionPage extends StatefulWidget {
   const DetectionPage({super.key});
@@ -15,369 +9,157 @@ class DetectionPage extends StatefulWidget {
   State<DetectionPage> createState() => _DetectionPageState();
 }
 
-class _DetectionPageState extends State<DetectionPage> {
-  // 视频播放器
-  VideoPlayerController? _videoController;
-  
-  // 检测状态：0=未开始, 1=检测中, 2=已完成
-  int _detectionStatus = 0;
-  
-  // 当前安全状态：0=未检测, 1=安全, 2=可疑, 3=危险
-  int _safetyStatus = 0;
-  
-  // 置信度
-  double _videoConfidence = 0.0;
-  
-  // 检测结果信息
-  String _resultMessage = '';
-  
-  // 任务 ID
-  String? _taskId;
-  
-  // 使用 AuthService 创建带 Token 的 Dio
-  late Dio _dio;
-  
-  // 当前选择的视频文件
-  File? _selectedVideoFile;
-  PlatformFile? _selectedPlatformFile;
-  
-  // 视频来源：0=默认视频, 1=用户选择的视频
-  int _videoSource = 0;
-  
-  // 视频文件名
-  String _videoFileName = 'test_video.mp4';
+// 监测状态枚举
+enum DetectionState {
+  idle,        // 空闲
+  preparing,   // 准备中
+  connecting,  // 连接中
+  monitoring,  // 监测中
+  warning,     // 警告中
+  stopping,    // 停止中
+  error,       // 错误
+}
 
+// 风险等级枚举
+enum RiskLevel {
+  safe,      // 安全
+  low,       // 低风险
+  medium,    // 中风险
+  high,      // 高风险
+  critical,  // 严重风险
+}
+
+class _DetectionPageState extends State<DetectionPage> with TickerProviderStateMixin {
+  // 当前状态
+  DetectionState _currentState = DetectionState.idle;
+  
+  // 检测结果
+  double _audioConfidence = 0.0;
+  bool _audioIsFake = false;
+  double _videoConfidence = 0.0;
+  bool _videoIsDeepfake = false;
+  String _textRiskLevel = 'safe';
+  List<String> _textKeywords = [];
+  
+  // 综合风险等级
+  RiskLevel _overallRisk = RiskLevel.safe;
+  
+  // 连接状态
+  bool _isConnected = false;
+  String _statusMessage = '点击开始按钮启动实时监测';
+  
+  // 动画控制器
+  late AnimationController _pulseController;
+  late AnimationController _waveController;
+  late Animation<double> _pulseAnimation;
+  
   @override
   void initState() {
     super.initState();
-    _dio = AuthService().createAuthDio();  // 使用带 Token 的 Dio
-    _initVideoPlayer();
-  }
-  
-  // 初始化视频播放器
-  Future<void> _initVideoPlayer() async {
-    try {
-      // 从 assets 加载默认视频
-      _videoController = VideoPlayerController.asset('lib/assets/test_video.mp4');
-      await _videoController!.initialize();
-      setState(() {});
-    } catch (e) {
-      print('视频加载失败: $e');
-      _showError('视频加载失败');
-    }
-  }
-  
-  // 选择视频文件
-  Future<void> _pickVideoFile() async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.video,
-        allowMultiple: false,
-      );
-      
-      if (result != null && result.files.isNotEmpty) {
-        _selectedPlatformFile = result.files.first;
-        
-        // 释放旧的视频控制器
-        await _videoController?.dispose();
-        
-        // 根据平台加载视频
-        if (result.files.first.path != null) {
-          // 移动端：使用文件路径
-          _selectedVideoFile = File(result.files.first.path!);
-          _videoController = VideoPlayerController.file(_selectedVideoFile!);
-        } else if (result.files.first.bytes != null) {
-          // Web 端：使用字节数据（需要特殊处理）
-          // Web 端暂时使用默认视频预览
-          _videoController = VideoPlayerController.asset('lib/assets/test_video.mp4');
-        }
-        
-        await _videoController!.initialize();
-        
-        setState(() {
-          _videoSource = 1;
-          _videoFileName = result.files.first.name;
-          _detectionStatus = 0;
-          _safetyStatus = 0;
-          _videoConfidence = 0.0;
-          _resultMessage = '';
-        });
-        
-        _showSuccess('视频已选择：${result.files.first.name}');
-      }
-    } catch (e) {
-      print('选择视频失败: $e');
-      _showError('选择视频失败: ${e.toString()}');
-    }
-  }
-  
-  // 切换回默认视频
-  Future<void> _useDefaultVideo() async {
-    try {
-      await _videoController?.dispose();
-      
-      _selectedVideoFile = null;
-      _selectedPlatformFile = null;
-      
-      _videoController = VideoPlayerController.asset('lib/assets/test_video.mp4');
-      await _videoController!.initialize();
-      
-      setState(() {
-        _videoSource = 0;
-        _videoFileName = 'test_video.mp4';
-        _detectionStatus = 0;
-        _safetyStatus = 0;
-        _videoConfidence = 0.0;
-        _resultMessage = '';
-      });
-      
-      _showSuccess('已切换到默认视频');
-    } catch (e) {
-      print('切换视频失败: $e');
-      _showError('切换视频失败');
-    }
+    
+    // 初始化脉冲动画（用于监测中的指示器）
+    _pulseController = AnimationController(
+      duration: Duration(seconds: 2),
+      vsync: this,
+    )..repeat(reverse: true);
+    
+    _pulseAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+    
+    // 初始化波形动画
+    _waveController = AnimationController(
+      duration: Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat();
   }
   
   @override
   void dispose() {
-    _videoController?.dispose();
+    _pulseController.dispose();
+    _waveController.dispose();
     super.dispose();
   }
   
-  // 开始检测（支持 Web 和移动端）
-  Future<void> _startDetection() async {
-    if (_videoController == null || !_videoController!.value.isInitialized) {
-      _showError('视频未加载');
-      return;
-    }
-    
+  // 开始监测
+  void _startMonitoring() {
     setState(() {
-      _detectionStatus = 1;  // 检测中
-      _resultMessage = '步骤 1/5: 准备视频文件...';
+      _currentState = DetectionState.preparing;
+      _statusMessage = '正在准备...';
     });
     
-    try {
-      // ========== 步骤 1: 读取视频文件 ==========
-      print('📁 步骤 1: 读取视频文件');
-      List<int> bytes;
-      
-      if (_videoSource == 1 && _selectedPlatformFile != null) {
-        // 用户选择的视频
-        if (_selectedPlatformFile!.bytes != null) {
-          // Web 端：直接使用字节数据
-          bytes = _selectedPlatformFile!.bytes!;
-          print('✅ 使用用户选择的视频 (Web): ${_videoFileName}');
-        } else if (_selectedVideoFile != null) {
-          // 移动端：从文件读取
-          bytes = await _selectedVideoFile!.readAsBytes();
-          print('✅ 使用用户选择的视频 (移动端): ${_videoFileName}');
-        } else {
-          throw Exception('无法读取视频文件');
-        }
-      } else {
-        // 默认视频
-        final ByteData data = await rootBundle.load('lib/assets/test_video.mp4');
-        bytes = data.buffer.asUint8List();
-        print('✅ 使用默认视频: test_video.mp4');
+    // TODO: 实际的启动逻辑
+    Future.delayed(Duration(seconds: 1), () {
+      if (mounted) {
+        setState(() {
+          _currentState = DetectionState.connecting;
+          _statusMessage = '正在连接服务器...';
+        });
       }
-      
-      print('✅ 视频文件大小: ${bytes.length} bytes');
-      
-      // ========== 步骤 2: 准备上传（Web 和移动端兼容） ==========
-      setState(() {
-        _resultMessage = '步骤 2/5: 准备上传...';
-      });
-      print('📝 步骤 2: 准备上传');
-      
-      // ========== 步骤 3: 上传视频到后端 ==========
-      setState(() {
-        _resultMessage = '步骤 3/5: 上传视频到服务器...';
-      });
-      print('📤 步骤 3: 上传视频到后端');
-      print('   接口: POST /api/detection/upload/video');
-      
-      // 创建 MultipartFile
-      FormData formData = FormData.fromMap({
-        'file': MultipartFile.fromBytes(
-          bytes,
-          filename: _videoFileName,
-        ),
-      });
-      
-      print('   使用 Token 认证: ${AuthService().accessToken != null}');
-      
-      final uploadResponse = await _dio.post(
-        '/api/detection/upload/video',
-        data: formData,
-        options: Options(
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        ),
-      );
-      
-      print('✅ 上传成功');
-      print('   响应: ${uploadResponse.data}');
-      
-      // 从响应中获取视频 URL（如果后端返回了）
-      final videoUrl = uploadResponse.data['data']?['url'];
-      print('   视频 URL: $videoUrl');
-      
-      // ========== 步骤 4: 提取视频帧（可选，取决于后端实现） ==========
-      // 有些后端会在上传时自动提取帧，有些需要单独调用
-      // 这里我们假设后端已经自动处理了
-      
-      // ========== 步骤 5: 提交检测任务 ==========
-      setState(() {
-        _resultMessage = '步骤 4/5: 提交检测任务...';
-      });
-      print('🔍 步骤 4: 提交视频检测任务');
-      print('   接口: POST /api/tasks/video/detect');
-      
-      // 注意：这里需要根据你的后端实际接口调整
-      // 如果后端需要 frame_data，可能需要先提取帧
-      final taskResponse = await _dio.post(
-        '/api/tasks/video/detect',
-        data: {
-          'frame_data': [],  // 这里可能需要实际的帧数据
-          'call_id': 1,      // 测试用的 call_id
-        },
-      );
-      
-      _taskId = taskResponse.data['data']['task_id'];
-      print('✅ 任务已提交');
-      print('   任务 ID: $_taskId');
-      
-      // ========== 步骤 6: 轮询查询任务状态 ==========
-      setState(() {
-        _resultMessage = '步骤 5/5: 等待检测结果...';
-      });
-      print('⏳ 步骤 5: 轮询任务状态');
-      
-      await _pollTaskStatus();
-      
-    } catch (e) {
-      print('❌ 检测失败: $e');
-      if (e is DioException) {
-        print('   状态码: ${e.response?.statusCode}');
-        print('   响应数据: ${e.response?.data}');
-      }
-      
-      setState(() {
-        _detectionStatus = 0;
-        _resultMessage = '检测失败';
-      });
-      _showError('检测失败: ${e.toString()}');
-    }
-  }
-  
-  // 轮询查询任务状态
-  Future<void> _pollTaskStatus() async {
-    if (_taskId == null) {
-      _showError('任务 ID 为空');
-      return;
-    }
-    
-    int maxRetries = 30;  // 最多查询 30 次
-    int retryCount = 0;
-    
-    while (retryCount < maxRetries) {
-      try {
-        print('🔄 查询任务状态 (第 ${retryCount + 1} 次)');
-        print('   接口: GET /api/tasks/status/$_taskId');
-        
-        final statusResponse = await _dio.get(
-          '/api/tasks/status/$_taskId',
-        );
-        
-        final status = statusResponse.data['data']['status'];
-        print('   状态: $status');
-        
-        if (status == 'SUCCESS') {
-          // 检测完成
-          final result = statusResponse.data['data']['result'];
-          final confidence = result['confidence'] ?? 0.0;
-          final isFake = result['is_fake'] ?? false;
-          
-          print('✅ 检测完成');
-          print('   置信度: $confidence');
-          print('   是否伪造: $isFake');
-          
-          setState(() {
-            _detectionStatus = 2;
-            _videoConfidence = confidence;
-            
-            if (isFake) {
-              // 检测到伪造
-              if (confidence < 0.4) {
-                _safetyStatus = 3;  // 危险
-                _resultMessage = '检测完成！检测到 Deepfake 伪造！';
-              } else {
-                _safetyStatus = 2;  // 可疑
-                _resultMessage = '检测完成！视频存在可疑特征。';
-              }
-            } else {
-              // 真实视频
-              _safetyStatus = 1;  // 安全
-              _resultMessage = '检测完成！视频内容真实可信。';
-            }
-          });
-          
-          _showSuccess('检测完成！');
-          return;
-          
-        } else if (status == 'FAILURE') {
-          // 检测失败
-          print('❌ 任务失败');
-          throw Exception('检测任务失败');
-          
-        } else {
-          // PENDING 或 PROCESSING，继续等待
-          print('   继续等待...');
-          await Future.delayed(Duration(seconds: 2));
-          retryCount++;
-        }
-        
-      } catch (e) {
-        print('❌ 查询状态失败: $e');
-        throw e;
-      }
-    }
-    
-    // 超时
-    throw Exception('检测超时，请稍后重试');
-  }
-  
-  // 重置检测
-  void _resetDetection() {
-    setState(() {
-      _detectionStatus = 0;
-      _safetyStatus = 0;
-      _videoConfidence = 0.0;
-      _resultMessage = '';
     });
-    _videoController?.seekTo(Duration.zero);
-    _videoController?.pause();
+    
+    Future.delayed(Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _currentState = DetectionState.monitoring;
+          _isConnected = true;
+          _statusMessage = '监测中...';
+        });
+        
+        // 模拟接收检测结果
+        _simulateDetectionResults();
+      }
+    });
   }
   
-  // 显示错误提示
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppColors.error,
-      ),
-    );
+  // 停止监测
+  void _stopMonitoring() {
+    setState(() {
+      _currentState = DetectionState.stopping;
+      _statusMessage = '正在停止...';
+    });
+    
+    Future.delayed(Duration(seconds: 1), () {
+      if (mounted) {
+        setState(() {
+          _currentState = DetectionState.idle;
+          _isConnected = false;
+          _statusMessage = '已停止监测';
+          _audioConfidence = 0.0;
+          _videoConfidence = 0.0;
+          _overallRisk = RiskLevel.safe;
+        });
+      }
+    });
   }
   
-  // 显示成功提示
-  void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppColors.success,
-      ),
-    );
+  // 模拟检测结果（用于演示）
+  void _simulateDetectionResults() {
+    if (_currentState != DetectionState.monitoring) return;
+    
+    Future.delayed(Duration(seconds: 3), () {
+      if (_currentState == DetectionState.monitoring && mounted) {
+        setState(() {
+          _audioConfidence = 0.85 + math.Random().nextDouble() * 0.1;
+          _audioIsFake = false;
+          _videoConfidence = 0.90 + math.Random().nextDouble() * 0.05;
+          _videoIsDeepfake = false;
+          _textRiskLevel = 'safe';
+          _overallRisk = RiskLevel.safe;
+        });
+        _simulateDetectionResults();
+      }
+    });
+  }
+  
+  // 计算综合风险等级
+  RiskLevel _calculateOverallRisk() {
+    if (_audioIsFake && _audioConfidence > 0.8) return RiskLevel.critical;
+    if (_videoIsDeepfake && _videoConfidence > 0.8) return RiskLevel.critical;
+    if (_textRiskLevel == 'high') return RiskLevel.high;
+    if (_audioIsFake || _videoIsDeepfake) return RiskLevel.medium;
+    if (_textRiskLevel == 'medium') return RiskLevel.medium;
+    return RiskLevel.safe;
   }
 
   @override
@@ -388,13 +170,47 @@ class _DetectionPageState extends State<DetectionPage> {
         backgroundColor: AppColors.cardBackground,
         elevation: 0,
         title: Text(
-          '视频检测测试',
+          '实时监测',
           style: TextStyle(
             color: AppColors.textPrimary,
             fontSize: AppTheme.fontSizeLarge,
             fontWeight: FontWeight.bold,
           ),
         ),
+        actions: [
+          if (_isConnected)
+            Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: Row(
+                children: [
+                  AnimatedBuilder(
+                    animation: _pulseAnimation,
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scale: _pulseAnimation.value,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: AppColors.success,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    '已连接',
+                    style: TextStyle(
+                      fontSize: AppTheme.fontSizeSmall,
+                      color: AppColors.success,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
         bottom: PreferredSize(
           preferredSize: Size.fromHeight(1.5),
           child: Container(
@@ -408,201 +224,18 @@ class _DetectionPageState extends State<DetectionPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildVideoSourceSelector(),
-            SizedBox(height: AppTheme.paddingMedium),
-            _buildVideoPlayer(),
-            SizedBox(height: AppTheme.paddingMedium),
             _buildStatusCard(),
             SizedBox(height: AppTheme.paddingMedium),
-            _buildVideoDetectionCard(),
-            SizedBox(height: AppTheme.paddingLarge),
+            _buildAudioWaveform(),
+            SizedBox(height: AppTheme.paddingMedium),
+            _buildDetectionResults(),
+            SizedBox(height: AppTheme.paddingMedium),
+            if (_overallRisk == RiskLevel.high || _overallRisk == RiskLevel.critical)
+              _buildRiskWarning(),
+            if (_overallRisk == RiskLevel.high || _overallRisk == RiskLevel.critical)
+              SizedBox(height: AppTheme.paddingMedium),
             _buildControlButtons(),
           ],
-        ),
-      ),
-    );
-  }
-  
-  // 视频源选择器
-  Widget _buildVideoSourceSelector() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(
-          color: AppColors.borderDark,
-          width: 2.0,
-        ),
-        boxShadow: AppTheme.shadowSmall,
-      ),
-      padding: EdgeInsets.all(AppTheme.paddingMedium),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.video_library, color: AppColors.primary, size: 20),
-              SizedBox(width: AppTheme.paddingSmall),
-              Text(
-                '视频来源',
-                style: TextStyle(
-                  fontSize: AppTheme.fontSizeMedium,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: AppTheme.paddingSmall),
-          Row(
-            children: [
-              Expanded(
-                child: _buildSourceButton(
-                  label: '默认视频',
-                  icon: Icons.video_file,
-                  isSelected: _videoSource == 0,
-                  onTap: _detectionStatus == 1 ? null : _useDefaultVideo,
-                ),
-              ),
-              SizedBox(width: AppTheme.paddingSmall),
-              Expanded(
-                child: _buildSourceButton(
-                  label: '选择视频',
-                  icon: Icons.folder_open,
-                  isSelected: _videoSource == 1,
-                  onTap: _detectionStatus == 1 ? null : _pickVideoFile,
-                ),
-              ),
-            ],
-          ),
-          if (_videoFileName.isNotEmpty) ...[
-            SizedBox(height: AppTheme.paddingSmall),
-            Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: AppTheme.paddingSmall,
-                vertical: AppTheme.paddingSmall / 2,
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.play_circle_outline, 
-                    color: AppColors.primary, 
-                    size: 16
-                  ),
-                  SizedBox(width: AppTheme.paddingSmall / 2),
-                  Expanded(
-                    child: Text(
-                      _videoFileName,
-                      style: TextStyle(
-                        fontSize: AppTheme.fontSizeSmall,
-                        color: AppColors.textSecondary,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-  
-  // 视频源按钮
-  Widget _buildSourceButton({
-    required String label,
-    required IconData icon,
-    required bool isSelected,
-    required VoidCallback? onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          vertical: AppTheme.paddingSmall,
-          horizontal: AppTheme.paddingSmall,
-        ),
-        decoration: BoxDecoration(
-          color: isSelected 
-            ? AppColors.primary.withOpacity(0.15) 
-            : AppColors.background,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.borderLight,
-            width: isSelected ? 2.0 : 1.0,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? AppColors.primary : AppColors.textSecondary,
-              size: 18,
-            ),
-            SizedBox(width: AppTheme.paddingSmall / 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeSmall,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  // 视频播放器
-  Widget _buildVideoPlayer() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(
-          color: AppColors.borderDark,
-          width: 2.0,
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge - 2),
-        child: AspectRatio(
-          aspectRatio: 16 / 9,
-          child: _videoController != null && _videoController!.value.isInitialized
-              ? Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    VideoPlayer(_videoController!),
-                    // 播放/暂停按钮
-                    if (!_videoController!.value.isPlaying)
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black54,
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          icon: Icon(Icons.play_arrow, color: Colors.white, size: 48),
-                          onPressed: () {
-                            setState(() {
-                              _videoController!.play();
-                            });
-                          },
-                        ),
-                      ),
-                  ],
-                )
-              : Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.primary,
-                  ),
-                ),
         ),
       ),
     );
@@ -611,44 +244,59 @@ class _DetectionPageState extends State<DetectionPage> {
   // 状态卡片
   Widget _buildStatusCard() {
     Color statusColor;
-    String statusText;
     IconData statusIcon;
-
-    switch (_safetyStatus) {
-      case 0:
+    String statusText;
+    
+    switch (_currentState) {
+      case DetectionState.idle:
         statusColor = AppColors.textSecondary;
-        statusText = '未检测';
-        statusIcon = Icons.help_outline;
+        statusIcon = Icons.radio_button_unchecked;
+        statusText = '未启动';
         break;
-      case 1:
-        statusColor = AppColors.success;
-        statusText = '安全视频';
-        statusIcon = Icons.check_circle;
-        break;
-      case 2:
+      case DetectionState.preparing:
         statusColor = AppColors.warning;
-        statusText = '可疑视频';
-        statusIcon = Icons.warning;
+        statusIcon = Icons.hourglass_empty;
+        statusText = '准备中';
         break;
-      case 3:
+      case DetectionState.connecting:
+        statusColor = AppColors.warning;
+        statusIcon = Icons.sync;
+        statusText = '连接中';
+        break;
+      case DetectionState.monitoring:
+        statusColor = AppColors.success;
+        statusIcon = Icons.radio_button_checked;
+        statusText = '监测中';
+        break;
+      case DetectionState.warning:
         statusColor = AppColors.error;
-        statusText = '危险视频';
-        statusIcon = Icons.dangerous;
+        statusIcon = Icons.warning;
+        statusText = '警告';
         break;
-      default:
+      case DetectionState.stopping:
         statusColor = AppColors.textSecondary;
-        statusText = '未检测';
-        statusIcon = Icons.help_outline;
+        statusIcon = Icons.stop_circle;
+        statusText = '停止中';
+        break;
+      case DetectionState.error:
+        statusColor = AppColors.error;
+        statusIcon = Icons.error;
+        statusText = '错误';
+        break;
     }
-
+    
     return Container(
       decoration: BoxDecoration(
-        color: statusColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(
-          color: statusColor,
-          width: 2.0,
+        gradient: LinearGradient(
+          colors: [
+            statusColor.withOpacity(0.1),
+            AppColors.cardBackground,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        border: Border.all(color: statusColor, width: 2.0),
         boxShadow: AppTheme.shadowMedium,
       ),
       padding: EdgeInsets.all(AppTheme.paddingLarge),
@@ -657,106 +305,260 @@ class _DetectionPageState extends State<DetectionPage> {
           Icon(statusIcon, color: statusColor, size: 48),
           SizedBox(height: AppTheme.paddingMedium),
           Text(
-            '检测结果：$statusText',
+            statusText,
             style: TextStyle(
               fontSize: AppTheme.fontSizeXLarge,
               fontWeight: FontWeight.bold,
               color: statusColor,
             ),
           ),
-          if (_videoConfidence > 0) ...[
-            SizedBox(height: AppTheme.paddingSmall),
-            Text(
-              '置信度：${(_videoConfidence * 100).toStringAsFixed(0)}%',
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeMedium,
-                color: AppColors.textSecondary,
-              ),
+          SizedBox(height: AppTheme.paddingSmall),
+          Text(
+            _statusMessage,
+            style: TextStyle(
+              fontSize: AppTheme.fontSizeMedium,
+              color: AppColors.textSecondary,
             ),
-          ],
-          if (_resultMessage.isNotEmpty) ...[
-            SizedBox(height: AppTheme.paddingSmall),
-            Text(
-              _resultMessage,
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeSmall,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
   }
   
-  // 视频检测卡片
-  Widget _buildVideoDetectionCard() {
+  // 音频波形显示
+  Widget _buildAudioWaveform() {
     return Container(
+      height: 120,
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(
-          color: AppColors.borderDark,
-          width: 2.0,
-        ),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(color: AppColors.borderDark, width: 2.0),
         boxShadow: AppTheme.shadowSmall,
       ),
-      padding: EdgeInsets.all(AppTheme.paddingLarge),
+      padding: EdgeInsets.all(AppTheme.paddingMedium),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.videocam, color: AppColors.primary, size: 24),
+              Icon(Icons.graphic_eq, color: AppColors.primary, size: 20),
               SizedBox(width: AppTheme.paddingSmall),
               Text(
-                '视频分析',
+                '音频监测',
                 style: TextStyle(
-                  fontSize: AppTheme.fontSizeLarge,
+                  fontSize: AppTheme.fontSizeMedium,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textPrimary,
                 ),
               ),
             ],
           ),
-          SizedBox(height: AppTheme.paddingMedium),
-          
-          // 进度条
-          Row(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                  child: LinearProgressIndicator(
-                    value: _videoConfidence,
-                    minHeight: 12,
-                    backgroundColor: AppColors.borderLight,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      _videoConfidence > 0.7 ? AppColors.success : 
-                      _videoConfidence > 0.4 ? AppColors.warning : AppColors.error
+          SizedBox(height: AppTheme.paddingSmall),
+          Expanded(
+            child: _currentState == DetectionState.monitoring
+                ? AnimatedBuilder(
+                    animation: _waveController,
+                    builder: (context, child) {
+                      return CustomPaint(
+                        painter: WaveformPainter(
+                          progress: _waveController.value,
+                          color: AppColors.primary,
+                        ),
+                        size: Size.infinite,
+                      );
+                    },
+                  )
+                : Center(
+                    child: Text(
+                      '未监测',
+                      style: TextStyle(
+                        fontSize: AppTheme.fontSizeSmall,
+                        color: AppColors.textLight,
+                      ),
                     ),
                   ),
-                ),
-              ),
-              SizedBox(width: AppTheme.paddingSmall),
-              Text(
-                '${(_videoConfidence * 100).toStringAsFixed(0)}%',
-                style: TextStyle(
-                  fontSize: AppTheme.fontSizeMedium,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
           ),
+        ],
+      ),
+    );
+  }
+  
+  // 检测结果显示
+  Widget _buildDetectionResults() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        border: Border.all(color: AppColors.borderDark, width: 2.0),
+        boxShadow: AppTheme.shadowSmall,
+      ),
+      padding: EdgeInsets.all(AppTheme.paddingLarge),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '检测结果',
+            style: TextStyle(
+              fontSize: AppTheme.fontSizeLarge,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          SizedBox(height: AppTheme.paddingMedium),
+          
+          // 音频检测
+          _buildResultItem(
+            icon: Icons.mic,
+            label: '音频检测',
+            confidence: _audioConfidence,
+            isSafe: !_audioIsFake,
+          ),
+          
           SizedBox(height: AppTheme.paddingSmall),
           
-          Text(
-            _detectionStatus == 1 ? '状态：检测中...' : 
-            _detectionStatus == 2 ? '状态：检测完成' : '状态：未检测',
-            style: TextStyle(
-              fontSize: AppTheme.fontSizeSmall,
-              color: AppColors.textSecondary,
+          // 视频检测
+          _buildResultItem(
+            icon: Icons.videocam,
+            label: '视频检测',
+            confidence: _videoConfidence,
+            isSafe: !_videoIsDeepfake,
+          ),
+          
+          SizedBox(height: AppTheme.paddingSmall),
+          
+          // 文本检测
+          _buildResultItem(
+            icon: Icons.text_fields,
+            label: '文本检测',
+            confidence: _textRiskLevel == 'safe' ? 0.95 : 0.5,
+            isSafe: _textRiskLevel == 'safe',
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // 单个检测结果项
+  Widget _buildResultItem({
+    required IconData icon,
+    required String label,
+    required double confidence,
+    required bool isSafe,
+  }) {
+    final color = isSafe ? AppColors.success : AppColors.error;
+    final statusText = isSafe ? '安全' : '风险';
+    
+    return Container(
+      padding: EdgeInsets.all(AppTheme.paddingMedium),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 24),
+          SizedBox(width: AppTheme.paddingMedium),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: AppTheme.fontSizeMedium,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                        child: LinearProgressIndicator(
+                          value: confidence,
+                          minHeight: 6,
+                          backgroundColor: AppColors.borderLight,
+                          valueColor: AlwaysStoppedAnimation<Color>(color),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: AppTheme.paddingSmall),
+                    Text(
+                      '${(confidence * 100).toStringAsFixed(0)}%',
+                      style: TextStyle(
+                        fontSize: AppTheme.fontSizeSmall,
+                        fontWeight: FontWeight.w600,
+                        color: color,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: AppTheme.paddingMedium),
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 4,
+            ),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+            ),
+            child: Text(
+              statusText,
+              style: TextStyle(
+                fontSize: AppTheme.fontSizeSmall,
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // 风险警告
+  Widget _buildRiskWarning() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.error,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(color: AppColors.borderDark, width: 2.0),
+        boxShadow: AppTheme.shadowMedium,
+      ),
+      padding: EdgeInsets.all(AppTheme.paddingLarge),
+      child: Row(
+        children: [
+          Icon(Icons.warning, color: Colors.white, size: 32),
+          SizedBox(width: AppTheme.paddingMedium),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '⚠️ 风险警告',
+                  style: TextStyle(
+                    fontSize: AppTheme.fontSizeLarge,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  '检测到可疑内容，请提高警惕！',
+                  style: TextStyle(
+                    fontSize: AppTheme.fontSizeMedium,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -766,84 +568,99 @@ class _DetectionPageState extends State<DetectionPage> {
   
   // 控制按钮
   Widget _buildControlButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            height: 50,
-            decoration: BoxDecoration(
-              color: _detectionStatus == 1 ? AppColors.borderLight : AppColors.primary,
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              border: Border.all(
-                color: AppColors.borderDark,
-                width: 2.0,
-              ),
-              boxShadow: _detectionStatus == 1 ? [] : AppTheme.shadowMedium,
-            ),
-            child: ElevatedButton(
-              onPressed: _detectionStatus == 1 ? null : _startDetection,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                foregroundColor: AppColors.textWhite,
-                shadowColor: Colors.transparent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+    final isMonitoring = _currentState == DetectionState.monitoring;
+    final isProcessing = _currentState == DetectionState.preparing ||
+                        _currentState == DetectionState.connecting ||
+                        _currentState == DetectionState.stopping;
+    
+    return Container(
+      height: 56,
+      decoration: BoxDecoration(
+        color: isMonitoring ? AppColors.error : AppColors.primary,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(color: AppColors.borderDark, width: 2.0),
+        boxShadow: isProcessing ? [] : AppTheme.shadowMedium,
+      ),
+      child: ElevatedButton.icon(
+        onPressed: isProcessing
+            ? null
+            : isMonitoring
+                ? _stopMonitoring
+                : _startMonitoring,
+        icon: isProcessing
+            ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
+              )
+            : Icon(
+                isMonitoring ? Icons.stop : Icons.play_arrow,
+                size: 28,
               ),
-              child: _detectionStatus == 1
-                  ? SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.textWhite),
-                      ),
-                    )
-                  : Text(
-                      '开始检测',
-                      style: TextStyle(
-                        fontSize: AppTheme.fontSizeLarge,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-            ),
+        label: Text(
+          isProcessing
+              ? '处理中...'
+              : isMonitoring
+                  ? '停止监测'
+                  : '开始监测',
+          style: TextStyle(
+            fontSize: AppTheme.fontSizeLarge,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        SizedBox(width: AppTheme.paddingMedium),
-        Expanded(
-          child: Container(
-            height: 50,
-            decoration: BoxDecoration(
-              color: _detectionStatus == 0 ? AppColors.borderLight : AppColors.secondaryLight,
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              border: Border.all(
-                color: AppColors.borderDark,
-                width: 2.0,
-              ),
-              boxShadow: _detectionStatus == 0 ? [] : AppTheme.shadowMedium,
-            ),
-            child: ElevatedButton(
-              onPressed: _detectionStatus == 0 ? null : _resetDetection,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                foregroundColor: AppColors.textPrimary,
-                shadowColor: Colors.transparent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                ),
-              ),
-              child: Text(
-                '重置',
-                style: TextStyle(
-                  fontSize: AppTheme.fontSizeLarge,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
           ),
         ),
-      ],
+      ),
     );
   }
 }
 
+// 波形绘制器
+class WaveformPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+  
+  WaveformPainter({required this.progress, required this.color});
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+    
+    final path = Path();
+    final waveCount = 3;
+    final amplitude = size.height / 4;
+    
+    for (int i = 0; i < size.width.toInt(); i++) {
+      final x = i.toDouble();
+      final y = size.height / 2 +
+          math.sin((i / size.width * waveCount * 2 * math.pi) + (progress * 2 * math.pi)) *
+              amplitude *
+              (0.5 + math.Random(i).nextDouble() * 0.5);
+      
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    
+    canvas.drawPath(path, paint);
+  }
+  
+  @override
+  bool shouldRepaint(WaveformPainter oldDelegate) {
+    return oldDelegate.progress != progress;
+  }
+}
