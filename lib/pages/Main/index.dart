@@ -5,6 +5,8 @@ import 'package:ai_anti_fraud_detection_system_frontend/pages/CallRecords/index.
 import 'package:ai_anti_fraud_detection_system_frontend/pages/Family/index.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/pages/Profile/index.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/pages/Test/index.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/utils/PermissionManager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -15,6 +17,8 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   int _currentIndex = 0;
+  final PermissionManager _permissionManager = PermissionManager();
+  bool _hasRequestedPermissions = false;
 
   final List<Widget> _pages = [
     DetectionPage(),
@@ -23,6 +27,30 @@ class _MainPageState extends State<MainPage> {
     TestPage(),
     ProfilePage(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAndRequestPermissions();
+  }
+
+  /// 检查并请求权限（仅首次启动）
+  Future<void> _checkAndRequestPermissions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isFirstLaunch = prefs.getBool('is_first_launch') ?? true;
+    
+    if (isFirstLaunch && !_hasRequestedPermissions) {
+      _hasRequestedPermissions = true;
+      
+      // 延迟一下，等待页面完全加载
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      if (mounted) {
+        await _permissionManager.requestPermissionsOnFirstLaunch(context);
+        await prefs.setBool('is_first_launch', false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

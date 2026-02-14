@@ -38,6 +38,15 @@ class DioRequest {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (request, handler) {
+          // 如果有 token，自动添加到请求头
+          if (tokenManager.getToken().isNotEmpty) {
+            request.headers['Authorization'] = 
+                '${tokenManager.getTokenType()} ${tokenManager.getToken()}';
+            print('🔑 已添加 Token: ${tokenManager.getTokenType()} ${tokenManager.getToken().substring(0, 20)}...');
+          } else {
+            print('⚠️ 警告: Token 为空，未添加 Authorization 头');
+          }
+          
           // 打印请求信息
           print('📤 请求: ${request.method} ${request.uri}');
           print('   Headers: ${request.headers}');
@@ -45,11 +54,6 @@ class DioRequest {
             print('   Data: ${request.data}');
           }
           
-          // 如果有 token，自动添加到请求头
-          if (tokenManager.getToken().isNotEmpty) {
-            request.headers['Authorization'] = 
-                '${tokenManager.getTokenType()} ${tokenManager.getToken()}';
-          }
           handler.next(request);
         },
         onResponse: (response, handler) {
@@ -111,8 +115,8 @@ class DioRequest {
     return _handleResponse(_dio.get(url, queryParameters: params));
   }
   
-  Future<dynamic> post(String url, {Map<String, dynamic>? data}) {
-    return _handleResponse(_dio.post(url, data: data));
+  Future<dynamic> post(String url, {Map<String, dynamic>? data, Map<String, dynamic>? params}) {
+    return _handleResponse(_dio.post(url, data: data, queryParameters: params));
   }
   
   Future<dynamic> put(String url, {Map<String, dynamic>? data}) {

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/utils/PermissionManager.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/services/RealTimeDetectionService.dart';
+import 'package:get/get.dart';
 import 'dart:math' as math;
 
 class DetectionPage extends StatefulWidget {
@@ -48,6 +51,12 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
   bool _isConnected = false;
   String _statusMessage = '点击开始按钮启动实时监测';
   
+  // 实时检测服务
+  final RealTimeDetectionService _detectionService = RealTimeDetectionService();
+  
+  // 真实音频波形数据
+  List<double> _realAudioWaveform = List.filled(50, 0.0);
+  
   // 动画控制器
   late AnimationController _pulseController;
   late AnimationController _waveController;
@@ -72,93 +81,344 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
       duration: Duration(milliseconds: 1500),
       vsync: this,
     )..repeat();
+    
+    // 设置检测服务回调
+    _setupDetectionServiceCallbacks();
   }
   
   @override
   void dispose() {
     _pulseController.dispose();
     _waveController.dispose();
+    _detectionService.dispose();
     super.dispose();
   }
   
+  /// 设置检测服务回调
+  void _setupDetectionServiceCallbacks() {
+    _detectionService.onDetectionResult = (result) {
+      if (mounted) {
+        setState(() {
+          // 更新检测结果
+          if (result['audio'] != null) {
+            _audioConfidence = (result['audio']['confidence'] ?? 0.0).toDouble();
+            _audioIsFake = result['audio']['is_fake'] ?? false;
+          }
+          
+          if (result['video'] != null) {
+            _videoConfidence = (result['video']['confidence'] ?? 0.0).toDouble();
+            _videoIsDeepfake = result['video']['is_deepfake'] ?? false;
+          }
+          
+          if (result['text'] != null) {
+            _textRiskLevel = result['text']['risk_level'] ?? 'safe';
+            _textKeywords = List<String>.from(result['text']['keywords'] ?? []);
+          }
+          
+          // 计算综合风险等级
+          _overallRisk = _calculateOverallRisk();
+          
+          // 如果是高风险，切换到警告状态
+          if (_overallRisk == RiskLevel.high || _overallRisk == RiskLevel.critical) {
+            _currentState = DetectionState.warning;
+          }
+        });
+      }
+    };
+    
+    // 新增：监听真实音频波形数据
+    _detectionService.onAudioWaveformUpdate = (waveformData) {
+      if (mounted) {
+        setState(() {
+          _realAudioWaveform = waveformData;
+        });
+      }
+    };
+    
+    _detectionService.onStatusChange = (message) {
+      if (mounted) {
+        setState(() {
+          _statusMessage = message;
+        });
+      }
+    };
+    
+    _detectionService.onError = (error) {
+      if (mounted) {
+        setState(() {
+          _currentState = DetectionState.error;
+          _statusMessage = error;
+        });
+        
+        Get.snackbar(
+          '错误',
+          error,
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          duration: Duration(seconds: 3),
+        );
+      }
+    };
+    
+    _detectionService.onConnected = () {
+      if (mounted) {
+        setState(() {
+          _isConnected = true;
+        });
+      }
+    };
+    
+    _detectionService.onDisconnected = () {
+      if (mounted) {
+        setState(() {
+          _isConnected = false;
+          if (_currentState == DetectionState.monitoring) {
+            _currentState = DetectionState.error;
+            _statusMessage = '连接已断开';
+          }
+        });
+      }
+    };
+  }
+  
   // 开始监测
-  void _startMonitoring() {
+  Future<void> _startMonitoring() async {
+    // 1. 检查权限
+    final permissionManager = PermissionManager();
+    await permissionManager.checkAllPermissions();
+    
+    if (!permissionManager.hasMicrophonePermission.value) {
+      // 显示权限说明对话框
+      final shouldRequest = await _showPermissionRequiredDialog();
+      if (!shouldRequest) {
+        return;
+      }
+      
+      // 请求麦克风权限
+      final granted = await permissionManager.requestMicrophonePermission(context);
+      if (!granted) {
+        _showPermissionDeniedDialog();
+        return;
+      }
+    }
+    
+    // 2. 更新状态为准备中
     setState(() {
       _currentState = DetectionState.preparing;
       _statusMessage = '正在准备...';
     });
     
-    // TODO: 实际的启动逻辑
-    Future.delayed(Duration(seconds: 1), () {
-      if (mounted) {
-        setState(() {
-          _currentState = DetectionState.connecting;
-          _statusMessage = '正在连接服务器...';
-        });
-      }
-    });
+    // 3. 延迟一下，显示准备状态
+    await Future.delayed(Duration(milliseconds: 500));
     
-    Future.delayed(Duration(seconds: 2), () {
+    // 4. 更新状态为连接中
+    if (mounted) {
+      setState(() {
+        _currentState = DetectionState.connecting;
+        _statusMessage = '正在连接服务器...';
+      });
+    }
+    
+    // 5. 启动检测服务
+    final success = await _detectionService.startDetection();
+    
+    if (success) {
       if (mounted) {
         setState(() {
           _currentState = DetectionState.monitoring;
-          _isConnected = true;
           _statusMessage = '监测中...';
         });
         
-        // 模拟接收检测结果
-        _simulateDetectionResults();
+        Get.snackbar(
+          '成功',
+          '实时监测已启动',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          duration: Duration(seconds: 2),
+        );
       }
-    });
+    } else {
+      if (mounted) {
+        setState(() {
+          _currentState = DetectionState.error;
+          _statusMessage = '启动失败，请重试';
+        });
+      }
+    }
   }
   
   // 停止监测
-  void _stopMonitoring() {
+  Future<void> _stopMonitoring() async {
     setState(() {
       _currentState = DetectionState.stopping;
       _statusMessage = '正在停止...';
     });
     
-    Future.delayed(Duration(seconds: 1), () {
-      if (mounted) {
-        setState(() {
-          _currentState = DetectionState.idle;
-          _isConnected = false;
-          _statusMessage = '已停止监测';
-          _audioConfidence = 0.0;
-          _videoConfidence = 0.0;
-          _overallRisk = RiskLevel.safe;
-        });
-      }
-    });
+    await _detectionService.stopDetection();
+    
+    if (mounted) {
+      setState(() {
+        _currentState = DetectionState.idle;
+        _isConnected = false;
+        _statusMessage = '已停止监测';
+        _audioConfidence = 0.0;
+        _videoConfidence = 0.0;
+        _audioIsFake = false;
+        _videoIsDeepfake = false;
+        _textRiskLevel = 'safe';
+        _textKeywords = [];
+        _overallRisk = RiskLevel.safe;
+      });
+      
+      Get.snackbar(
+        '已停止',
+        '实时监测已停止',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.grey[700],
+        colorText: Colors.white,
+        duration: Duration(seconds: 2),
+      );
+    }
   }
   
-  // 模拟检测结果（用于演示）
-  void _simulateDetectionResults() {
-    if (_currentState != DetectionState.monitoring) return;
-    
-    Future.delayed(Duration(seconds: 3), () {
-      if (_currentState == DetectionState.monitoring && mounted) {
-        setState(() {
-          _audioConfidence = 0.85 + math.Random().nextDouble() * 0.1;
-          _audioIsFake = false;
-          _videoConfidence = 0.90 + math.Random().nextDouble() * 0.05;
-          _videoIsDeepfake = false;
-          _textRiskLevel = 'safe';
-          _overallRisk = RiskLevel.safe;
-        });
-        _simulateDetectionResults();
-      }
-    });
+  /// 显示权限必需对话框
+  Future<bool> _showPermissionRequiredDialog() async {
+    return await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('需要权限'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '实时监测功能需要以下权限：',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.mic, color: Colors.blue, size: 20),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text('麦克风权限 - 录制音频进行实时分析'),
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.block, color: Colors.red, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '不授予权限将无法使用此功能',
+                      style: TextStyle(
+                        color: Colors.red[900],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('授予权限'),
+          ),
+        ],
+      ),
+    ) ?? false;
+  }
+  
+  /// 显示权限被拒绝对话框
+  void _showPermissionDeniedDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red),
+            SizedBox(width: 8),
+            Text('权限被拒绝'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('您拒绝了麦克风权限，无法使用实时监测功能。'),
+            SizedBox(height: 12),
+            Text(
+              '您可以在以下位置重新授予权限：',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text('• 我的 → 权限设置'),
+            Text('• 系统设置 → 应用权限'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('知道了'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              PermissionManager().openSettings();
+            },
+            child: Text('前往设置'),
+          ),
+        ],
+      ),
+    );
   }
   
   // 计算综合风险等级
   RiskLevel _calculateOverallRisk() {
+    // 严重风险：音频或视频检测到伪造且置信度高
     if (_audioIsFake && _audioConfidence > 0.8) return RiskLevel.critical;
     if (_videoIsDeepfake && _videoConfidence > 0.8) return RiskLevel.critical;
+    
+    // 高风险：文本检测到高风险
     if (_textRiskLevel == 'high') return RiskLevel.high;
+    
+    // 中风险：音频或视频检测到伪造但置信度较低，或文本中等风险
     if (_audioIsFake || _videoIsDeepfake) return RiskLevel.medium;
     if (_textRiskLevel == 'medium') return RiskLevel.medium;
+    
+    // 低风险：有一些可疑迹象
+    if (_textRiskLevel == 'low') return RiskLevel.low;
+    
+    // 安全
     return RiskLevel.safe;
   }
 
@@ -235,6 +495,8 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
             if (_overallRisk == RiskLevel.high || _overallRisk == RiskLevel.critical)
               SizedBox(height: AppTheme.paddingMedium),
             _buildControlButtons(),
+            SizedBox(height: AppTheme.paddingMedium),
+            _buildPermissionHint(),
           ],
         ),
       ),
@@ -352,22 +614,27 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                   color: AppColors.textPrimary,
                 ),
               ),
+              Spacer(),
+              if (_currentState == DetectionState.monitoring)
+                Text(
+                  '实时波形',
+                  style: TextStyle(
+                    fontSize: AppTheme.fontSizeSmall,
+                    color: AppColors.success,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
             ],
           ),
           SizedBox(height: AppTheme.paddingSmall),
           Expanded(
             child: _currentState == DetectionState.monitoring
-                ? AnimatedBuilder(
-                    animation: _waveController,
-                    builder: (context, child) {
-                      return CustomPaint(
-                        painter: WaveformPainter(
-                          progress: _waveController.value,
-                          color: AppColors.primary,
-                        ),
-                        size: Size.infinite,
-                      );
-                    },
+                ? CustomPaint(
+                    painter: RealWaveformPainter(
+                      waveformData: _realAudioWaveform,
+                      color: AppColors.primary,
+                    ),
+                    size: Size.infinite,
                   )
                 : Center(
                     child: Text(
@@ -622,9 +889,106 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
       ),
     );
   }
+  
+  // 权限提示
+  Widget _buildPermissionHint() {
+    return Container(
+      padding: EdgeInsets.all(AppTheme.paddingMedium),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(color: Colors.blue[200]!),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '权限说明',
+                  style: TextStyle(
+                    fontSize: AppTheme.fontSizeSmall,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue[900],
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  '实时监测需要麦克风和摄像头权限。如未授权，点击开始时会提示授权。',
+                  style: TextStyle(
+                    fontSize: AppTheme.fontSizeSmall,
+                    color: Colors.blue[800],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              // 跳转到权限设置页面
+              Navigator.pushNamed(context, '/permission-settings');
+            },
+            child: Text(
+              '查看',
+              style: TextStyle(
+                fontSize: AppTheme.fontSizeSmall,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-// 波形绘制器
+// 真实音频波形绘制器
+class RealWaveformPainter extends CustomPainter {
+  final List<double> waveformData;
+  final Color color;
+  
+  RealWaveformPainter({required this.waveformData, required this.color});
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    
+    final path = Path();
+    final barWidth = size.width / waveformData.length;
+    
+    for (int i = 0; i < waveformData.length; i++) {
+      final x = i * barWidth + barWidth / 2;
+      final normalizedValue = waveformData[i];
+      final barHeight = normalizedValue * size.height * 0.8;
+      
+      // 从中心向上下绘制
+      final centerY = size.height / 2;
+      final topY = centerY - barHeight / 2;
+      final bottomY = centerY + barHeight / 2;
+      
+      // 绘制竖线
+      canvas.drawLine(
+        Offset(x, topY),
+        Offset(x, bottomY),
+        paint,
+      );
+    }
+  }
+  
+  @override
+  bool shouldRepaint(RealWaveformPainter oldDelegate) {
+    return oldDelegate.waveformData != waveformData;
+  }
+}
+
+// 旧的波形绘制器（已废弃，保留以防需要）
 class WaveformPainter extends CustomPainter {
   final double progress;
   final Color color;

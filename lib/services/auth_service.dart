@@ -15,6 +15,11 @@ class AuthService {
 
   /// 获取当前 Token
   String? get accessToken => _accessToken;
+  
+  /// 获取 Token（别名方法，用于兼容）
+  Future<String?> getToken() async {
+    return _accessToken;
+  }
 
   /// 获取当前用户信息
   Map<String, dynamic>? get userInfo => _userInfo;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/pages/Settings/PermissionSettings.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -338,6 +339,17 @@ class _ProfilePageState extends State<ProfilePage> {
         _buildMenuGroup(
           title: '设置',
           items: [
+            _buildMenuItem(
+              icon: Icons.security,
+              title: '权限设置',
+              subtitle: '管理应用权限',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => PermissionSettingsPage()),
+                );
+              },
+            ),
             _buildMenuItem(
               icon: Icons.settings,
               title: '设置',
