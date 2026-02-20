@@ -3,7 +3,7 @@ import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
 import 'package:video_player/video_player.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
-import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/utils/DioRequest.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 
@@ -18,14 +18,10 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
   // Tab 控制器
   late TabController _tabController;
   
-  // 使用 AuthService 创建带 Token 的 Dio
-  late Dio _dio;
-  
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _dio = AuthService().createAuthDio();
   }
   
   @override
@@ -80,9 +76,9 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
       body: TabBarView(
         controller: _tabController,
         children: [
-          VideoTestTab(dio: _dio),
-          AudioTestTab(dio: _dio),
-          TextTestTab(dio: _dio),
+          VideoTestTab(),
+          AudioTestTab(),
+          TextTestTab(),
         ],
       ),
     );
@@ -91,9 +87,7 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
 
 // ==================== 视频检测 Tab ====================
 class VideoTestTab extends StatefulWidget {
-  final Dio dio;
-  
-  const VideoTestTab({super.key, required this.dio});
+  const VideoTestTab({super.key});
 
   @override
   State<VideoTestTab> createState() => _VideoTestTabState();
@@ -239,21 +233,18 @@ class _VideoTestTabState extends State<VideoTestTab> {
         'file': MultipartFile.fromBytes(bytes, filename: _videoFileName),
       });
       
-      final uploadResponse = await widget.dio.post(
+      final uploadResponse = await dioRequest.post(
         '/api/detection/upload/video',
         data: formData,
-        options: Options(
-          headers: {'Content-Type': 'multipart/form-data'},
-        ),
       );
       
-      print('✅ 上传成功: ${uploadResponse.data}');
+      print('✅ 上传成功: $uploadResponse');
       
       setState(() {
         _resultMessage = '步骤 4/5: 提交检测任务...';
       });
       
-      final taskResponse = await widget.dio.post(
+      final taskResponse = await dioRequest.post(
         '/api/tasks/video/detect',
         data: {
           'frame_data': [],
@@ -261,7 +252,7 @@ class _VideoTestTabState extends State<VideoTestTab> {
         },
       );
       
-      _taskId = taskResponse.data['data']['task_id'];
+      _taskId = taskResponse['data']['task_id'];
       print('✅ 任务已提交: $_taskId');
       
       setState(() {
@@ -288,16 +279,16 @@ class _VideoTestTabState extends State<VideoTestTab> {
     
     while (retryCount < maxRetries) {
       try {
-        final statusResponse = await widget.dio.get('/api/tasks/status/$_taskId');
-        final status = statusResponse.data['data']['status'];
+        final statusResponse = await dioRequest.get('/api/tasks/status/$_taskId');
+        final status = statusResponse['data']['status'];
         
         if (status == 'SUCCESS') {
-          final result = statusResponse.data['data']['result'];
+          final result = statusResponse['data']['result'];
           final confidence = result['confidence'] ?? 0.0;
           final isFake = result['is_fake'] ?? false;
           
           print('✅ 检测完成');
-          print('   完整响应: ${statusResponse.data}');
+          print('   完整响应: $statusResponse');
           print('   置信度: $confidence');
           print('   是否伪造: $isFake');
           
@@ -775,9 +766,7 @@ class _VideoTestTabState extends State<VideoTestTab> {
 
 // ==================== 音频检测 Tab ====================
 class AudioTestTab extends StatefulWidget {
-  final Dio dio;
-  
-  const AudioTestTab({super.key, required this.dio});
+  const AudioTestTab({super.key});
 
   @override
   State<AudioTestTab> createState() => _AudioTestTabState();
@@ -820,9 +809,7 @@ class _AudioTestTabState extends State<AudioTestTab> {
 
 // ==================== 文本检测 Tab ====================
 class TextTestTab extends StatefulWidget {
-  final Dio dio;
-  
-  const TextTestTab({super.key, required this.dio});
+  const TextTestTab({super.key});
 
   @override
   State<TextTestTab> createState() => _TextTestTabState();
