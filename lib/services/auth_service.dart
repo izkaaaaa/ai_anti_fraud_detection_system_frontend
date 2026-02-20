@@ -1,6 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/DioRequest.dart';
+import 'dart:convert';
+import 'dart:math';
 
 /// 认证服务 - 统一管理 Token 和用户信息
 /// 
@@ -15,7 +17,7 @@ class AuthService {
 
   // Token 相关
   String _accessToken = '';
-  String _tokenType = 'bearer';
+  String _tokenType = 'Bearer';
   
   // 用户信息
   Map<String, dynamic>? _userInfo;
@@ -51,15 +53,20 @@ class AuthService {
       
       // 加载 Token
       _accessToken = prefs.getString(_tokenKey) ?? '';
-      _tokenType = prefs.getString(_tokenTypeKey) ?? 'bearer';
+      
+      // 加载 Token Type，统一使用 Bearer（首字母大写）
+      String savedTokenType = prefs.getString(_tokenTypeKey) ?? 'Bearer';
+      _tokenType = savedTokenType.toLowerCase() == 'bearer' ? 'Bearer' : savedTokenType;
       
       // 加载用户信息
       final userInfoStr = prefs.getString(_userInfoKey);
       if (userInfoStr != null && userInfoStr.isNotEmpty) {
         try {
-          _userInfo = Map<String, dynamic>.from(
-            {} // TODO: 实际应该用 json.decode(userInfoStr)
-          );
+          // 使用 json.decode 解析
+          final decoded = jsonDecode(userInfoStr);
+          if (decoded is Map<String, dynamic>) {
+            _userInfo = decoded;
+          }
         } catch (e) {
           print('⚠️ 解析用户信息失败: $e');
           _userInfo = null;
@@ -67,9 +74,9 @@ class AuthService {
       }
       
       print('🔑 AuthService 初始化完成');
-      print('   Token: ${_accessToken.isNotEmpty ? "已加载" : "未登录"}');
+      print('   Token: ${_accessToken.isNotEmpty ? "已加载 (${_accessToken.substring(0, min(_accessToken.length, 20))}...)" : "未登录"}');
       print('   Token Type: $_tokenType');
-      print('   用户信息: ${_userInfo != null ? "已加载" : "无"}');
+      print('   用户信息: ${_userInfo != null ? "已加载 (${_userInfo!['username']})" : "无"}');
     } catch (e) {
       print('❌ AuthService 初始化失败: $e');
     }
@@ -91,7 +98,10 @@ class AuthService {
       if (response != null) {
         // 保存 Token
         _accessToken = response['access_token'] ?? '';
-        _tokenType = response['token_type'] ?? 'bearer';
+        
+        // 统一使用 Bearer（首字母大写），无论后端返回什么
+        String backendTokenType = response['token_type'] ?? 'bearer';
+        _tokenType = backendTokenType.toLowerCase() == 'bearer' ? 'Bearer' : backendTokenType;
         
         // 保存用户信息
         _userInfo = response['user'];
@@ -101,7 +111,7 @@ class AuthService {
 
         print('✅ 登录成功');
         print('   Token: $_accessToken');
-        print('   Token Type: $_tokenType');
+        print('   Token Type: $_tokenType (后端返回: $backendTokenType)');
         print('   用户: ${_userInfo?['username']}');
         return true;
       }
@@ -150,16 +160,17 @@ class AuthService {
   /// 获取当前用户信息
   Future<Map<String, dynamic>?> getCurrentUser() async {
     print('👤 getCurrentUser 被调用');
-    print('   当前 Token: ${_accessToken ?? "无"}');
+    print('   当前 Token: ${_accessToken.isNotEmpty ? _accessToken : "无"}');
     print('   缓存的用户信息: ${_userInfo ?? "无"}');
     
-    // 如果有缓存的用户信息，直接返回
-    if (_userInfo != null) {
+    // 如果有缓存的用户信息，且不为空，直接返回
+    if (_userInfo != null && _userInfo!.isNotEmpty && _userInfo!.containsKey('username')) {
       print('✅ 返回缓存的用户信息');
       return _userInfo;
     }
     
-    if (_accessToken == null) {
+    // 检查是否已登录
+    if (_accessToken.isEmpty) {
       print('⚠️ 未登录，无法获取用户信息');
       return null;
     }
@@ -197,7 +208,7 @@ class AuthService {
     
     // 清空内存中的数据
     _accessToken = '';
-    _tokenType = 'bearer';
+    _tokenType = 'Bearer';
     _userInfo = null;
 
     // 清除本地存储
@@ -221,9 +232,9 @@ class AuthService {
       }
       
       // 保存用户信息
-      if (_userInfo != null) {
-        // TODO: 使用 json.encode(_userInfo) 序列化
-        await prefs.setString(_userInfoKey, _userInfo.toString());
+      if (_userInfo != null && _userInfo!.isNotEmpty) {
+        // 使用 json.encode 序列化
+        await prefs.setString(_userInfoKey, jsonEncode(_userInfo));
       }
       
       print('💾 数据已保存到本地');

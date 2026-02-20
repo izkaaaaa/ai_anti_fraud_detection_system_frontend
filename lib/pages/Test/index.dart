@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
-import 'package:video_player/video_player.dart';
-import 'package:dio/dio.dart';
-import 'package:flutter/services.dart';
-import 'package:ai_anti_fraud_detection_system_frontend/utils/DioRequest.dart';
-import 'package:file_picker/file_picker.dart';
-import 'dart:io';
+import 'package:flutter_sound/flutter_sound.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'dart:async';
+import 'package:path_provider/path_provider.dart';
+import 'dart:math';
 
 class TestPage extends StatefulWidget {
   const TestPage({super.key});
@@ -15,13 +14,12 @@ class TestPage extends StatefulWidget {
 }
 
 class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin {
-  // Tab 控制器
   late TabController _tabController;
   
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
   
   @override
@@ -38,7 +36,7 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
         backgroundColor: AppColors.cardBackground,
         elevation: 0,
         title: Text(
-          '检测测试',
+          '设备测试',
           style: TextStyle(
             color: AppColors.textPrimary,
             fontSize: AppTheme.fontSizeLarge,
@@ -60,9 +58,8 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
                   fontWeight: FontWeight.w600,
                 ),
                 tabs: [
-                  Tab(text: '视频检测'),
-                  Tab(text: '音频检测'),
-                  Tab(text: '文本检测'),
+                  Tab(icon: Icon(Icons.screen_share), text: '录屏测试'),
+                  Tab(icon: Icon(Icons.mic), text: '麦克风测试'),
                 ],
               ),
               Container(
@@ -76,283 +73,508 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
       body: TabBarView(
         controller: _tabController,
         children: [
-          VideoTestTab(),
-          AudioTestTab(),
-          TextTestTab(),
+          ScreenRecordTestTab(),
+          MicrophoneTestTab(),
         ],
       ),
     );
   }
 }
 
-// ==================== 视频检测 Tab ====================
-class VideoTestTab extends StatefulWidget {
-  const VideoTestTab({super.key});
+// ==================== 录屏测试 Tab ====================
+class ScreenRecordTestTab extends StatefulWidget {
+  const ScreenRecordTestTab({super.key});
 
   @override
-  State<VideoTestTab> createState() => _VideoTestTabState();
+  State<ScreenRecordTestTab> createState() => _ScreenRecordTestTabState();
 }
 
-class _VideoTestTabState extends State<VideoTestTab> {
-  VideoPlayerController? _videoController;
-  int _detectionStatus = 0;
-  int _safetyStatus = 0;
-  double _videoConfidence = 0.0;
-  String _resultMessage = '';
-  String? _taskId;
-  File? _selectedVideoFile;
-  PlatformFile? _selectedPlatformFile;
-  int _videoSource = 0;
-  String _videoFileName = 'test_video2.mp4';
+class _ScreenRecordTestTabState extends State<ScreenRecordTestTab> {
+  bool _isRecording = false;
+  String _statusMessage = '点击"开始录屏"测试屏幕录制功能';
+  Duration _recordDuration = Duration.zero;
+  Timer? _timer;
 
-  @override
-  void initState() {
-    super.initState();
-    _initVideoPlayer();
-  }
-  
-  @override
-  void dispose() {
-    _videoController?.dispose();
-    super.dispose();
-  }
-  
-  Future<void> _initVideoPlayer() async {
-    try {
-      _videoController = VideoPlayerController.asset('lib/assets/test_video2.mp4');
-      await _videoController!.initialize();
-      setState(() {});
-    } catch (e) {
-      print('视频加载失败: $e');
-    }
-  }
-  
-  Future<void> _pickVideoFile() async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.video,
-        allowMultiple: false,
-      );
-      
-      if (result != null && result.files.isNotEmpty) {
-        _selectedPlatformFile = result.files.first;
-        await _videoController?.dispose();
-        
-        if (result.files.first.path != null) {
-          _selectedVideoFile = File(result.files.first.path!);
-          _videoController = VideoPlayerController.file(_selectedVideoFile!);
-        } else if (result.files.first.bytes != null) {
-          _videoController = VideoPlayerController.asset('lib/assets/test_video2.mp4');
-        }
-        
-        await _videoController!.initialize();
-        
-        setState(() {
-          _videoSource = 1;
-          _videoFileName = result.files.first.name;
-          _detectionStatus = 0;
-          _safetyStatus = 0;
-          _videoConfidence = 0.0;
-          _resultMessage = '';
-        });
-        
-        _showSuccess('视频已选择：${result.files.first.name}');
-      }
-    } catch (e) {
-      print('选择视频失败: $e');
-      _showError('选择视频失败: ${e.toString()}');
-    }
-  }
-  
-  Future<void> _useDefaultVideo() async {
-    try {
-      await _videoController?.dispose();
-      _selectedVideoFile = null;
-      _selectedPlatformFile = null;
-      _videoController = VideoPlayerController.asset('lib/assets/test_video2.mp4');
-      await _videoController!.initialize();
-      
+  Future<void> _startRecording() async {
+    // 请求屏幕录制权限
+    // 注意：Android 需要 MediaProjection API，这里只是模拟
+    setState(() {
+      _isRecording = true;
+      _recordDuration = Duration.zero;
+      _statusMessage = '正在录制屏幕...\n\n提示：实际录屏需要使用 Android MediaProjection API 或 iOS ReplayKit';
+    });
+
+    // 启动计时器
+    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
       setState(() {
-        _videoSource = 0;
-        _videoFileName = 'test_video2.mp4';
-        _detectionStatus = 0;
-        _safetyStatus = 0;
-        _videoConfidence = 0.0;
-        _resultMessage = '';
+        _recordDuration = Duration(seconds: _recordDuration.inSeconds + 1);
       });
-      
-      _showSuccess('已切换到默认视频');
-    } catch (e) {
-      print('切换视频失败: $e');
-    }
+    });
+
+    _showSuccess('开始录屏（模拟）');
   }
-  
-  Future<void> _startDetection() async {
-    if (_videoController == null || !_videoController!.value.isInitialized) {
-      _showError('视频未加载');
-      return;
-    }
+
+  void _stopRecording() {
+    _timer?.cancel();
     
     setState(() {
-      _detectionStatus = 1;
-      _resultMessage = '步骤 1/5: 准备视频文件...';
+      _isRecording = false;
+      _statusMessage = '录屏完成！\n时长: ${_formatDuration(_recordDuration)}\n\n说明：\n• Android 使用 MediaProjection API\n• iOS 使用 ReplayKit\n• 需要用户授权屏幕录制权限';
     });
-    
-    try {
-      print('📁 步骤 1: 读取视频文件');
-      List<int> bytes;
-      
-      if (_videoSource == 1 && _selectedPlatformFile != null) {
-        if (_selectedPlatformFile!.bytes != null) {
-          bytes = _selectedPlatformFile!.bytes!;
-          print('✅ 使用用户选择的视频 (Web): $_videoFileName');
-        } else if (_selectedVideoFile != null) {
-          bytes = await _selectedVideoFile!.readAsBytes();
-          print('✅ 使用用户选择的视频 (移动端): $_videoFileName');
-        } else {
-          throw Exception('无法读取视频文件');
-        }
-      } else {
-        final ByteData data = await rootBundle.load('lib/assets/test_video2.mp4');
-        bytes = data.buffer.asUint8List();
-        print('✅ 使用默认视频: test_video2.mp4');
-      }
-      
-      print('✅ 视频文件大小: ${bytes.length} bytes');
-      
-      setState(() {
-        _resultMessage = '步骤 2/5: 准备上传...';
-      });
-      
-      setState(() {
-        _resultMessage = '步骤 3/5: 上传视频到服务器...';
-      });
-      print('📤 步骤 3: 上传视频到后端');
-      
-      FormData formData = FormData.fromMap({
-        'file': MultipartFile.fromBytes(bytes, filename: _videoFileName),
-      });
-      
-      final uploadResponse = await dioRequest.post(
-        '/api/detection/upload/video',
-        data: formData,
-      );
-      
-      print('✅ 上传成功: $uploadResponse');
-      
-      setState(() {
-        _resultMessage = '步骤 4/5: 提交检测任务...';
-      });
-      
-      final taskResponse = await dioRequest.post(
-        '/api/tasks/video/detect',
-        data: {
-          'frame_data': [],
-          'call_id': 1,
-        },
-      );
-      
-      _taskId = taskResponse['data']['task_id'];
-      print('✅ 任务已提交: $_taskId');
-      
-      setState(() {
-        _resultMessage = '步骤 5/5: 等待检测结果...';
-      });
-      
-      await _pollTaskStatus();
-      
-    } catch (e) {
-      print('❌ 检测失败: $e');
-      setState(() {
-        _detectionStatus = 0;
-        _resultMessage = '检测失败';
-      });
-      _showError('检测失败: ${e.toString()}');
-    }
+
+    _showSuccess('录屏完成（模拟）');
   }
-  
-  Future<void> _pollTaskStatus() async {
-    if (_taskId == null) return;
-    
-    int maxRetries = 30;
-    int retryCount = 0;
-    
-    while (retryCount < maxRetries) {
-      try {
-        final statusResponse = await dioRequest.get('/api/tasks/status/$_taskId');
-        final status = statusResponse['data']['status'];
-        
-        if (status == 'SUCCESS') {
-          final result = statusResponse['data']['result'];
-          final confidence = result['confidence'] ?? 0.0;
-          final isFake = result['is_fake'] ?? false;
-          
-          print('✅ 检测完成');
-          print('   完整响应: $statusResponse');
-          print('   置信度: $confidence');
-          print('   是否伪造: $isFake');
-          
-          bool isMockResult = confidence == 1.0;
-          
-          setState(() {
-            _detectionStatus = 2;
-            _videoConfidence = confidence;
-            
-            if (isFake) {
-              if (confidence < 0.4) {
-                _safetyStatus = 3;
-                _resultMessage = isMockResult 
-                  ? '检测完成！检测到 Deepfake 伪造！\n⚠️ 注意：后端可能使用 Mock 模型'
-                  : '检测完成！检测到 Deepfake 伪造！';
-              } else {
-                _safetyStatus = 2;
-                _resultMessage = isMockResult
-                  ? '检测完成！视频存在可疑特征。\n⚠️ 注意：后端可能使用 Mock 模型'
-                  : '检测完成！视频存在可疑特征。';
-              }
-            } else {
-              _safetyStatus = 1;
-              _resultMessage = isMockResult
-                ? '检测完成！视频内容真实可信。\n⚠️ 注意：后端可能使用 Mock 模型'
-                : '检测完成！视频内容真实可信。';
-            }
-          });
-          
-          _showSuccess('检测完成！');
-          return;
-          
-        } else if (status == 'FAILURE') {
-          throw Exception('检测任务失败');
-        } else {
-          await Future.delayed(Duration(seconds: 2));
-          retryCount++;
-        }
-      } catch (e) {
-        print('❌ 查询状态失败: $e');
-        throw e;
-      }
-    }
-    
-    throw Exception('检测超时');
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return '$minutes:$seconds';
   }
-  
-  void _resetDetection() {
-    setState(() {
-      _detectionStatus = 0;
-      _safetyStatus = 0;
-      _videoConfidence = 0.0;
-      _resultMessage = '';
-    });
-    _videoController?.seekTo(Duration.zero);
-    _videoController?.pause();
-  }
-  
+
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: AppColors.error),
     );
   }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppColors.success),
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(AppTheme.paddingMedium),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildScreenPreview(),
+          SizedBox(height: AppTheme.paddingMedium),
+          _buildStatusCard(),
+          SizedBox(height: AppTheme.paddingMedium),
+          _buildControlButtons(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScreenPreview() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        border: Border.all(
+          color: _isRecording ? AppColors.error : AppColors.borderDark,
+          width: 2.0,
+        ),
+        boxShadow: AppTheme.shadowMedium,
+      ),
+      padding: EdgeInsets.all(AppTheme.paddingLarge * 2),
+      child: Column(
+        children: [
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _isRecording ? AppColors.error : AppColors.primary,
+              boxShadow: _isRecording
+                  ? [
+                      BoxShadow(
+                        color: AppColors.error.withOpacity(0.5),
+                        blurRadius: 20,
+                        spreadRadius: 5,
+                      ),
+                    ]
+                  : AppTheme.shadowMedium,
+            ),
+            child: Icon(
+              _isRecording ? Icons.screen_share : Icons.screen_share_outlined,
+              size: 64,
+              color: Colors.white,
+            ),
+          ),
+          SizedBox(height: AppTheme.paddingLarge),
+          if (_isRecording)
+            Column(
+              children: [
+                Text(
+                  _formatDuration(_recordDuration),
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.error,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+                SizedBox(height: AppTheme.paddingSmall),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.fiber_manual_record, color: AppColors.error, size: 12),
+                    SizedBox(width: 4),
+                    Text(
+                      '录制中',
+                      style: TextStyle(
+                        fontSize: AppTheme.fontSizeMedium,
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          else
+            Text(
+              '准备就绪',
+              style: TextStyle(
+                fontSize: AppTheme.fontSizeXLarge,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        border: Border.all(color: AppColors.borderDark, width: 2.0),
+        boxShadow: AppTheme.shadowSmall,
+      ),
+      padding: EdgeInsets.all(AppTheme.paddingLarge),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                color: AppColors.primary,
+                size: 24,
+              ),
+              SizedBox(width: AppTheme.paddingSmall),
+              Text(
+                '状态信息',
+                style: TextStyle(
+                  fontSize: AppTheme.fontSizeLarge,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: AppTheme.paddingMedium),
+          Text(
+            _statusMessage,
+            style: TextStyle(
+              fontSize: AppTheme.fontSizeMedium,
+              color: AppColors.textSecondary,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildControlButtons() {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        color: _isRecording ? AppColors.error : AppColors.primary,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(color: AppColors.borderDark, width: 2.0),
+        boxShadow: AppTheme.shadowMedium,
+      ),
+      child: ElevatedButton.icon(
+        onPressed: _isRecording ? _stopRecording : _startRecording,
+        icon: Icon(_isRecording ? Icons.stop : Icons.fiber_manual_record),
+        label: Text(
+          _isRecording ? '停止录屏' : '开始录屏',
+          style: TextStyle(
+            fontSize: AppTheme.fontSizeLarge,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ==================== 麦克风测试 Tab ====================
+class MicrophoneTestTab extends StatefulWidget {
+  const MicrophoneTestTab({super.key});
+
+  @override
+  State<MicrophoneTestTab> createState() => _MicrophoneTestTabState();
+}
+
+class _MicrophoneTestTabState extends State<MicrophoneTestTab> with TickerProviderStateMixin {
+  FlutterSoundRecorder? _recorder;
+  FlutterSoundPlayer? _player;
+  bool _isRecorderInitialized = false;
+  bool _isPlayerInitialized = false;
+  bool _isRecording = false;
+  bool _isPlaying = false;
+  String _statusMessage = '点击"开始录音"测试麦克风';
+  String? _audioPath;
+  Duration _recordDuration = Duration.zero;
   
+  // 声波动画相关
+  double _currentDecibel = 0.0;
+  StreamSubscription? _recorderSubscription;
+  late AnimationController _waveController;
+  List<double> _waveHeights = List.generate(20, (index) => 0.0);
+
+  @override
+  void initState() {
+    super.initState();
+    _initRecorder();
+    _initPlayer();
+    _waveController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 100),
+    )..addListener(() {
+        setState(() {});
+      });
+  }
+
+  @override
+  void dispose() {
+    _recorderSubscription?.cancel();
+    _recorder?.closeRecorder();
+    _player?.closePlayer();
+    _waveController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initRecorder() async {
+    try {
+      print('🎤 开始初始化录音器...');
+      _recorder = FlutterSoundRecorder();
+      
+      print('🎤 打开录音器...');
+      await _recorder!.openRecorder();
+      
+      print('🎤 请求麦克风权限...');
+      final status = await Permission.microphone.request();
+      print('🎤 权限状态: $status');
+      
+      if (!status.isGranted) {
+        print('❌ 麦克风权限被拒绝');
+        _showError('需要麦克风权限');
+        setState(() {
+          _statusMessage = '麦克风权限被拒绝，请在设置中允许';
+        });
+        return;
+      }
+
+      setState(() {
+        _isRecorderInitialized = true;
+        _statusMessage = '麦克风已就绪！点击"开始录音"测试';
+      });
+
+      print('✅ 录音器初始化成功');
+      _showSuccess('麦克风初始化成功！');
+    } catch (e) {
+      print('❌ 录音器初始化失败: $e');
+      print('❌ 错误堆栈: ${StackTrace.current}');
+      setState(() {
+        _statusMessage = '录音器初始化失败: ${e.toString()}';
+      });
+      _showError('录音器初始化失败: ${e.toString()}');
+    }
+  }
+
+  Future<void> _initPlayer() async {
+    try {
+      _player = FlutterSoundPlayer();
+      await _player!.openPlayer();
+      
+      setState(() {
+        _isPlayerInitialized = true;
+      });
+
+      print('✅ 播放器初始化成功');
+    } catch (e) {
+      print('❌ 播放器初始化失败: $e');
+    }
+  }
+
+  Future<void> _startRecording() async {
+    if (!_isRecorderInitialized || _recorder == null) {
+      print('❌ 录音器未初始化');
+      _showError('录音器未初始化');
+      return;
+    }
+
+    try {
+      print('🎤 准备开始录音...');
+      final directory = await getApplicationDocumentsDirectory();
+      final path = '${directory.path}/test_audio_${DateTime.now().millisecondsSinceEpoch}.aac';
+      print('🎤 音频保存路径: $path');
+
+      print('🎤 启动录音器...');
+      await _recorder!.startRecorder(
+        toFile: path,
+        codec: Codec.aacADTS,
+      );
+      print('✅ 录音器已启动');
+
+      setState(() {
+        _isRecording = true;
+        _audioPath = path;
+        _recordDuration = Duration.zero;
+        _statusMessage = '正在录音...\n对着电脑麦克风说话试试！';
+      });
+
+      // 监听录音进度和音量
+      print('🎤 开始监听录音进度...');
+      _recorderSubscription = _recorder!.onProgress!.listen((event) {
+        print('🎤 录音进度: ${event.duration.inSeconds}s, 分贝: ${event.decibels}');
+        setState(() {
+          _recordDuration = event.duration;
+          // 获取分贝值（0-120）
+          _currentDecibel = event.decibels ?? 0.0;
+          
+          // 更新声波高度
+          _updateWaveHeights(_currentDecibel);
+        });
+      });
+
+      _waveController.repeat();
+      _showSuccess('开始录音！对着麦克风说话');
+    } catch (e) {
+      print('❌ 开始录音失败: $e');
+      print('❌ 错误堆栈: ${StackTrace.current}');
+      setState(() {
+        _statusMessage = '录音失败: ${e.toString()}';
+      });
+      _showError('开始录音失败: ${e.toString()}');
+    }
+  }
+
+  void _updateWaveHeights(double decibel) {
+    // 将分贝值映射到 0-1 范围
+    double normalizedValue = (decibel.clamp(0, 120) / 120).clamp(0.0, 1.0);
+    
+    // 移动波形
+    for (int i = _waveHeights.length - 1; i > 0; i--) {
+      _waveHeights[i] = _waveHeights[i - 1];
+    }
+    
+    // 添加新的波形高度（加入随机性使其更自然）
+    _waveHeights[0] = normalizedValue + (Random().nextDouble() * 0.1 - 0.05);
+  }
+
+  Future<void> _stopRecording() async {
+    if (!_isRecording || _recorder == null) {
+      return;
+    }
+
+    try {
+      await _recorder!.stopRecorder();
+      _recorderSubscription?.cancel();
+      _waveController.stop();
+
+      setState(() {
+        _isRecording = false;
+        _currentDecibel = 0.0;
+        _waveHeights = List.generate(20, (index) => 0.0);
+        _statusMessage = '录音完成！\n时长: ${_formatDuration(_recordDuration)}\n路径: $_audioPath';
+      });
+
+      _showSuccess('录音完成！可以播放试听');
+    } catch (e) {
+      print('❌ 停止录音失败: $e');
+      _showError('停止录音失败: ${e.toString()}');
+    }
+  }
+
+  Future<void> _playAudio() async {
+    if (_audioPath == null || !_isPlayerInitialized || _player == null) {
+      _showError('没有可播放的音频');
+      return;
+    }
+
+    try {
+      await _player!.startPlayer(
+        fromURI: _audioPath,
+        codec: Codec.aacADTS,
+        whenFinished: () {
+          setState(() {
+            _isPlaying = false;
+            _statusMessage = '播放完成';
+          });
+        },
+      );
+
+      setState(() {
+        _isPlaying = true;
+        _statusMessage = '正在播放录音...';
+      });
+
+      _showSuccess('开始播放');
+    } catch (e) {
+      print('❌ 播放失败: $e');
+      _showError('播放失败: ${e.toString()}');
+    }
+  }
+
+  Future<void> _stopPlaying() async {
+    if (!_isPlaying || _player == null) {
+      return;
+    }
+
+    try {
+      await _player!.stopPlayer();
+
+      setState(() {
+        _isPlaying = false;
+        _statusMessage = '播放已停止';
+      });
+    } catch (e) {
+      print('❌ 停止播放失败: $e');
+    }
+  }
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return '$minutes:$seconds';
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppColors.error),
+    );
+  }
+
   void _showSuccess(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: AppColors.success),
@@ -366,21 +588,118 @@ class _VideoTestTabState extends State<VideoTestTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildVideoSourceSelector(),
-          SizedBox(height: AppTheme.paddingMedium),
-          _buildVideoPlayer(),
+          _buildWaveformCard(),
           SizedBox(height: AppTheme.paddingMedium),
           _buildStatusCard(),
           SizedBox(height: AppTheme.paddingMedium),
-          _buildVideoDetectionCard(),
-          SizedBox(height: AppTheme.paddingLarge),
           _buildControlButtons(),
         ],
       ),
     );
   }
-  
-  Widget _buildVideoSourceSelector() {
+
+  Widget _buildWaveformCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: _isRecording ? AppColors.error.withOpacity(0.1) : AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        border: Border.all(
+          color: _isRecording ? AppColors.error : AppColors.borderDark,
+          width: 2.0,
+        ),
+        boxShadow: AppTheme.shadowMedium,
+      ),
+      padding: EdgeInsets.all(AppTheme.paddingLarge),
+      child: Column(
+        children: [
+          // 麦克风图标
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _isRecording ? AppColors.error : AppColors.primary,
+              boxShadow: _isRecording
+                  ? [
+                      BoxShadow(
+                        color: AppColors.error.withOpacity(0.5),
+                        blurRadius: 20,
+                        spreadRadius: 5,
+                      ),
+                    ]
+                  : AppTheme.shadowMedium,
+            ),
+            child: Icon(
+              _isRecording ? Icons.mic : Icons.mic_none,
+              size: 40,
+              color: Colors.white,
+            ),
+          ),
+          SizedBox(height: AppTheme.paddingLarge),
+          
+          // 声波显示
+          Container(
+            height: 120,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: List.generate(20, (index) {
+                double height = _waveHeights[index] * 100;
+                return Container(
+                  width: 4,
+                  height: max(height, 4),
+                  margin: EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    color: _isRecording 
+                        ? AppColors.error.withOpacity(0.7 + _waveHeights[index] * 0.3)
+                        : AppColors.borderLight,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                );
+              }),
+            ),
+          ),
+          
+          SizedBox(height: AppTheme.paddingMedium),
+          
+          // 时长显示
+          if (_isRecording)
+            Column(
+              children: [
+                Text(
+                  _formatDuration(_recordDuration),
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.error,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+                SizedBox(height: AppTheme.paddingSmall),
+                Text(
+                  '音量: ${_currentDecibel.toStringAsFixed(1)} dB',
+                  style: TextStyle(
+                    fontSize: AppTheme.fontSizeSmall,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            )
+          else
+            Text(
+              '准备就绪',
+              style: TextStyle(
+                fontSize: AppTheme.fontSizeLarge,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusCard() {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
@@ -388,69 +707,58 @@ class _VideoTestTabState extends State<VideoTestTab> {
         border: Border.all(color: AppColors.borderDark, width: 2.0),
         boxShadow: AppTheme.shadowSmall,
       ),
-      padding: EdgeInsets.all(AppTheme.paddingMedium),
+      padding: EdgeInsets.all(AppTheme.paddingLarge),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.video_library, color: AppColors.primary, size: 20),
+              Icon(
+                _audioPath != null ? Icons.check_circle : Icons.info_outline,
+                color: _audioPath != null ? AppColors.success : AppColors.textSecondary,
+                size: 24,
+              ),
               SizedBox(width: AppTheme.paddingSmall),
               Text(
-                '视频来源',
+                '状态信息',
                 style: TextStyle(
-                  fontSize: AppTheme.fontSizeMedium,
+                  fontSize: AppTheme.fontSizeLarge,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textPrimary,
                 ),
               ),
             ],
           ),
-          SizedBox(height: AppTheme.paddingSmall),
-          Row(
-            children: [
-              Expanded(
-                child: _buildSourceButton(
-                  label: '默认视频',
-                  icon: Icons.video_file,
-                  isSelected: _videoSource == 0,
-                  onTap: _detectionStatus == 1 ? null : _useDefaultVideo,
-                ),
-              ),
-              SizedBox(width: AppTheme.paddingSmall),
-              Expanded(
-                child: _buildSourceButton(
-                  label: '选择视频',
-                  icon: Icons.folder_open,
-                  isSelected: _videoSource == 1,
-                  onTap: _detectionStatus == 1 ? null : _pickVideoFile,
-                ),
-              ),
-            ],
+          SizedBox(height: AppTheme.paddingMedium),
+          Text(
+            _statusMessage,
+            style: TextStyle(
+              fontSize: AppTheme.fontSizeMedium,
+              color: AppColors.textSecondary,
+              height: 1.5,
+            ),
           ),
-          if (_videoFileName.isNotEmpty) ...[
+          if (_audioPath != null) ...[
             SizedBox(height: AppTheme.paddingSmall),
             Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: AppTheme.paddingSmall,
-                vertical: AppTheme.paddingSmall / 2,
-              ),
+              padding: EdgeInsets.all(AppTheme.paddingSmall),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
+                color: AppColors.success.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                border: Border.all(color: AppColors.success.withOpacity(0.3)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.play_circle_outline, color: AppColors.primary, size: 16),
-                  SizedBox(width: AppTheme.paddingSmall / 2),
+                  Icon(Icons.check_circle, color: AppColors.success, size: 16),
+                  SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      _videoFileName,
+                      '音频文件已保存',
                       style: TextStyle(
                         fontSize: AppTheme.fontSizeSmall,
-                        color: AppColors.textSecondary,
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w600,
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -461,392 +769,66 @@ class _VideoTestTabState extends State<VideoTestTab> {
       ),
     );
   }
-  
-  Widget _buildSourceButton({
-    required String label,
-    required IconData icon,
-    required bool isSelected,
-    required VoidCallback? onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          vertical: AppTheme.paddingSmall,
-          horizontal: AppTheme.paddingSmall,
-        ),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withOpacity(0.15) : AppColors.background,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.borderLight,
-            width: isSelected ? 2.0 : 1.0,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: isSelected ? AppColors.primary : AppColors.textSecondary, size: 18),
-            SizedBox(width: AppTheme.paddingSmall / 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeSmall,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildVideoPlayer() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: AppColors.borderDark, width: 2.0),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge - 2),
-        child: AspectRatio(
-          aspectRatio: 16 / 9,
-          child: _videoController != null && _videoController!.value.isInitialized
-              ? Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    VideoPlayer(_videoController!),
-                    if (!_videoController!.value.isPlaying)
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black54,
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          icon: Icon(Icons.play_arrow, color: Colors.white, size: 48),
-                          onPressed: () {
-                            setState(() {
-                              _videoController!.play();
-                            });
-                          },
-                        ),
-                      ),
-                  ],
-                )
-              : Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildStatusCard() {
-    Color statusColor;
-    String statusText;
-    IconData statusIcon;
 
-    switch (_safetyStatus) {
-      case 0:
-        statusColor = AppColors.textSecondary;
-        statusText = '未检测';
-        statusIcon = Icons.help_outline;
-        break;
-      case 1:
-        statusColor = AppColors.success;
-        statusText = '安全视频';
-        statusIcon = Icons.check_circle;
-        break;
-      case 2:
-        statusColor = AppColors.warning;
-        statusText = '可疑视频';
-        statusIcon = Icons.warning;
-        break;
-      case 3:
-        statusColor = AppColors.error;
-        statusText = '危险视频';
-        statusIcon = Icons.dangerous;
-        break;
-      default:
-        statusColor = AppColors.textSecondary;
-        statusText = '未检测';
-        statusIcon = Icons.help_outline;
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: statusColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: statusColor, width: 2.0),
-        boxShadow: AppTheme.shadowMedium,
-      ),
-      padding: EdgeInsets.all(AppTheme.paddingLarge),
-      child: Column(
-        children: [
-          Icon(statusIcon, color: statusColor, size: 48),
-          SizedBox(height: AppTheme.paddingMedium),
-          Text(
-            '检测结果：$statusText',
-            style: TextStyle(
-              fontSize: AppTheme.fontSizeXLarge,
-              fontWeight: FontWeight.bold,
-              color: statusColor,
-            ),
-          ),
-          if (_videoConfidence > 0) ...[
-            SizedBox(height: AppTheme.paddingSmall),
-            Text(
-              '置信度：${(_videoConfidence * 100).toStringAsFixed(0)}%',
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeMedium,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-          if (_resultMessage.isNotEmpty) ...[
-            SizedBox(height: AppTheme.paddingSmall),
-            Text(
-              _resultMessage,
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeSmall,
-                color: AppColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildVideoDetectionCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: AppColors.borderDark, width: 2.0),
-        boxShadow: AppTheme.shadowSmall,
-      ),
-      padding: EdgeInsets.all(AppTheme.paddingLarge),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.videocam, color: AppColors.primary, size: 24),
-              SizedBox(width: AppTheme.paddingSmall),
-              Text(
-                '视频分析',
-                style: TextStyle(
-                  fontSize: AppTheme.fontSizeLarge,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: AppTheme.paddingMedium),
-          Row(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                  child: LinearProgressIndicator(
-                    value: _videoConfidence,
-                    minHeight: 12,
-                    backgroundColor: AppColors.borderLight,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      _videoConfidence > 0.7 ? AppColors.success : 
-                      _videoConfidence > 0.4 ? AppColors.warning : AppColors.error
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(width: AppTheme.paddingSmall),
-              Text(
-                '${(_videoConfidence * 100).toStringAsFixed(0)}%',
-                style: TextStyle(
-                  fontSize: AppTheme.fontSizeMedium,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: AppTheme.paddingSmall),
-          Text(
-            _detectionStatus == 1 ? '状态：检测中...' : 
-            _detectionStatus == 2 ? '状态：检测完成' : '状态：未检测',
-            style: TextStyle(
-              fontSize: AppTheme.fontSizeSmall,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
   Widget _buildControlButtons() {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: Container(
-            height: 50,
-            decoration: BoxDecoration(
-              color: _detectionStatus == 1 ? AppColors.borderLight : AppColors.primary,
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              border: Border.all(color: AppColors.borderDark, width: 2.0),
-              boxShadow: _detectionStatus == 1 ? [] : AppTheme.shadowMedium,
-            ),
-            child: ElevatedButton(
-              onPressed: _detectionStatus == 1 ? null : _startDetection,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                foregroundColor: AppColors.textWhite,
-                shadowColor: Colors.transparent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                ),
-              ),
-              child: _detectionStatus == 1
-                  ? SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.textWhite),
-                      ),
-                    )
-                  : Text(
-                      '开始检测',
-                      style: TextStyle(
-                        fontSize: AppTheme.fontSizeLarge,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-            ),
-          ),
+        _buildButton(
+          label: _isRecording ? '停止录音' : '开始录音',
+          icon: _isRecording ? Icons.stop : Icons.fiber_manual_record,
+          color: _isRecording ? AppColors.error : AppColors.primary,
+          onPressed: _isRecording ? _stopRecording : _startRecording,
+          enabled: _isRecorderInitialized && !_isPlaying,
         ),
-        SizedBox(width: AppTheme.paddingMedium),
-        Expanded(
-          child: Container(
-            height: 50,
-            decoration: BoxDecoration(
-              color: _detectionStatus == 0 ? AppColors.borderLight : AppColors.secondaryLight,
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              border: Border.all(color: AppColors.borderDark, width: 2.0),
-              boxShadow: _detectionStatus == 0 ? [] : AppTheme.shadowMedium,
-            ),
-            child: ElevatedButton(
-              onPressed: _detectionStatus == 0 ? null : _resetDetection,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                foregroundColor: AppColors.textPrimary,
-                shadowColor: Colors.transparent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                ),
-              ),
-              child: Text(
-                '重置',
-                style: TextStyle(
-                  fontSize: AppTheme.fontSizeLarge,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
+        if (_audioPath != null) ...[
+          SizedBox(height: AppTheme.paddingSmall),
+          _buildButton(
+            label: _isPlaying ? '停止播放' : '播放录音',
+            icon: _isPlaying ? Icons.stop : Icons.play_arrow,
+            color: _isPlaying ? AppColors.warning : AppColors.success,
+            onPressed: _isPlaying ? _stopPlaying : _playAudio,
+            enabled: !_isRecording,
           ),
-        ),
+        ],
       ],
     );
   }
-}
 
-// ==================== 音频检测 Tab ====================
-class AudioTestTab extends StatefulWidget {
-  const AudioTestTab({super.key});
-
-  @override
-  State<AudioTestTab> createState() => _AudioTestTabState();
-}
-
-class _AudioTestTabState extends State<AudioTestTab> {
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(AppTheme.paddingLarge),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.mic_off, size: 80, color: AppColors.textSecondary),
-            SizedBox(height: AppTheme.paddingLarge),
-            Text(
-              '音频检测功能',
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeXLarge,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            SizedBox(height: AppTheme.paddingMedium),
-            Text(
-              '后端暂未提供音频检测接口\n功能开发中...',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeMedium,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
+  Widget _buildButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onPressed,
+    bool enabled = true,
+  }) {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        color: enabled ? color : AppColors.borderLight,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(color: AppColors.borderDark, width: 2.0),
+        boxShadow: enabled ? AppTheme.shadowMedium : [],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: enabled ? onPressed : null,
+        icon: Icon(icon),
+        label: Text(
+          label,
+          style: TextStyle(
+            fontSize: AppTheme.fontSizeLarge,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          ),
         ),
       ),
     );
   }
 }
-
-// ==================== 文本检测 Tab ====================
-class TextTestTab extends StatefulWidget {
-  const TextTestTab({super.key});
-
-  @override
-  State<TextTestTab> createState() => _TextTestTabState();
-}
-
-class _TextTestTabState extends State<TextTestTab> {
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(AppTheme.paddingLarge),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.text_fields_outlined, size: 80, color: AppColors.textSecondary),
-            SizedBox(height: AppTheme.paddingLarge),
-            Text(
-              '文本检测功能',
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeXLarge,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            SizedBox(height: AppTheme.paddingMedium),
-            Text(
-              '后端暂未提供文本检测接口\n功能开发中...',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeMedium,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-

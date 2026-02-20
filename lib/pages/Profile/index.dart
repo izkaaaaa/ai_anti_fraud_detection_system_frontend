@@ -22,10 +22,21 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _loadUserInfo() async {
     print('📱 ProfilePage: 开始加载用户信息');
+    print('📱 ProfilePage: 检查登录状态 - ${AuthService().isLoggedIn}');
     
     setState(() {
       _isLoading = true;
     });
+
+    // 先检查是否已登录
+    if (!AuthService().isLoggedIn) {
+      print('📱 ProfilePage: 未登录，不获取用户信息');
+      setState(() {
+        _userInfo = null;
+        _isLoading = false;
+      });
+      return;
+    }
 
     final userInfo = await AuthService().getCurrentUser();
     
@@ -123,7 +134,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // 用户信息卡片
   Widget _buildUserInfoCard() {
-    if (_userInfo == null) {
+    // 检查用户信息是否有效（不为 null 且包含必要字段）
+    if (_userInfo == null || _userInfo!.isEmpty || !_userInfo!.containsKey('username')) {
       return Container(
         decoration: BoxDecoration(
           color: AppColors.cardBackground,
@@ -484,7 +496,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // 退出登录按钮
   Widget _buildLogoutButton() {
-    if (_userInfo == null) return SizedBox.shrink();
+    // 检查用户信息是否有效
+    if (_userInfo == null || _userInfo!.isEmpty || !_userInfo!.containsKey('username')) {
+      return SizedBox.shrink();
+    }
 
     return Container(
       height: 50,

@@ -77,6 +77,7 @@ flutter:
     - lib/assets/登录界面图标.jpg
     - lib/assets/test_video.mp4
     - lib/assets/test_video2.mp4
+    - lib/assets/test_audio.mp3
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
