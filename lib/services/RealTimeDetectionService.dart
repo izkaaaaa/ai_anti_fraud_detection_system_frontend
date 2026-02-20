@@ -115,8 +115,8 @@ class RealTimeDetectionService {
   /// 创建通话记录
   Future<String?> _createCallRecord() async {
     try {
-      final token = await AuthService().getToken();
-      if (token == null) {
+      final token = AuthService().getToken();
+      if (token.isEmpty) {
         print('❌ 创建通话记录失败: 未登录');
         return null;
       }
@@ -149,8 +149,8 @@ class RealTimeDetectionService {
   /// 连接 WebSocket
   Future<bool> _connectWebSocket() async {
     try {
-      final token = await AuthService().getToken();
-      if (token == null) {
+      final token = AuthService().getToken();
+      if (token.isEmpty) {
         print('❌ WebSocket 连接失败: 未登录');
         return false;
       }

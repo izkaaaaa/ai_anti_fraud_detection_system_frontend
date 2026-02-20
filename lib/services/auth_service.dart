@@ -1,52 +1,75 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/DioRequest.dart';
-import 'package:ai_anti_fraud_detection_system_frontend/utils/token_manager.dart';
 
-/// 认证服务 - 管理 Token 和用户信息
+/// 认证服务 - 统一管理 Token 和用户信息
+/// 
+/// 功能：
+/// 1. Token 管理（存储、获取、清除）
+/// 2. 用户信息管理
+/// 3. 认证业务逻辑（登录、注册、登出）
 class AuthService {
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
   AuthService._internal();
 
-  // Token 和用户信息
-  String? _accessToken;
+  // Token 相关
+  String _accessToken = '';
+  String _tokenType = 'bearer';
+  
+  // 用户信息
   Map<String, dynamic>? _userInfo;
 
+  // SharedPreferences 键名
+  static const String _tokenKey = 'access_token';
+  static const String _tokenTypeKey = 'token_type';
+  static const String _userInfoKey = 'user_info';
+
   /// 获取当前 Token
-  String? get accessToken => _accessToken;
+  String? get accessToken => _accessToken.isEmpty ? null : _accessToken;
   
-  /// 获取 Token（别名方法，用于兼容）
-  Future<String?> getToken() async {
+  /// 获取 Token（同步方法）
+  String getToken() {
     return _accessToken;
+  }
+  
+  /// 获取 Token 类型
+  String getTokenType() {
+    return _tokenType;
   }
 
   /// 获取当前用户信息
   Map<String, dynamic>? get userInfo => _userInfo;
 
   /// 是否已登录
-  bool get isLoggedIn => _accessToken != null;
+  bool get isLoggedIn => _accessToken.isNotEmpty;
 
-  /// 初始化 - 从本地存储读取 Token
+  /// 初始化 - 从本地存储读取 Token 和用户信息
   Future<void> init() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      _accessToken = prefs.getString('access_token');
-      final userInfoStr = prefs.getString('user_info');
       
-      if (userInfoStr != null) {
-        _userInfo = Map<String, dynamic>.from(
-          // 这里需要 json decode，但为了简单先这样
-          {} // TODO: 实际应该用 json.decode
-        );
+      // 加载 Token
+      _accessToken = prefs.getString(_tokenKey) ?? '';
+      _tokenType = prefs.getString(_tokenTypeKey) ?? 'bearer';
+      
+      // 加载用户信息
+      final userInfoStr = prefs.getString(_userInfoKey);
+      if (userInfoStr != null && userInfoStr.isNotEmpty) {
+        try {
+          _userInfo = Map<String, dynamic>.from(
+            {} // TODO: 实际应该用 json.decode(userInfoStr)
+          );
+        } catch (e) {
+          print('⚠️ 解析用户信息失败: $e');
+          _userInfo = null;
+        }
       }
       
-      // 同步加载到 TokenManager（重要！）
-      await tokenManager.loadToken();
-      
-      print('🔑 AuthService 初始化');
-      print('   Token: ${_accessToken != null ? "已加载" : "未登录"}');
-      print('   TokenManager: ${tokenManager.isLoggedIn() ? "已同步" : "未同步"}');
+      print('🔑 AuthService 初始化完成');
+      print('   Token: ${_accessToken.isNotEmpty ? "已加载" : "未登录"}');
+      print('   Token Type: $_tokenType');
+      print('   用户信息: ${_userInfo != null ? "已加载" : "无"}');
     } catch (e) {
       print('❌ AuthService 初始化失败: $e');
     }
@@ -66,23 +89,20 @@ class AuthService {
       );
 
       if (response != null) {
-        _accessToken = response['access_token'];
+        // 保存 Token
+        _accessToken = response['access_token'] ?? '';
+        _tokenType = response['token_type'] ?? 'bearer';
+        
+        // 保存用户信息
         _userInfo = response['user'];
-        
-        // 获取 token_type，默认为 bearer
-        final tokenType = response['token_type'] ?? 'bearer';
 
-        // 保存到本地
+        // 持久化到本地
         await _saveToLocal();
-        
-        // 同步保存到 TokenManager（重要！）
-        await tokenManager.saveToken(_accessToken!, tokenType: tokenType);
 
         print('✅ 登录成功');
         print('   Token: $_accessToken');
-        print('   Token Type: $tokenType');
+        print('   Token Type: $_tokenType');
         print('   用户: ${_userInfo?['username']}');
-        print('   已同步到 TokenManager ✅');
         return true;
       }
 
@@ -175,18 +195,18 @@ class AuthService {
   Future<void> logout() async {
     print('👋 登出');
     
-    _accessToken = null;
+    // 清空内存中的数据
+    _accessToken = '';
+    _tokenType = 'bearer';
     _userInfo = null;
 
+    // 清除本地存储
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token');
-    await prefs.remove('user_info');
-    
-    // 同步清除 TokenManager（重要！）
-    await tokenManager.clearToken();
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_tokenTypeKey);
+    await prefs.remove(_userInfoKey);
     
     print('✅ 登出成功');
-    print('   TokenManager 已清除 ✅');
   }
 
   /// 保存到本地存储
@@ -194,22 +214,29 @@ class AuthService {
     try {
       final prefs = await SharedPreferences.getInstance();
       
-      if (_accessToken != null) {
-        await prefs.setString('access_token', _accessToken!);
+      // 保存 Token
+      if (_accessToken.isNotEmpty) {
+        await prefs.setString(_tokenKey, _accessToken);
+        await prefs.setString(_tokenTypeKey, _tokenType);
       }
       
-      // TODO: 保存用户信息（需要 json.encode）
+      // 保存用户信息
+      if (_userInfo != null) {
+        // TODO: 使用 json.encode(_userInfo) 序列化
+        await prefs.setString(_userInfoKey, _userInfo.toString());
+      }
       
-      print('💾 Token 已保存到本地');
+      print('💾 数据已保存到本地');
     } catch (e) {
       print('❌ 保存失败: $e');
     }
   }
 
   /// 创建带 Token 的 Dio 实例（供其他页面使用）
+  /// 
+  /// ⚠️ 已废弃：建议直接使用 dioRequest，它会自动从 AuthService 获取 token
+  @Deprecated('请直接使用 dioRequest')
   Dio createAuthDio() {
-    // 注意：这个方法已废弃，建议直接使用 dioRequest
-    // dioRequest 会自动从 tokenManager 获取 token
     print('⚠️ createAuthDio 已废弃，请直接使用 dioRequest');
     
     final dio = Dio(BaseOptions(
@@ -221,8 +248,8 @@ class AuthService {
     // 添加拦截器，自动添加 Token
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
-        if (_accessToken != null) {
-          options.headers['Authorization'] = 'Bearer $_accessToken';
+        if (_accessToken.isNotEmpty) {
+          options.headers['Authorization'] = '$_tokenType $_accessToken';
         }
         return handler.next(options);
       },

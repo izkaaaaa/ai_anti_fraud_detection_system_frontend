@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/index.dart';
-import 'package:ai_anti_fraud_detection_system_frontend/utils/token_manager.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
 
 class DioRequest {
   final _dio = Dio();
@@ -39,10 +39,11 @@ class DioRequest {
       InterceptorsWrapper(
         onRequest: (request, handler) {
           // 如果有 token，自动添加到请求头
-          if (tokenManager.getToken().isNotEmpty) {
-            request.headers['Authorization'] = 
-                '${tokenManager.getTokenType()} ${tokenManager.getToken()}';
-            print('🔑 已添加 Token: ${tokenManager.getTokenType()} ${tokenManager.getToken().substring(0, 20)}...');
+          final token = AuthService().getToken();
+          if (token.isNotEmpty) {
+            final tokenType = AuthService().getTokenType();
+            request.headers['Authorization'] = '$tokenType $token';
+            print('🔑 已添加 Token: $tokenType ${token.substring(0, token.length > 20 ? 20 : token.length)}...');
           } else {
             print('⚠️ 警告: Token 为空，未添加 Authorization 头');
           }
