@@ -1,36 +1,82 @@
 // 定义常量数据，基础地址，超时时间，业务状态，请求地址
-import 'dart:io';
-import 'package:flutter/foundation.dart';
+
+// ============================================================
+// 🌐 网络地址配置中心
+// ============================================================
+// 
+// 📝 地址说明：
+// 
+// 1. LOCALHOST (127.0.0.1)
+//    - 用途：电脑浏览器访问本机后端
+//    - 谁能用：只有电脑自己
+// 
+// 2. EMULATOR_HOST (10.0.2.2)
+//    - 用途：Android 模拟器访问电脑后端
+//    - 谁能用：只有 Android 模拟器
+//    - 说明：自动映射到电脑的 localhost
+// 
+// 3. WIFI_IP (192.168.31.155)
+//    - 用途：真机通过 WiFi 访问电脑后端
+//    - 谁能用：同一 WiFi 下的所有设备
+//    - 说明：电脑的局域网 IP（可能会变）
+// 
+// 4. WSL_IP (172.20.16.1)
+//    - 用途：Windows 访问 WSL 中的后端
+//    - 谁能用：只有电脑内部（Windows ↔ WSL）
+//    - 说明：如果后端运行在 WSL 里才需要
+// 
+// ⚙️ 使用方法：
+// - 模拟器测试：改 CURRENT_MODE = DeviceMode.emulator
+// - 真机测试：  改 CURRENT_MODE = DeviceMode.realDevice
+// - Web 测试：   改 CURRENT_MODE = DeviceMode.web
+// 
+// ============================================================
+
+/// 设备模式枚举
+enum DeviceMode {
+  emulator,    // Android 模拟器
+  realDevice,  // 真机（通过 WiFi）
+  web,         // Web 浏览器
+}
 
 // 全局的常量
 class GlobalConstants {
-  // 根据平台自动切换 API 地址
+  // ============================================================
+  // 🎯 在这里修改当前使用的设备模式
+  // ============================================================
+  static const DeviceMode CURRENT_MODE = DeviceMode.emulator;
+  
+  // ============================================================
+  // 📍 所有 IP 地址集中管理（修改这里即可）
+  // ============================================================
+  static const String LOCALHOST = "localhost";           // 本机地址
+  static const String EMULATOR_HOST = "10.0.2.2";       // 模拟器专用
+  static const String WIFI_IP = "192.168.31.155";       // 电脑 WiFi IP（真机用）
+  static const String WSL_IP = "172.20.16.1";           // WSL 虚拟网卡 IP
+  static const int PORT = 8000;                          // 后端端口
+  
+  // ============================================================
+  // 🔧 自动选择 BASE_URL（不需要手动改）
+  // ============================================================
   static String get BASE_URL {
-    // 打印平台信息（调试用）
-    print('🔍 平台检测:');
-    print('   kIsWeb: $kIsWeb');
-    if (!kIsWeb) {
-      print('   Platform.isAndroid: ${Platform.isAndroid}');
-      print('   Platform.isIOS: ${Platform.isIOS}');
+    String host;
+    
+    switch (CURRENT_MODE) {
+      case DeviceMode.emulator:
+        host = EMULATOR_HOST;
+        print('🤖 使用模拟器配置: $EMULATOR_HOST');
+        break;
+      case DeviceMode.realDevice:
+        host = WIFI_IP;
+        print('📱 使用真机配置: $WIFI_IP');
+        break;
+      case DeviceMode.web:
+        host = LOCALHOST;
+        print('🌐 使用 Web 配置: $LOCALHOST');
+        break;
     }
     
-    if (kIsWeb) {
-      // Web 平台使用 localhost
-      print('   ✅ 使用 Web 配置');
-      return "http://localhost:8000";
-    } else if (!kIsWeb && Platform.isAndroid) {
-      // Android 使用后端电脑的局域网 IP
-      print('   ✅ 使用 Android 配置');
-      return "http://172.20.16.1:8000";
-    } else if (!kIsWeb && Platform.isIOS) {
-      // iOS 使用后端电脑的局域网 IP
-      print('   ✅ 使用 iOS 配置');
-      return "http://172.20.16.1:8000";
-    } else {
-      // 其他平台默认使用 localhost
-      print('   ⚠️ 使用默认配置');
-      return "http://localhost:8000";
-    }
+    return "http://$host:$PORT";
   }
   
   static const int TIME_OUT = 10; // 超时时间（秒）

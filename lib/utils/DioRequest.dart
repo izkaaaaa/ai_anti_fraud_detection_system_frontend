@@ -6,9 +6,8 @@ class DioRequest {
   final _dio = Dio();
   
   DioRequest() {
-    // 根据实际情况使用 IP 地址
-    // 如果 10.0.2.2 不工作，使用电脑的局域网 IP
-    final baseUrl = "http://172.20.16.1:8000";
+    // 使用 GlobalConstants 中的配置，自动根据设备模式切换
+    final baseUrl = GlobalConstants.BASE_URL;
     
     // 设置基础配置
     _dio.options.baseUrl = baseUrl;
@@ -142,5 +141,9 @@ class DioRequest {
   }
 }
 
-// 单例对象
-final dioRequest = DioRequest();
+// 单例对象（延迟初始化）
+DioRequest? _dioRequestInstance;
+DioRequest get dioRequest {
+  _dioRequestInstance ??= DioRequest();
+  return _dioRequestInstance!;
+}
