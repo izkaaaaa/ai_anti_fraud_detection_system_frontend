@@ -375,10 +375,6 @@ class _MicrophoneTestTabState extends State<MicrophoneTestTab> with TickerProvid
   Future<void> _initRecorder() async {
     try {
       print('🎤 开始初始化录音器...');
-      _recorder = FlutterSoundRecorder();
-      
-      print('🎤 打开录音器...');
-      await _recorder!.openRecorder();
       
       print('🎤 请求麦克风权限...');
       final status = await Permission.microphone.request();
@@ -393,6 +389,14 @@ class _MicrophoneTestTabState extends State<MicrophoneTestTab> with TickerProvid
         return;
       }
 
+      _recorder = FlutterSoundRecorder();
+      
+      print('🎤 打开录音器...');
+      await _recorder!.openRecorder();
+      
+      // ✅ 设置订阅间隔，确保 onProgress 能正常工作
+      await _recorder!.setSubscriptionDuration(Duration(milliseconds: 100));
+      
       setState(() {
         _isRecorderInitialized = true;
         _statusMessage = '麦克风已就绪！点击"开始录音"测试';
@@ -438,33 +442,38 @@ class _MicrophoneTestTabState extends State<MicrophoneTestTab> with TickerProvid
       final path = '${directory.path}/test_audio_${DateTime.now().millisecondsSinceEpoch}.aac';
       print('🎤 音频保存路径: $path');
 
-      print('🎤 启动录音器...');
-      await _recorder!.startRecorder(
-        toFile: path,
-        codec: Codec.aacADTS,
-      );
-      print('✅ 录音器已启动');
-
       setState(() {
         _isRecording = true;
         _audioPath = path;
         _recordDuration = Duration.zero;
-        _statusMessage = '正在录音...\n对着电脑麦克风说话试试！';
+        _statusMessage = '正在录音...\n对着麦克风说话试试！';
       });
 
-      // 监听录音进度和音量
-      print('🎤 开始监听录音进度...');
+      // ✅ 先订阅 onProgress 事件（在 startRecorder 之前）
+      print('🎤 订阅录音进度监听...');
       _recorderSubscription = _recorder!.onProgress!.listen((event) {
         print('🎤 录音进度: ${event.duration.inSeconds}s, 分贝: ${event.decibels}');
-        setState(() {
-          _recordDuration = event.duration;
-          // 获取分贝值（0-120）
-          _currentDecibel = event.decibels ?? 0.0;
-          
-          // 更新声波高度
-          _updateWaveHeights(_currentDecibel);
-        });
+        if (mounted) {
+          setState(() {
+            _recordDuration = event.duration;
+            // 获取分贝值（0-120）
+            _currentDecibel = event.decibels ?? 0.0;
+            
+            // 更新声波高度
+            _updateWaveHeights(_currentDecibel);
+          });
+        }
       });
+
+      print('🎤 启动录音器...');
+      await _recorder!.startRecorder(
+        toFile: path,
+        codec: Codec.aacADTS,
+        sampleRate: 16000,              // ✅ 设置采样率
+        numChannels: 1,                 // ✅ 单声道
+        bitRate: 128000,                // ✅ 比特率
+      );
+      print('✅ 录音器已启动，等待进度事件...');
 
       _waveController.repeat();
       _showSuccess('开始录音！对着麦克风说话');
@@ -472,6 +481,7 @@ class _MicrophoneTestTabState extends State<MicrophoneTestTab> with TickerProvid
       print('❌ 开始录音失败: $e');
       print('❌ 错误堆栈: ${StackTrace.current}');
       setState(() {
+        _isRecording = false;
         _statusMessage = '录音失败: ${e.toString()}';
       });
       _showError('开始录音失败: ${e.toString()}');
