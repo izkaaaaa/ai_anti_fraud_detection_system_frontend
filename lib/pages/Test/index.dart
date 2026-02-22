@@ -6,6 +6,8 @@ import 'dart:async';
 import 'package:path_provider/path_provider.dart';
 import 'dart:math';
 import 'package:flutter_screen_recording/flutter_screen_recording.dart';
+import 'package:video_player/video_player.dart';
+import 'dart:io';
 
 class TestPage extends StatefulWidget {
   const TestPage({super.key});
@@ -96,6 +98,8 @@ class _ScreenRecordTestTabState extends State<ScreenRecordTestTab> {
   Duration _recordDuration = Duration.zero;
   Timer? _timer;
   String? _videoPath;
+  VideoPlayerController? _videoController;
+  bool _isVideoPlaying = false;
 
   Future<void> _startRecording() async {
     try {
@@ -167,8 +171,13 @@ class _ScreenRecordTestTabState extends State<ScreenRecordTestTab> {
       setState(() {
         _isRecording = false;
         _videoPath = path?.toString();
-        _statusMessage = '录屏完成！\n时长: ${_formatDuration(_recordDuration)}\n路径: ${path?.toString() ?? "未知"}';
+        _statusMessage = '录屏完成！\n时长: ${_formatDuration(_recordDuration)}\n点击下方播放按钮查看录屏';
       });
+
+      // 初始化视频播放器
+      if (_videoPath != null) {
+        await _initVideoPlayer(_videoPath!);
+      }
 
       _showSuccess('录屏完成！视频已保存');
     } catch (e) {
@@ -178,6 +187,65 @@ class _ScreenRecordTestTabState extends State<ScreenRecordTestTab> {
         _statusMessage = '停止录屏失败: ${e.toString()}';
       });
       _showError('停止录屏失败: ${e.toString()}');
+    }
+  }
+
+  Future<void> _initVideoPlayer(String path) async {
+    try {
+      print('🎬 初始化视频播放器: $path');
+      
+      // 释放旧的播放器
+      await _videoController?.dispose();
+      
+      // 创建新的播放器
+      _videoController = VideoPlayerController.file(File(path));
+      await _videoController!.initialize();
+      
+      setState(() {});
+      
+      print('✅ 视频播放器初始化成功');
+    } catch (e) {
+      print('❌ 视频播放器初始化失败: $e');
+      _showError('视频播放器初始化失败');
+    }
+  }
+
+  Future<void> _playVideo() async {
+    if (_videoController == null || !_videoController!.value.isInitialized) {
+      _showError('视频未准备好');
+      return;
+    }
+
+    try {
+      await _videoController!.play();
+      setState(() {
+        _isVideoPlaying = true;
+      });
+      
+      // 监听播放完成
+      _videoController!.addListener(() {
+        if (_videoController!.value.position >= _videoController!.value.duration) {
+          setState(() {
+            _isVideoPlaying = false;
+          });
+        }
+      });
+    } catch (e) {
+      print('❌ 播放视频失败: $e');
+      _showError('播放视频失败');
+    }
+  }
+
+  Future<void> _pauseVideo() async {
+    if (_videoController == null) return;
+
+    try {
+      await _videoController!.pause();
+      setState(() {
+        _isVideoPlaying = false;
+      });
+    } catch (e) {
+      print('❌ 暂停视频失败: $e');
     }
   }
 
@@ -203,6 +271,7 @@ class _ScreenRecordTestTabState extends State<ScreenRecordTestTab> {
   @override
   void dispose() {
     _timer?.cancel();
+    _videoController?.dispose();
     super.dispose();
   }
 
@@ -218,6 +287,10 @@ class _ScreenRecordTestTabState extends State<ScreenRecordTestTab> {
           _buildStatusCard(),
           SizedBox(height: AppTheme.paddingMedium),
           _buildControlButtons(),
+          if (_videoPath != null && _videoController != null && _videoController!.value.isInitialized) ...[
+            SizedBox(height: AppTheme.paddingMedium),
+            _buildVideoPlayer(),
+          ],
         ],
       ),
     );
@@ -376,6 +449,64 @@ class _ScreenRecordTestTabState extends State<ScreenRecordTestTab> {
             borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildVideoPlayer() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        border: Border.all(color: AppColors.borderDark, width: 2.0),
+        boxShadow: AppTheme.shadowMedium,
+      ),
+      child: Column(
+        children: [
+          // 视频播放器
+          ClipRRect(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusLarge)),
+            child: AspectRatio(
+              aspectRatio: _videoController!.value.aspectRatio,
+              child: VideoPlayer(_videoController!),
+            ),
+          ),
+          
+          // 播放控制
+          Container(
+            padding: EdgeInsets.all(AppTheme.paddingMedium),
+            child: Column(
+              children: [
+                // 进度条
+                VideoProgressIndicator(
+                  _videoController!,
+                  allowScrubbing: true,
+                  colors: VideoProgressColors(
+                    playedColor: AppColors.primary,
+                    bufferedColor: AppColors.borderLight,
+                    backgroundColor: AppColors.borderMedium,
+                  ),
+                ),
+                SizedBox(height: AppTheme.paddingMedium),
+                
+                // 播放按钮
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      onPressed: _isVideoPlaying ? _pauseVideo : _playVideo,
+                      icon: Icon(
+                        _isVideoPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
+                        size: 48,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
