@@ -5,6 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
 import 'dart:math';
+import 'package:flutter_screen_recording/flutter_screen_recording.dart';
 
 class TestPage extends StatefulWidget {
   const TestPage({super.key});
@@ -94,35 +95,90 @@ class _ScreenRecordTestTabState extends State<ScreenRecordTestTab> {
   String _statusMessage = '点击"开始录屏"测试屏幕录制功能';
   Duration _recordDuration = Duration.zero;
   Timer? _timer;
+  String? _videoPath;
 
   Future<void> _startRecording() async {
-    // 请求屏幕录制权限
-    // 注意：Android 需要 MediaProjection API，这里只是模拟
-    setState(() {
-      _isRecording = true;
-      _recordDuration = Duration.zero;
-      _statusMessage = '正在录制屏幕...\n\n提示：实际录屏需要使用 Android MediaProjection API 或 iOS ReplayKit';
-    });
+    try {
+      print('🎬 准备开始录屏...');
+      
+      // 请求存储权限
+      final storageStatus = await Permission.storage.request();
+      print('🎬 存储权限状态: $storageStatus');
+      
+      // Android 13+ 不需要存储权限，但需要其他权限
+      if (!storageStatus.isGranted && !storageStatus.isPermanentlyDenied) {
+        print('⚠️ 存储权限未授予，但继续尝试录屏');
+      }
 
-    // 启动计时器
-    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
       setState(() {
-        _recordDuration = Duration(seconds: _recordDuration.inSeconds + 1);
+        _isRecording = true;
+        _recordDuration = Duration.zero;
+        _statusMessage = '正在录制屏幕...\n请授权屏幕录制权限';
       });
-    });
 
-    _showSuccess('开始录屏（模拟）');
+      // 启动计时器
+      _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+        if (mounted) {
+          setState(() {
+            _recordDuration = Duration(seconds: _recordDuration.inSeconds + 1);
+          });
+        }
+      });
+
+      // 生成视频文件名
+      final videoName = 'screen_record_${DateTime.now().millisecondsSinceEpoch}';
+      print('🎬 视频文件名: $videoName');
+
+      // 开始录屏（带音频）
+      print('🎬 调用 startRecordScreenAndAudio...');
+      bool started = await FlutterScreenRecording.startRecordScreenAndAudio(videoName);
+      print('🎬 录屏启动结果: $started');
+
+      if (started) {
+        _showSuccess('开始录屏！');
+        setState(() {
+          _statusMessage = '正在录制屏幕...\n对着屏幕操作试试！';
+        });
+      } else {
+        throw Exception('录屏启动失败');
+      }
+    } catch (e) {
+      print('❌ 开始录屏失败: $e');
+      _timer?.cancel();
+      setState(() {
+        _isRecording = false;
+        _statusMessage = '录屏失败: ${e.toString()}';
+      });
+      _showError('开始录屏失败: ${e.toString()}');
+    }
   }
 
-  void _stopRecording() {
-    _timer?.cancel();
-    
-    setState(() {
-      _isRecording = false;
-      _statusMessage = '录屏完成！\n时长: ${_formatDuration(_recordDuration)}\n\n说明：\n• Android 使用 MediaProjection API\n• iOS 使用 ReplayKit\n• 需要用户授权屏幕录制权限';
-    });
+  Future<void> _stopRecording() async {
+    if (!_isRecording) return;
 
-    _showSuccess('录屏完成（模拟）');
+    try {
+      print('🎬 停止录屏...');
+      _timer?.cancel();
+
+      // 停止录屏并获取视频路径
+      var path = await FlutterScreenRecording.stopRecordScreen;
+      print('🎬 视频保存路径: $path');
+
+      setState(() {
+        _isRecording = false;
+        _videoPath = path?.toString();
+        _statusMessage = '录屏完成！\n时长: ${_formatDuration(_recordDuration)}\n路径: ${path?.toString() ?? "未知"}';
+      });
+
+      _showSuccess('录屏完成！视频已保存');
+    } catch (e) {
+      print('❌ 停止录屏失败: $e');
+      setState(() {
+        _isRecording = false;
+        _statusMessage = '停止录屏失败: ${e.toString()}';
+      });
+      _showError('停止录屏失败: ${e.toString()}');
+    }
   }
 
   String _formatDuration(Duration duration) {
