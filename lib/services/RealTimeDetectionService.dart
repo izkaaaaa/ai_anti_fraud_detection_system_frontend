@@ -39,6 +39,11 @@ class RealTimeDetectionService {
   bool _isConnected = false;
   String? _callRecordId;
   
+  // ✅ 三级防御机制
+  int _currentDefenseLevel = 1;  // 当前防御等级（1/2/3）
+  double _currentVideoFPS = 1.0;  // 当前视频帧率
+  bool _isRecordingCall = false;  // 是否正在录音
+  
   // 回调函数
   Function(Map<String, dynamic>)? onDetectionResult;  // 检测结果回调
   Function(String)? onStatusChange;                    // 状态变化回调
@@ -48,6 +53,7 @@ class RealTimeDetectionService {
   Function(List<double>)? onAudioWaveformUpdate;      // 音频波形回调
   Function(Map<String, dynamic>)? onControlMessage;   // 控制消息回调（防御升级等）
   Function(String, String)? onAckReceived;            // ACK 确认回调
+  Function(int)? onDefenseLevelChanged;               // 防御等级变化回调
   
   // WebSocket URL - 动态获取，与 HTTP 地址保持一致
   String get _wsBaseUrl {
@@ -286,6 +292,9 @@ class RealTimeDetectionService {
             print('   目标等级: Level $targetLevel');
             print('   原因: $reason');
             print('   配置: $config');
+            
+            // ✅ 应用防御等级（只升不降）
+            _applyDefenseLevel(targetLevel, config);
             
             // 回调给 UI 处理
             onControlMessage?.call({
@@ -608,8 +617,11 @@ class RealTimeDetectionService {
   void _startVideoFrameCapture() {
     _videoFrameTimer?.cancel();
     
-    // 每秒采集 1 帧（按照接口文档建议）
-    _videoFrameTimer = Timer.periodic(Duration(seconds: 1), (timer) async {
+    // ✅ 根据当前防御等级动态调整帧率
+    final interval = Duration(milliseconds: (1000 / _currentVideoFPS).round());
+    print('📹 视频采集间隔: ${interval.inMilliseconds}ms (${_currentVideoFPS} fps)');
+    
+    _videoFrameTimer = Timer.periodic(interval, (timer) async {
       // ✅ 增加 _cameraController 空检查
       if (!_isCameraInitialized || !_isConnected || _channel == null || _cameraController == null) {
         timer.cancel();
@@ -722,6 +734,7 @@ class RealTimeDetectionService {
     _audioLevelSubscription?.cancel();
     await _stopAudioRecording();
     await _stopVideoCapture();
+    _stopCallRecording();  // ✅ 停止通话录音（不需要 await，因为是同步方法）
     await _disconnectWebSocket();
   }
   
@@ -739,4 +752,125 @@ class RealTimeDetectionService {
   
   /// 获取摄像头控制器（用于预览）
   CameraController? get cameraController => _cameraController;
+  
+  /// 获取当前防御等级
+  int get currentDefenseLevel => _currentDefenseLevel;
+  
+  /// 应用防御等级（只升不降）
+  void _applyDefenseLevel(int targetLevel, Map<String, dynamic> config) {
+    // ✅ 防御等级只升不降
+    if (targetLevel <= _currentDefenseLevel) {
+      print('⚠️ 忽略降级指令: Level $_currentDefenseLevel → Level $targetLevel');
+      return;
+    }
+    
+    print('🛡️ 防御升级: Level $_currentDefenseLevel → Level $targetLevel');
+    _currentDefenseLevel = targetLevel;
+    
+    // 通知 UI 防御等级变化
+    onDefenseLevelChanged?.call(targetLevel);
+    
+    // 根据等级应用不同策略
+    switch (targetLevel) {
+      case 1:
+        _applyLevel1(config);
+        break;
+      case 2:
+        _applyLevel2(config);
+        break;
+      case 3:
+        _applyLevel3(config);
+        break;
+    }
+  }
+  
+  /// Level 1: 正常模式（绿色）
+  void _applyLevel1(Map<String, dynamic> config) {
+    print('✅ 切换到正常模式');
+    
+    // 恢复正常检测频率
+    _currentVideoFPS = 1.0;
+    
+    // 重启视频采集（应用新帧率）
+    if (_isCameraInitialized) {
+      _startVideoFrameCapture();
+    }
+    
+    onStatusChange?.call('正常监测中');
+  }
+  
+  /// Level 2: 警惕模式（黄色）
+  void _applyLevel2(Map<String, dynamic> config) {
+    print('⚠️ 切换到警惕模式');
+    
+    // 提高检测频率
+    final videoFps = config['video_fps'];
+    if (videoFps != null) {
+      _currentVideoFPS = (videoFps is int) ? videoFps.toDouble() : videoFps;
+      print('📹 提高视频帧率: $_currentVideoFPS fps');
+      
+      // 重启视频采集（应用新帧率）
+      if (_isCameraInitialized) {
+        _startVideoFrameCapture();
+      }
+    }
+    
+    // 开启录音（如果配置要求）
+    final enableRecording = config['enable_call_recording'];
+    if (enableRecording == true && !_isRecordingCall) {
+      _startCallRecording();
+    }
+    
+    onStatusChange?.call('警惕模式 - 已提高检测频率');
+  }
+  
+  /// Level 3: 危险模式（红色）
+  void _applyLevel3(Map<String, dynamic> config) {
+    print('🚨 切换到危险模式');
+    
+    // 最高检测频率
+    final videoFps = config['video_fps'];
+    if (videoFps != null) {
+      _currentVideoFPS = (videoFps is int) ? videoFps.toDouble() : videoFps;
+      print('📹 最高视频帧率: $_currentVideoFPS fps');
+      
+      // 重启视频采集（应用新帧率）
+      if (_isCameraInitialized) {
+        _startVideoFrameCapture();
+      }
+    }
+    
+    // 强制开启录音
+    if (!_isRecordingCall) {
+      _startCallRecording();
+    }
+    
+    onStatusChange?.call('危险模式 - 强烈建议挂断');
+  }
+  
+  /// 开始通话录音（保存证据）
+  void _startCallRecording() {
+    if (_isRecordingCall) return;
+    
+    try {
+      print('🎙️ 开始通话录音（保存证据）');
+      _isRecordingCall = true;
+      // 注意：这里的录音是为了保存证据，与实时检测的录音是分开的
+      // 实际实现可能需要另一个录音器实例
+    } catch (e) {
+      print('❌ 开始通话录音失败: $e');
+    }
+  }
+  
+  /// 停止通话录音
+  void _stopCallRecording() {
+    if (!_isRecordingCall) return;
+    
+    try {
+      print('🎙️ 停止通话录音');
+      _isRecordingCall = false;
+    } catch (e) {
+      print('❌ 停止通话录音失败: $e');
+    }
+  }
 }

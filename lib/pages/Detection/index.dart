@@ -47,6 +47,9 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
   // 综合风险等级
   RiskLevel _overallRisk = RiskLevel.safe;
   
+  // ✅ 三级防御机制
+  int _currentDefenseLevel = 1;  // 当前防御等级（1/2/3）
+  
   // 连接状态
   bool _isConnected = false;
   String _statusMessage = '点击开始按钮启动实时监测';
@@ -175,20 +178,23 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
           final reason = control['reason'] ?? '';
           final config = control['config'] ?? {};
           
-          // 显示全屏警告
-          if (config['show_full_screen_warning'] == true) {
-            _showFullScreenWarning(
-              config['ui_message'] ?? '⚠️ 检测到风险，请提高警惕！',
-              targetLevel,
-              reason,
-            );
-          } else {
-            // 显示普通提示
+          // ✅ 根据后端文档的 warning_mode 决定显示方式
+          final warningMode = config['warning_mode'] ?? 'modal';
+          final uiMessage = config['ui_message'] ?? '⚠️ 检测到风险，请提高警惕！';
+          
+          if (warningMode == 'fullscreen' || config['show_full_screen_warning'] == true) {
+            // 全屏警告（Level 3）
+            _showFullScreenWarning(uiMessage, targetLevel, reason, config);
+          } else if (warningMode == 'modal') {
+            // 弹窗警告（Level 2）
+            _showModalWarning(uiMessage, targetLevel, reason, config);
+          } else if (warningMode == 'toast') {
+            // 轻量提示（Level 1）
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('⚠️ 防御等级升级\n等级: Level $targetLevel\n原因: $reason'),
-                backgroundColor: AppColors.error,
-                duration: Duration(seconds: 5),
+                content: Text(uiMessage),
+                backgroundColor: AppColors.warning,
+                duration: Duration(seconds: 3),
               ),
             );
           }
@@ -198,6 +204,16 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
             _currentState = DetectionState.warning;
           });
         }
+      }
+    };
+    
+    // ✅ 防御等级变化回调
+    _detectionService.onDefenseLevelChanged = (level) {
+      if (mounted) {
+        setState(() {
+          _currentDefenseLevel = level;
+        });
+        print('🛡️ UI 防御等级已更新: Level $level');
       }
     };
     
@@ -482,8 +498,136 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     );
   }
   
-  /// 显示全屏警告对话框
-  void _showFullScreenWarning(String message, int level, String reason) {
+  /// 显示弹窗警告（Level 2）
+  void _showModalWarning(String message, int level, String reason, Map<String, dynamic> config) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,  // 允许点击外部关闭
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+          side: BorderSide(color: AppColors.warning, width: 3),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber, color: AppColors.warning, size: 32),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                '⚠️ 风险警告',
+                style: TextStyle(
+                  fontSize: AppTheme.fontSizeLarge,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.warning,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 防御等级
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: AppTheme.paddingMedium,
+                vertical: AppTheme.paddingSmall,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+              ),
+              child: Text(
+                '防御等级: Level $level',
+                style: TextStyle(
+                  fontSize: AppTheme.fontSizeMedium,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.warning,
+                ),
+              ),
+            ),
+            
+            SizedBox(height: AppTheme.paddingMedium),
+            
+            // 警告消息
+            Text(
+              message,
+              style: TextStyle(
+                fontSize: AppTheme.fontSizeMedium,
+                color: AppColors.textPrimary,
+                height: 1.5,
+              ),
+            ),
+            
+            SizedBox(height: AppTheme.paddingSmall),
+            
+            // 原因
+            Text(
+              '原因: $reason',
+              style: TextStyle(
+                fontSize: AppTheme.fontSizeSmall,
+                color: AppColors.textSecondary,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+            
+            SizedBox(height: AppTheme.paddingMedium),
+            
+            // 提示信息
+            Container(
+              padding: EdgeInsets.all(AppTheme.paddingSmall),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue[700], size: 16),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '已提高检测频率，已通知家人',
+                      style: TextStyle(
+                        fontSize: AppTheme.fontSizeSmall,
+                        color: Colors.blue[900],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              '继续通话',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _stopMonitoring();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.warning,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('立即挂断'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 显示全屏警告对话框（Level 3）
+  void _showFullScreenWarning(String message, int level, String reason, Map<String, dynamic> config) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -597,6 +741,51 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                   fontStyle: FontStyle.italic,
                 ),
                 textAlign: TextAlign.center,
+              ),
+              
+              SizedBox(height: AppTheme.paddingMedium),
+              
+              // ✅ 额外提示信息
+              Container(
+                padding: EdgeInsets.all(AppTheme.paddingSmall),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                  border: Border.all(color: Colors.white.withOpacity(0.5)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.white, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          '已通知家人',
+                          style: TextStyle(
+                            fontSize: AppTheme.fontSizeSmall,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.fiber_manual_record, color: Colors.white, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          '正在录音保存证据',
+                          style: TextStyle(
+                            fontSize: AppTheme.fontSizeSmall,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
               
               SizedBox(height: AppTheme.paddingLarge * 1.5),
@@ -765,6 +954,28 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     IconData statusIcon;
     String statusText;
     
+    // ✅ 根据防御等级显示不同颜色
+    Color defenseColor;
+    String defenseText;
+    
+    switch (_currentDefenseLevel) {
+      case 1:
+        defenseColor = AppColors.success;
+        defenseText = 'Level 1 - 正常';
+        break;
+      case 2:
+        defenseColor = AppColors.warning;
+        defenseText = 'Level 2 - 警惕';
+        break;
+      case 3:
+        defenseColor = AppColors.error;
+        defenseText = 'Level 3 - 危险';
+        break;
+      default:
+        defenseColor = AppColors.textSecondary;
+        defenseText = 'Level 1 - 正常';
+    }
+    
     switch (_currentState) {
       case DetectionState.idle:
         statusColor = AppColors.textSecondary;
@@ -782,7 +993,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
         statusText = '连接中';
         break;
       case DetectionState.monitoring:
-        statusColor = AppColors.success;
+        statusColor = defenseColor;  // ✅ 使用防御等级颜色
         statusIcon = Icons.radio_button_checked;
         statusText = '监测中';
         break;
@@ -839,6 +1050,37 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
             ),
             textAlign: TextAlign.center,
           ),
+          
+          // ✅ 显示防御等级
+          if (_currentState == DetectionState.monitoring || _currentState == DetectionState.warning) ...[
+            SizedBox(height: AppTheme.paddingMedium),
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: AppTheme.paddingMedium,
+                vertical: AppTheme.paddingSmall,
+              ),
+              decoration: BoxDecoration(
+                color: defenseColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                border: Border.all(color: defenseColor.withOpacity(0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.shield, color: defenseColor, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    defenseText,
+                    style: TextStyle(
+                      fontSize: AppTheme.fontSizeMedium,
+                      fontWeight: FontWeight.bold,
+                      color: defenseColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
