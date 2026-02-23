@@ -427,16 +427,15 @@ class RealTimeDetectionService {
     
     _audioLevelSubscription = _audioRecorder.onProgress!.listen((event) {
       if (event.decibels != null) {
-        print('🎤 分贝值: ${event.decibels}'); // ✅ 添加日志
+        print('🎤 分贝值: ${event.decibels}');
         
-        // 将分贝值转换为 0-1 的范围
-        // 分贝范围通常是 -160 到 0
-        final normalizedLevel = (event.decibels! + 160) / 160;
-        final clampedLevel = normalizedLevel.clamp(0.0, 1.0);
+        // ✅ 修复：flutter_sound 返回的分贝值范围是 0-120
+        // 将其归一化到 0-1 范围
+        final normalizedLevel = (event.decibels!.clamp(0.0, 120.0)) / 120.0;
         
         // 更新波形数据（移除第一个，添加新的到最后）
         _audioWaveformData.removeAt(0);
-        _audioWaveformData.add(clampedLevel);
+        _audioWaveformData.add(normalizedLevel);
         
         // 通知 UI 更新
         onAudioWaveformUpdate?.call(List.from(_audioWaveformData));
@@ -447,6 +446,7 @@ class RealTimeDetectionService {
   /// 停止录音
   Future<void> _stopAudioRecording() async {
     try {
+      // ✅ 先取消定时器，防止在停止过程中重启录音
       _audioStreamTimer?.cancel();
       _audioStreamTimer = null;
       
@@ -454,21 +454,38 @@ class RealTimeDetectionService {
       _audioLevelSubscription = null;
       
       if (_isRecording) {
-        await _audioRecorder.stopRecorder();
+        try {
+          // ✅ 增加容错：如果录音时间太短，stopRecorder 可能失败
+          await _audioRecorder.stopRecorder();
+          print('✅ 录音器正常停止');
+        } catch (stopError) {
+          print('⚠️ stopRecorder 失败 (可能录音时间太短): $stopError');
+          // 即使停止失败，也继续清理流程
+        }
         _isRecording = false;
       }
       
       // 关闭录音器
       if (_isRecorderInitialized) {
-        await _audioRecorder.closeRecorder();
+        try {
+          await _audioRecorder.closeRecorder();
+          print('✅ 录音器已关闭');
+        } catch (closeError) {
+          print('⚠️ closeRecorder 失败: $closeError');
+          // 继续清理流程
+        }
         _isRecorderInitialized = false;
       }
       
       // 删除临时文件
       if (_currentAudioPath != null) {
-        final file = File(_currentAudioPath!);
-        if (await file.exists()) {
-          await file.delete();
+        try {
+          final file = File(_currentAudioPath!);
+          if (await file.exists()) {
+            await file.delete();
+          }
+        } catch (deleteError) {
+          print('⚠️ 删除临时文件失败: $deleteError');
         }
         _currentAudioPath = null;
       }
@@ -476,6 +493,9 @@ class RealTimeDetectionService {
       print('🎤 录音已停止');
     } catch (e) {
       print('❌ 停止录音失败: $e');
+      // 确保状态被重置
+      _isRecording = false;
+      _isRecorderInitialized = false;
     }
   }
   
@@ -491,8 +511,14 @@ class RealTimeDetectionService {
       }
       
       try {
-        // 暂停录音以读取当前数据
-        await _audioRecorder.stopRecorder();
+        // ✅ 增加容错：停止录音可能失败（录音时间太短）
+        try {
+          await _audioRecorder.stopRecorder();
+        } catch (stopError) {
+          print('⚠️ 定时器中 stopRecorder 失败: $stopError');
+          // 如果停止失败，跳过本次发送，继续下一轮
+          return;
+        }
         
         if (_currentAudioPath != null) {
           final file = File(_currentAudioPath!);

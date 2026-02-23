@@ -846,8 +846,13 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
   
   // 音频波形显示
   Widget _buildAudioWaveform() {
+    // ✅ 计算当前平均分贝值（用于显示）
+    final avgDecibel = _realAudioWaveform.isEmpty 
+        ? 0.0 
+        : _realAudioWaveform.reduce((a, b) => a + b) / _realAudioWaveform.length * 60;
+    
     return Container(
-      height: 120,
+      height: 140,
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
@@ -872,12 +877,27 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
               ),
               Spacer(),
               if (_currentState == DetectionState.monitoring)
-                Text(
-                  '实时波形',
-                  style: TextStyle(
-                    fontSize: AppTheme.fontSizeSmall,
-                    color: AppColors.success,
-                    fontWeight: FontWeight.w600,
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                    border: Border.all(color: AppColors.success.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.volume_up, color: AppColors.success, size: 14),
+                      SizedBox(width: 4),
+                      Text(
+                        '${avgDecibel.toStringAsFixed(1)} dB',
+                        style: TextStyle(
+                          fontSize: AppTheme.fontSizeSmall,
+                          color: AppColors.success,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
             ],
@@ -885,20 +905,37 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
           SizedBox(height: AppTheme.paddingSmall),
           Expanded(
             child: _currentState == DetectionState.monitoring
-                ? CustomPaint(
-                    painter: RealWaveformPainter(
-                      waveformData: _realAudioWaveform,
-                      color: AppColors.primary,
+                ? Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
                     ),
-                    size: Size.infinite,
+                    child: CustomPaint(
+                      painter: RealWaveformPainter(
+                        waveformData: _realAudioWaveform,
+                        color: AppColors.primary,
+                      ),
+                      size: Size.infinite,
+                    ),
                   )
                 : Center(
-                    child: Text(
-                      '未监测',
-                      style: TextStyle(
-                        fontSize: AppTheme.fontSizeSmall,
-                        color: AppColors.textLight,
-                      ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.mic_off,
+                          color: AppColors.textLight,
+                          size: 32,
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          '未监测',
+                          style: TextStyle(
+                            fontSize: AppTheme.fontSizeSmall,
+                            color: AppColors.textLight,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
           ),
@@ -1212,29 +1249,50 @@ class RealWaveformPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.0
+      ..style = PaintingStyle.fill
       ..strokeCap = StrokeCap.round;
     
-    final path = Path();
     final barWidth = size.width / waveformData.length;
+    final centerY = size.height / 2;
     
     for (int i = 0; i < waveformData.length; i++) {
-      final x = i * barWidth + barWidth / 2;
+      final x = i * barWidth;
       final normalizedValue = waveformData[i];
-      final barHeight = normalizedValue * size.height * 0.8;
+      
+      // ✅ 增强显示效果：
+      // 1. 使用平方根函数压缩高值，放大低值
+      // 2. 乘以更大的系数
+      // 3. 设置最小高度，确保有基础显示
+      final enhancedValue = math.sqrt(normalizedValue) * 1.5;
+      final barHeight = math.max(enhancedValue * size.height * 0.9, 4.0);
       
       // 从中心向上下绘制
-      final centerY = size.height / 2;
       final topY = centerY - barHeight / 2;
       final bottomY = centerY + barHeight / 2;
       
-      // 绘制竖线
-      canvas.drawLine(
-        Offset(x, topY),
-        Offset(x, bottomY),
-        paint,
+      // ✅ 使用渐变色增强视觉效果
+      final gradient = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          color.withOpacity(0.3),
+          color,
+          color.withOpacity(0.3),
+        ],
       );
+      
+      final rect = Rect.fromLTRB(x, topY, x + barWidth - 1, bottomY);
+      final gradientPaint = Paint()
+        ..shader = gradient.createShader(rect)
+        ..style = PaintingStyle.fill;
+      
+      // 绘制圆角矩形
+      final rrect = RRect.fromRectAndRadius(
+        rect,
+        Radius.circular(2),
+      );
+      canvas.drawRRect(rrect, gradientPaint);
     }
   }
   
