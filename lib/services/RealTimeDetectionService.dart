@@ -24,6 +24,7 @@ class RealTimeDetectionService {
   bool _isRecorderInitialized = false;
   Timer? _audioStreamTimer;
   String? _currentAudioPath;
+  StreamSubscription? _audioLevelSubscription;
   
   // 摄像头控制器
   CameraController? _cameraController;
@@ -31,21 +32,22 @@ class RealTimeDetectionService {
   Timer? _videoFrameTimer;
   bool _isCapturingFrame = false; // 防止并发拍照
   
-  // 音频波形数据
-  StreamSubscription? _audioLevelSubscription;
-  final List<double> _audioWaveformData = List.filled(50, 0.0);
+  // 音频波形数据（使用可变列表）
+  final List<double> _audioWaveformData = List.generate(50, (_) => 0.0);
   
   // 连接状态
   bool _isConnected = false;
   String? _callRecordId;
   
   // 回调函数
-  Function(Map<String, dynamic>)? onDetectionResult;
-  Function(String)? onStatusChange;
-  Function(String)? onError;
-  Function()? onConnected;
-  Function()? onDisconnected;
-  Function(List<double>)? onAudioWaveformUpdate; // 新增：音频波形回调
+  Function(Map<String, dynamic>)? onDetectionResult;  // 检测结果回调
+  Function(String)? onStatusChange;                    // 状态变化回调
+  Function(String)? onError;                           // 错误回调
+  Function()? onConnected;                             // 连接成功回调
+  Function()? onDisconnected;                          // 断开连接回调
+  Function(List<double>)? onAudioWaveformUpdate;      // 音频波形回调
+  Function(Map<String, dynamic>)? onControlMessage;   // 控制消息回调（防御升级等）
+  Function(String, String)? onAckReceived;            // ACK 确认回调
   
   // WebSocket URL - 动态获取，与 HTTP 地址保持一致
   String get _wsBaseUrl {
@@ -215,54 +217,141 @@ class RealTimeDetectionService {
     _isConnected = false;
   }
   
-  /// 处理 WebSocket 消息
+  /// 处理 WebSocket 消息（按照接口文档格式）
   void _handleWebSocketMessage(dynamic message) {
     try {
       final data = json.decode(message);
       final type = data['type'];
       
+      print('📨 收到消息: type=$type');
+      
       switch (type) {
-        case 'audio_result':
-          // 音频检测结果
-          print('🎵 收到音频检测结果: ${data['result']}');
-          onDetectionResult?.call({'audio': data['result']});
+        case 'ack':
+          // ACK 确认消息
+          final msgType = data['msg_type'] ?? 'unknown';
+          final status = data['status'] ?? '';
+          final timestamp = data['timestamp'] ?? '';
+          
+          if (status == 'ready') {
+            print('✅ ACK: $msgType (缓冲区已满，已投递检测任务)');
+          } else if (status == 'buffering') {
+            print('✅ ACK: $msgType (正在积攒帧...)');
+          } else {
+            print('✅ ACK: $msgType');
+          }
+          
+          onAckReceived?.call(msgType, status);
           break;
-        case 'video_result':
-          // 视频检测结果
-          print('🎥 收到视频检测结果: ${data['result']}');
-          onDetectionResult?.call({'video': data['result']});
-          break;
-        case 'text_result':
-          // 文本检测结果
-          print('📝 收到文本检测结果: ${data['result']}');
-          onDetectionResult?.call({'text': data['result']});
-          break;
-        case 'detection_result':
-          // 综合检测结果
-          onDetectionResult?.call(data['data']);
-          break;
-        case 'status':
-          // 状态更新
-          onStatusChange?.call(data['message']);
-          break;
-        case 'error':
-          // 错误消息
-          onError?.call(data['message']);
-          break;
+          
         case 'heartbeat_ack':
-        case 'pong':
           // 心跳响应
           print('💓 心跳响应');
           break;
-        case 'ack':
-          // 消息确认
-          print('✅ 消息已确认: ${data['msg_type']}');
+          
+        case 'detection_result':
+          // 检测结果消息（按照文档格式）
+          final detectionType = data['detection_type'] ?? '未知';
+          final isRisk = data['is_risk'] ?? false;
+          final confidence = data['confidence'] ?? 0.0;
+          final message = data['message'] ?? '';
+          final timestamp = data['timestamp'] ?? '';
+          
+          print('🔍 检测结果:');
+          print('   类型: $detectionType');
+          print('   风险: ${isRisk ? "是" : "否"}');
+          print('   置信度: ${(confidence * 100).toFixed(1)}%');
+          print('   消息: $message');
+          print('   时间: $timestamp');
+          
+          // 回调给 UI
+          onDetectionResult?.call({
+            'detection_type': detectionType,
+            'is_risk': isRisk,
+            'confidence': confidence,
+            'message': message,
+            'timestamp': timestamp,
+          });
           break;
+          
+        case 'control':
+          // 控制消息（防御升级等）
+          final action = data['action'] ?? '';
+          
+          if (action == 'upgrade_level') {
+            final targetLevel = data['target_level'] ?? 1;
+            final reason = data['reason'] ?? '';
+            final config = data['config'] ?? {};
+            
+            print('⚠️ 防御升级:');
+            print('   目标等级: Level $targetLevel');
+            print('   原因: $reason');
+            print('   配置: $config');
+            
+            // 回调给 UI 处理
+            onControlMessage?.call({
+              'action': action,
+              'target_level': targetLevel,
+              'reason': reason,
+              'config': config,
+            });
+          } else {
+            print('❓ 未知控制动作: $action');
+          }
+          break;
+          
+        case 'info':
+          // 后端实际返回的消息类型（兼容处理）
+          final infoData = data['data'] ?? {};
+          final title = infoData['title'] ?? '';
+          final infoMessage = infoData['message'] ?? '';
+          final riskLevel = infoData['risk_level'] ?? 'safe';
+          final confidence = (infoData['confidence'] ?? 0.0).toDouble();
+          final timestamp = infoData['timestamp'] ?? '';
+          
+          print('ℹ️ 信息消息:');
+          print('   标题: $title');
+          print('   消息: $infoMessage');
+          print('   风险等级: $riskLevel');
+          print('   置信度: ${(confidence * 100).toStringAsFixed(1)}%');
+          
+          // 转换为标准格式回调给 UI
+          final isRisk = riskLevel != 'safe';
+          final detectionType = title.contains('语音') || title.contains('音频') 
+              ? '语音' 
+              : title.contains('视频') 
+                  ? '视频' 
+                  : '文本';
+          
+          onDetectionResult?.call({
+            'detection_type': detectionType,
+            'is_risk': isRisk,
+            'confidence': confidence,
+            'message': infoMessage,
+            'timestamp': timestamp,
+          });
+          break;
+          
+        case 'error':
+          // 错误消息
+          final errorMsg = data['message'] ?? '未知错误';
+          print('❌ 服务器错误: $errorMsg');
+          onError?.call(errorMsg);
+          break;
+          
+        case 'status':
+          // 状态更新
+          final statusMsg = data['message'] ?? '';
+          print('📊 状态更新: $statusMsg');
+          onStatusChange?.call(statusMsg);
+          break;
+          
         default:
           print('❓ 未知消息类型: $type');
+          print('   完整消息: $data');
       }
     } catch (e) {
       print('❌ 处理 WebSocket 消息失败: $e');
+      print('   原始消息: $message');
     }
   }
   
@@ -308,8 +397,11 @@ class RealTimeDetectionService {
       
       _isRecording = true;
       
+      // 设置订阅间隔（必须在 startRecorder 之后调用）
+      await _audioRecorder.setSubscriptionDuration(Duration(milliseconds: 100));
+      
       // 监听音频音量（用于波形显示）
-      _startAudioLevelMonitoring();
+      await _startAudioLevelMonitoring();
       
       // 定期发送音频数据
       _startAudioStreaming();
@@ -323,10 +415,20 @@ class RealTimeDetectionService {
   }
   
   /// 监听音频音量（用于实时波形）
-  void _startAudioLevelMonitoring() {
+  Future<void> _startAudioLevelMonitoring() async {
     _audioLevelSubscription?.cancel();
+    
+    // ✅ 重新设置订阅间隔（关键！）
+    try {
+      await _audioRecorder.setSubscriptionDuration(Duration(milliseconds: 100));
+    } catch (e) {
+      print('⚠️ 设置订阅间隔失败: $e');
+    }
+    
     _audioLevelSubscription = _audioRecorder.onProgress!.listen((event) {
       if (event.decibels != null) {
+        print('🎤 分贝值: ${event.decibels}'); // ✅ 添加日志
+        
         // 将分贝值转换为 0-1 的范围
         // 分贝范围通常是 -160 到 0
         final normalizedLevel = (event.decibels! + 160) / 160;
@@ -420,6 +522,9 @@ class RealTimeDetectionService {
           bitRate: 128000,
           sampleRate: 44100,
         );
+        
+        // ✅ 重新启动音频音量监听（关键修复！）
+        await _startAudioLevelMonitoring();
       } catch (e) {
         print('❌ 发送音频数据失败: $e');
       }
@@ -477,9 +582,10 @@ class RealTimeDetectionService {
   void _startVideoFrameCapture() {
     _videoFrameTimer?.cancel();
     
-    // 每秒采集 2 帧（根据文档建议 1-5 帧）
-    _videoFrameTimer = Timer.periodic(Duration(milliseconds: 500), (timer) async {
-      if (!_isCameraInitialized || !_isConnected || _channel == null) {
+    // 每秒采集 1 帧（按照接口文档建议）
+    _videoFrameTimer = Timer.periodic(Duration(seconds: 1), (timer) async {
+      // ✅ 增加 _cameraController 空检查
+      if (!_isCameraInitialized || !_isConnected || _channel == null || _cameraController == null) {
         timer.cancel();
         return;
       }
@@ -493,6 +599,13 @@ class RealTimeDetectionService {
       _isCapturingFrame = true;
       
       try {
+        // ✅ 再次检查 controller 是否还有效
+        if (_cameraController == null || !_cameraController!.value.isInitialized) {
+          _isCapturingFrame = false;
+          timer.cancel();
+          return;
+        }
+        
         // 捕获当前帧
         final image = await _cameraController!.takePicture();
         
@@ -502,22 +615,22 @@ class RealTimeDetectionService {
         // 压缩图像（减少传输数据量）
         final decodedImage = img.decodeImage(bytes);
         if (decodedImage != null) {
-          // 调整大小到 640x480
+          // 调整大小到 640x480（按照文档建议）
           final resized = img.copyResize(decodedImage, width: 640, height: 480);
           
-          // 转换为 JPEG 格式（压缩）
-          final compressed = img.encodeJpg(resized, quality: 70);
+          // 转换为 JPEG 格式，质量 0.8（按照文档建议 0.7-0.9）
+          final compressed = img.encodeJpg(resized, quality: 80);
           
           // Base64 编码
           final base64Frame = base64Encode(compressed);
           
-          // 发送视频帧
+          // 发送视频帧（按照文档格式）
           _channel!.sink.add(json.encode({
             'type': 'video',
             'data': base64Frame,
           }));
           
-          print('🎥 发送视频帧: ${compressed.length} bytes');
+          print('🎥 发送视频帧: ${compressed.length} bytes (${resized.width}x${resized.height})');
         }
         
         // 删除临时文件
@@ -533,13 +646,19 @@ class RealTimeDetectionService {
   /// 停止视频采集
   Future<void> _stopVideoCapture() async {
     try {
+      // ✅ 先取消定时器，防止在 dispose 后还尝试采集
       _videoFrameTimer?.cancel();
       _videoFrameTimer = null;
       
+      // ✅ 等待当前采集完成
+      while (_isCapturingFrame) {
+        await Future.delayed(Duration(milliseconds: 100));
+      }
+      
       if (_isCameraInitialized && _cameraController != null) {
+        _isCameraInitialized = false; // ✅ 先设置标志，防止定时器继续执行
         await _cameraController!.dispose();
         _cameraController = null;
-        _isCameraInitialized = false;
       }
       
       print('📹 摄像头已停止');

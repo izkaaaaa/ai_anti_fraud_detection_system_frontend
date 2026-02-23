@@ -96,23 +96,60 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
   
   /// 设置检测服务回调
   void _setupDetectionServiceCallbacks() {
+    // 检测结果回调（按照接口文档格式）
     _detectionService.onDetectionResult = (result) {
       if (mounted) {
+        print('📊 收到检测结果: $result');
+        
         setState(() {
-          // 更新检测结果
-          if (result['audio'] != null) {
-            _audioConfidence = (result['audio']['confidence'] ?? 0.0).toDouble();
-            _audioIsFake = result['audio']['is_fake'] ?? false;
-          }
+          // 按照接口文档格式解析
+          final detectionType = result['detection_type'] ?? '';
+          final isRisk = result['is_risk'] ?? false;
+          final confidence = (result['confidence'] ?? 0.0).toDouble();
+          final message = result['message'] ?? '';
           
-          if (result['video'] != null) {
-            _videoConfidence = (result['video']['confidence'] ?? 0.0).toDouble();
-            _videoIsDeepfake = result['video']['is_deepfake'] ?? false;
-          }
-          
-          if (result['text'] != null) {
-            _textRiskLevel = result['text']['risk_level'] ?? 'safe';
-            _textKeywords = List<String>.from(result['text']['keywords'] ?? []);
+          // 根据检测类型更新对应的结果
+          if (detectionType == '语音' || detectionType == 'audio') {
+            _audioConfidence = confidence;
+            _audioIsFake = isRisk;
+            
+            // 显示提示消息
+            if (isRisk) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('⚠️ 音频风险: $message'),
+                  backgroundColor: AppColors.error,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+          } else if (detectionType == '视频' || detectionType == 'video') {
+            _videoConfidence = confidence;
+            _videoIsDeepfake = isRisk;
+            
+            // 显示提示消息
+            if (isRisk) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('⚠️ 视频风险: $message'),
+                  backgroundColor: AppColors.error,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+          } else if (detectionType == '文本' || detectionType == 'text') {
+            _textRiskLevel = isRisk ? 'high' : 'safe';
+            
+            // 显示提示消息
+            if (isRisk) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('⚠️ 文本风险: $message'),
+                  backgroundColor: AppColors.error,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
           }
           
           // 计算综合风险等级
@@ -124,6 +161,50 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
           }
         });
       }
+    };
+    
+    // 控制消息回调（防御升级等）
+    _detectionService.onControlMessage = (control) {
+      if (mounted) {
+        print('🎮 收到控制消息: $control');
+        
+        final action = control['action'] ?? '';
+        
+        if (action == 'upgrade_level') {
+          final targetLevel = control['target_level'] ?? 1;
+          final reason = control['reason'] ?? '';
+          final config = control['config'] ?? {};
+          
+          // 显示全屏警告
+          if (config['show_full_screen_warning'] == true) {
+            _showFullScreenWarning(
+              config['ui_message'] ?? '⚠️ 检测到风险，请提高警惕！',
+              targetLevel,
+              reason,
+            );
+          } else {
+            // 显示普通提示
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('⚠️ 防御等级升级\n等级: Level $targetLevel\n原因: $reason'),
+                backgroundColor: AppColors.error,
+                duration: Duration(seconds: 5),
+              ),
+            );
+          }
+          
+          // 更新状态为警告
+          setState(() {
+            _currentState = DetectionState.warning;
+          });
+        }
+      }
+    };
+    
+    // ACK 确认回调
+    _detectionService.onAckReceived = (msgType, status) {
+      // 可以在这里显示发送状态（可选）
+      // print('✅ $msgType 已确认: $status');
     };
     
     // 新增：监听真实音频波形数据
@@ -150,13 +231,12 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
           _statusMessage = error;
         });
         
-        Get.snackbar(
-          '错误',
-          error,
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-          duration: Duration(seconds: 3),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('错误: $error'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
         );
       }
     };
@@ -230,13 +310,13 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
           _statusMessage = '监测中...';
         });
         
-        Get.snackbar(
-          '成功',
-          '实时监测已启动',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green,
-          colorText: Colors.white,
-          duration: Duration(seconds: 2),
+        // ✅ 使用 ScaffoldMessenger 替代 Get.snackbar，避免 context 问题
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('实时监测已启动'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
         );
       }
     } else {
@@ -272,13 +352,13 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
         _overallRisk = RiskLevel.safe;
       });
       
-      Get.snackbar(
-        '已停止',
-        '实时监测已停止',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.grey[700],
-        colorText: Colors.white,
-        duration: Duration(seconds: 2),
+      // ✅ 使用 ScaffoldMessenger 替代 Get.snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('实时监测已停止'),
+          backgroundColor: Colors.grey[700],
+          duration: Duration(seconds: 2),
+        ),
       );
     }
   }
@@ -398,6 +478,182 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
             child: Text('前往设置'),
           ),
         ],
+      ),
+    );
+  }
+  
+  /// 显示全屏警告对话框
+  void _showFullScreenWarning(String message, int level, String reason) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.error,
+                AppColors.error.withOpacity(0.8),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.error.withOpacity(0.5),
+                blurRadius: 20,
+                spreadRadius: 5,
+              ),
+            ],
+          ),
+          padding: EdgeInsets.all(AppTheme.paddingLarge * 1.5),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 警告图标（带动画）
+              TweenAnimationBuilder(
+                tween: Tween<double>(begin: 0.8, end: 1.2),
+                duration: Duration(milliseconds: 500),
+                curve: Curves.easeInOut,
+                builder: (context, double scale, child) {
+                  return Transform.scale(
+                    scale: scale,
+                    child: Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.white,
+                      size: 80,
+                    ),
+                  );
+                },
+              ),
+              
+              SizedBox(height: AppTheme.paddingLarge),
+              
+              // 警告标题
+              Text(
+                '🚨 风险警告',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              
+              SizedBox(height: AppTheme.paddingMedium),
+              
+              // 防御等级
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppTheme.paddingMedium,
+                  vertical: AppTheme.paddingSmall,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: Text(
+                  '防御等级: Level $level',
+                  style: TextStyle(
+                    fontSize: AppTheme.fontSizeLarge,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              
+              SizedBox(height: AppTheme.paddingLarge),
+              
+              // 警告消息
+              Container(
+                padding: EdgeInsets.all(AppTheme.paddingMedium),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                ),
+                child: Text(
+                  message,
+                  style: TextStyle(
+                    fontSize: AppTheme.fontSizeMedium,
+                    color: Colors.white,
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              
+              SizedBox(height: AppTheme.paddingSmall),
+              
+              // 原因
+              Text(
+                '原因: $reason',
+                style: TextStyle(
+                  fontSize: AppTheme.fontSizeSmall,
+                  color: Colors.white.withOpacity(0.9),
+                  fontStyle: FontStyle.italic,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              
+              SizedBox(height: AppTheme.paddingLarge * 1.5),
+              
+              // 按钮
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        // 停止监测
+                        _stopMonitoring();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: AppColors.error,
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                        ),
+                      ),
+                      child: Text(
+                        '停止监测',
+                        style: TextStyle(
+                          fontSize: AppTheme.fontSizeMedium,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: AppTheme.paddingMedium),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: BorderSide(color: Colors.white, width: 2),
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                        ),
+                      ),
+                      child: Text(
+                        '继续监测',
+                        style: TextStyle(
+                          fontSize: AppTheme.fontSizeMedium,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

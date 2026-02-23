@@ -44,7 +44,7 @@ class GlobalConstants {
   // ============================================================
   // 🎯 在这里修改当前使用的设备模式
   // ============================================================
-  static const DeviceMode CURRENT_MODE = DeviceMode.emulator;
+  static const DeviceMode CURRENT_MODE = DeviceMode.realDevice;
   
   // ============================================================
   // 📍 所有 IP 地址集中管理（修改这里即可）
@@ -94,6 +94,15 @@ class HttpConstants {
   // 系统接口
   static const String HEALTH = "/health"; // 健康检查接口
   
-  // 其他接口可以在这里添加
-  // static const String DETECTION = "/api/detection"; // 检测接口
+  // 实时检测接口
+  static const String CREATE_CALL_RECORD = "/api/call-records/start"; // 创建通话记录
+  static const String END_CALL_RECORD = "/api/call-records/end"; // 结束通话记录
+  
+  // WebSocket 接口（需要动态拼接 user_id 和 call_id）
+  // 格式: /api/detection/ws/{user_id}/{call_id}?token={jwt_token}
+  static String getWebSocketUrl(int userId, String callId, String token) {
+    // 将 http:// 替换为 ws://
+    final wsBaseUrl = GlobalConstants.BASE_URL.replaceFirst('http://', 'ws://');
+    return '$wsBaseUrl/api/detection/ws/$userId/$callId?token=$token';
+  }
 }
