@@ -42,6 +42,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
   double _videoConfidence = 0.0;
   bool _videoIsDeepfake = false;
   String _textRiskLevel = 'safe';
+  double _textConfidence = 0.0;  // ✅ 新增：保存文本检测的实际置信度
   List<String> _textKeywords = [];
   
   // 综合风险等级
@@ -142,12 +143,19 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
             }
           } else if (detectionType == '文本' || detectionType == 'text') {
             _textRiskLevel = isRisk ? 'high' : 'safe';
+            _textConfidence = confidence;  // ✅ 保存实际置信度
+            
+            // ✅ 提取关键词
+            final keywords = result['keywords'];
+            if (keywords != null && keywords is List) {
+              _textKeywords = List<String>.from(keywords);
+            }
             
             // 显示提示消息
             if (isRisk) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('⚠️ 文本风险: $message'),
+                  content: Text('⚠️ 文本风险: $message${_textKeywords.isNotEmpty ? "\n关键词: ${_textKeywords.join(", ")}" : ""}'),
                   backgroundColor: AppColors.error,
                   duration: Duration(seconds: 3),
                 ),
@@ -364,6 +372,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
         _audioIsFake = false;
         _videoIsDeepfake = false;
         _textRiskLevel = 'safe';
+        _textConfidence = 0.0;  // ✅ 重置文本置信度
         _textKeywords = [];
         _overallRisk = RiskLevel.safe;
       });
@@ -1233,8 +1242,9 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
           _buildResultItem(
             icon: Icons.text_fields,
             label: '文本检测',
-            confidence: _textRiskLevel == 'safe' ? 0.95 : 0.5,
+            confidence: _textConfidence,  // ✅ 使用实际置信度
             isSafe: _textRiskLevel == 'safe',
+            keywords: _textKeywords,  // ✅ 传递关键词
           ),
         ],
       ),
@@ -1247,6 +1257,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     required String label,
     required double confidence,
     required bool isSafe,
+    List<String>? keywords,  // ✅ 新增关键词参数
   }) {
     final color = isSafe ? AppColors.success : AppColors.error;
     final statusText = isSafe ? '安全' : '风险';
@@ -1258,69 +1269,117 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Icon(icon, color: color, size: 24),
-          SizedBox(width: AppTheme.paddingMedium),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: AppTheme.fontSizeMedium,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Row(
+          Row(
+            children: [
+              Icon(icon, color: color, size: 24),
+              SizedBox(width: AppTheme.paddingMedium),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                        child: LinearProgressIndicator(
-                          value: confidence,
-                          minHeight: 6,
-                          backgroundColor: AppColors.borderLight,
-                          valueColor: AlwaysStoppedAnimation<Color>(color),
-                        ),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: AppTheme.fontSizeMedium,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
                       ),
                     ),
-                    SizedBox(width: AppTheme.paddingSmall),
-                    Text(
-                      '${(confidence * 100).toStringAsFixed(0)}%',
-                      style: TextStyle(
-                        fontSize: AppTheme.fontSizeSmall,
-                        fontWeight: FontWeight.w600,
-                        color: color,
-                      ),
+                    SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                            child: LinearProgressIndicator(
+                              value: confidence,
+                              minHeight: 6,
+                              backgroundColor: AppColors.borderLight,
+                              valueColor: AlwaysStoppedAnimation<Color>(color),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: AppTheme.paddingSmall),
+                        Text(
+                          '${(confidence * 100).toStringAsFixed(0)}%',
+                          style: TextStyle(
+                            fontSize: AppTheme.fontSizeSmall,
+                            fontWeight: FontWeight.w600,
+                            color: color,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              SizedBox(width: AppTheme.paddingMedium),
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                ),
+                child: Text(
+                  statusText,
+                  style: TextStyle(
+                    fontSize: AppTheme.fontSizeSmall,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
-          SizedBox(width: AppTheme.paddingMedium),
-          Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 4,
-            ),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-            ),
-            child: Text(
-              statusText,
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeSmall,
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
+          
+          // ✅ 显示关键词（如果有）
+          if (keywords != null && keywords.isNotEmpty) ...[
+            SizedBox(height: AppTheme.paddingSmall),
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(AppTheme.paddingSmall),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                border: Border.all(color: color.withOpacity(0.2)),
+              ),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  Icon(Icons.warning_amber, color: color, size: 14),
+                  Text(
+                    '关键词:',
+                    style: TextStyle(
+                      fontSize: AppTheme.fontSizeSmall,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
+                  ),
+                  ...keywords.map((keyword) => Container(
+                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      keyword,
+                      style: TextStyle(
+                        fontSize: AppTheme.fontSizeSmall,
+                        color: color,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  )),
+                ],
               ),
             ),
-          ),
+          ],
         ],
       ),
     );

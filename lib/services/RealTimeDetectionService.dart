@@ -9,6 +9,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:camera/camera.dart';
 import 'package:image/image.dart' as img;
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/services/baidu_speech_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/DioRequest.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/index.dart';
 
@@ -31,6 +32,10 @@ class RealTimeDetectionService {
   bool _isCameraInitialized = false;
   Timer? _videoFrameTimer;
   bool _isCapturingFrame = false; // 防止并发拍照
+  
+  // ✅ 百度语音识别服务（用于文字流检测）
+  final BaiduSpeechService _speechService = BaiduSpeechService();
+  bool _isSpeechRecognitionActive = false;
   
   // 音频波形数据（使用可变列表）
   final List<double> _audioWaveformData = List.generate(50, (_) => 0.0);
@@ -94,6 +99,13 @@ class RealTimeDetectionService {
         // 不阻断流程，继续使用音频检测
       }
       
+      // ✅ 5. 启动语音识别（用于文字流检测）
+      final speechStarted = await _startSpeechRecognition();
+      if (!speechStarted) {
+        print('⚠️ 语音识别启动失败，仅使用音视频检测');
+        // 不阻断流程，继续使用音视频检测
+      }
+      
       onStatusChange?.call('监测已启动');
       return true;
     } catch (e) {
@@ -111,7 +123,10 @@ class RealTimeDetectionService {
       // 2. 停止视频采集
       await _stopVideoCapture();
       
-      // 3. 断开 WebSocket（根据文档，关闭连接即可，无需调用结束接口）
+      // ✅ 3. 停止语音识别
+      await _stopSpeechRecognition();
+      
+      // 4. 断开 WebSocket（根据文档，关闭连接即可，无需调用结束接口）
       await _disconnectWebSocket();
       
       onStatusChange?.call('监测已停止');
@@ -705,6 +720,93 @@ class RealTimeDetectionService {
     }
   }
   
+  // ============================================================
+  // ✅ 语音识别（文字流检测）
+  // ============================================================
+  
+  /// 启动语音识别（用于文字流检测）
+  Future<bool> _startSpeechRecognition() async {
+    try {
+      print('🎤 启动语音识别（文字流检测）...');
+      
+      // 1. 初始化语音识别服务
+      final initialized = await _speechService.initialize();
+      if (!initialized) {
+        print('❌ 语音识别初始化失败');
+        return false;
+      }
+      
+      // 2. 设置回调函数
+      _setupSpeechRecognitionCallbacks();
+      
+      // 3. 开始识别
+      final started = await _speechService.startRecognition();
+      if (!started) {
+        print('❌ 语音识别启动失败');
+        return false;
+      }
+      
+      _isSpeechRecognitionActive = true;
+      print('✅ 语音识别已启动');
+      return true;
+    } catch (e) {
+      print('❌ 启动语音识别失败: $e');
+      return false;
+    }
+  }
+  
+  /// 设置语音识别回调
+  void _setupSpeechRecognitionCallbacks() {
+    // 临时识别结果（实时显示，不发送给后端）
+    _speechService.onPartialResult = (text) {
+      print('🎤 临时识别: $text');
+      // 可以在这里更新 UI 显示实时识别结果
+    };
+    
+    // ✅ 最终识别结果（发送给后端进行文本检测）
+    _speechService.onFinalResult = (text, startTime, endTime) {
+      print('✅ 最终识别: $text (${startTime}ms - ${endTime}ms)');
+      
+      // 将识别的文本发送给后端进行检测
+      if (text.isNotEmpty && _isConnected && _channel != null) {
+        sendText(text);
+      }
+    };
+    
+    // 状态变化
+    _speechService.onStatusChange = (status) {
+      print('🎤 语音识别状态: $status');
+    };
+    
+    // 错误处理
+    _speechService.onError = (error) {
+      print('❌ 语音识别错误: $error');
+      // 不影响主流程，继续监测
+    };
+    
+    // 连接状态
+    _speechService.onConnected = () {
+      print('✅ 语音识别已连接');
+    };
+    
+    _speechService.onDisconnected = () {
+      print('🔌 语音识别已断开');
+    };
+  }
+  
+  /// 停止语音识别
+  Future<void> _stopSpeechRecognition() async {
+    try {
+      if (_isSpeechRecognitionActive) {
+        await _speechService.stopRecognition();
+        _isSpeechRecognitionActive = false;
+        print('🎤 语音识别已停止');
+      }
+    } catch (e) {
+      print('❌ 停止语音识别失败: $e');
+    }
+  }
+  
   /// 发送文本数据（用于文本检测）
   void sendText(String text) {
     if (_isConnected && _channel != null) {
@@ -713,6 +815,8 @@ class RealTimeDetectionService {
         'data': text,
       }));
       print('📝 发送文本数据: $text');
+    } else {
+      print('⚠️ 无法发送文本: WebSocket 未连接');
     }
   }
   
@@ -734,8 +838,10 @@ class RealTimeDetectionService {
     _audioLevelSubscription?.cancel();
     await _stopAudioRecording();
     await _stopVideoCapture();
+    await _stopSpeechRecognition();  // ✅ 停止语音识别
     _stopCallRecording();  // ✅ 停止通话录音（不需要 await，因为是同步方法）
     await _disconnectWebSocket();
+    await _speechService.dispose();  // ✅ 清理语音识别服务
   }
   
   /// 获取连接状态
@@ -755,6 +861,9 @@ class RealTimeDetectionService {
   
   /// 获取当前防御等级
   int get currentDefenseLevel => _currentDefenseLevel;
+  
+  /// 是否正在进行语音识别
+  bool get isSpeechRecognitionActive => _isSpeechRecognitionActive;
   
   /// 应用防御等级（只升不降）
   void _applyDefenseLevel(int targetLevel, Map<String, dynamic> config) {
