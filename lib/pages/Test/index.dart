@@ -8,6 +8,7 @@ import 'dart:math';
 import 'package:flutter_screen_recording/flutter_screen_recording.dart';
 import 'package:video_player/video_player.dart';
 import 'dart:io';
+import 'package:ai_anti_fraud_detection_system_frontend/services/baidu_speech_service.dart';
 
 class TestPage extends StatefulWidget {
   const TestPage({super.key});
@@ -22,7 +23,7 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
   
   @override
@@ -63,6 +64,7 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
                 tabs: [
                   Tab(icon: Icon(Icons.screen_share), text: '录屏测试'),
                   Tab(icon: Icon(Icons.mic), text: '麦克风测试'),
+                  Tab(icon: Icon(Icons.text_fields), text: '语音转文字'),
                 ],
               ),
               Container(
@@ -78,6 +80,7 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
         children: [
           ScreenRecordTestTab(),
           MicrophoneTestTab(),
+          SpeechToTextTestTab(),
         ],
       ),
     );
@@ -1028,4 +1031,605 @@ class _MicrophoneTestTabState extends State<MicrophoneTestTab> with TickerProvid
       ),
     );
   }
+}
+
+// ==================== 语音转文字测试 Tab ====================
+class SpeechToTextTestTab extends StatefulWidget {
+  const SpeechToTextTestTab({super.key});
+
+  @override
+  State<SpeechToTextTestTab> createState() => _SpeechToTextTestTabState();
+}
+
+class _SpeechToTextTestTabState extends State<SpeechToTextTestTab> {
+  final BaiduSpeechService _speechService = BaiduSpeechService();
+  bool _isInitialized = false;
+  bool _isRecognizing = false;
+  String _statusMessage = '点击"初始化"开始';
+  String _currentText = '';
+  final List<RecognitionResult> _resultHistory = [];
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _setupCallbacks();
+  }
+
+  @override
+  void dispose() {
+    _speechService.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _setupCallbacks() {
+    // 临时识别结果（实时显示）
+    _speechService.onPartialResult = (text) {
+      if (mounted) {
+        setState(() {
+          _currentText = text;
+        });
+      }
+    };
+
+    // 最终识别结果（添加到历史）
+    _speechService.onFinalResult = (text, startTime, endTime) {
+      if (mounted) {
+        setState(() {
+          _resultHistory.add(RecognitionResult(
+            text: text,
+            startTime: startTime,
+            endTime: endTime,
+            timestamp: DateTime.now(),
+          ));
+          _currentText = '';
+        });
+
+        // 自动滚动到底部
+        Future.delayed(Duration(milliseconds: 100), () {
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              duration: Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          }
+        });
+      }
+    };
+
+    // 状态变化
+    _speechService.onStatusChange = (status) {
+      if (mounted) {
+        setState(() {
+          _statusMessage = status;
+        });
+      }
+    };
+
+    // 错误处理
+    _speechService.onError = (error) {
+      if (mounted) {
+        setState(() {
+          _statusMessage = '错误: $error';
+        });
+        _showError(error);
+      }
+    };
+
+    // 连接成功
+    _speechService.onConnected = () {
+      if (mounted) {
+        _showSuccess('连接成功！');
+      }
+    };
+
+    // 断开连接
+    _speechService.onDisconnected = () {
+      if (mounted) {
+        setState(() {
+          _isRecognizing = false;
+        });
+      }
+    };
+  }
+
+  Future<void> _initialize() async {
+    setState(() {
+      _statusMessage = '正在初始化...';
+    });
+
+    final success = await _speechService.initialize();
+
+    if (success) {
+      setState(() {
+        _isInitialized = true;
+        _statusMessage = '初始化成功！点击"开始识别"';
+      });
+      _showSuccess('初始化成功！');
+    } else {
+      setState(() {
+        _statusMessage = '初始化失败';
+      });
+    }
+  }
+
+  Future<void> _startRecognition() async {
+    if (!_isInitialized) {
+      _showError('请先初始化');
+      return;
+    }
+
+    setState(() {
+      _statusMessage = '正在连接...';
+      _currentText = '';
+    });
+
+    final success = await _speechService.startRecognition();
+
+    if (success) {
+      setState(() {
+        _isRecognizing = true;
+      });
+    }
+  }
+
+  Future<void> _stopRecognition() async {
+    setState(() {
+      _statusMessage = '正在停止...';
+    });
+
+    await _speechService.stopRecognition();
+
+    setState(() {
+      _isRecognizing = false;
+      _statusMessage = '已停止';
+    });
+  }
+
+  void _clearHistory() {
+    setState(() {
+      _resultHistory.clear();
+      _currentText = '';
+    });
+    _showSuccess('已清空历史记录');
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppColors.error),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppColors.success),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(AppTheme.paddingMedium),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildStatusCard(),
+          SizedBox(height: AppTheme.paddingMedium),
+          _buildCurrentTextCard(),
+          SizedBox(height: AppTheme.paddingMedium),
+          _buildControlButtons(),
+          SizedBox(height: AppTheme.paddingMedium),
+          _buildHistoryCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusCard() {
+    Color statusColor = _isRecognizing 
+        ? AppColors.success 
+        : _isInitialized 
+            ? AppColors.primary 
+            : AppColors.textSecondary;
+
+    IconData statusIcon = _isRecognizing 
+        ? Icons.mic 
+        : _isInitialized 
+            ? Icons.check_circle 
+            : Icons.info_outline;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        border: Border.all(color: AppColors.borderDark, width: 2.0),
+        boxShadow: AppTheme.shadowMedium,
+      ),
+      padding: EdgeInsets.all(AppTheme.paddingLarge),
+      child: Column(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: statusColor,
+              boxShadow: _isRecognizing
+                  ? [
+                      BoxShadow(
+                        color: statusColor.withOpacity(0.5),
+                        blurRadius: 20,
+                        spreadRadius: 5,
+                      ),
+                    ]
+                  : AppTheme.shadowMedium,
+            ),
+            child: Icon(
+              statusIcon,
+              size: 40,
+              color: Colors.white,
+            ),
+          ),
+          SizedBox(height: AppTheme.paddingMedium),
+          Text(
+            _isRecognizing ? '识别中...' : _isInitialized ? '就绪' : '未初始化',
+            style: TextStyle(
+              fontSize: AppTheme.fontSizeXLarge,
+              fontWeight: FontWeight.bold,
+              color: statusColor,
+            ),
+          ),
+          SizedBox(height: AppTheme.paddingSmall),
+          Text(
+            _statusMessage,
+            style: TextStyle(
+              fontSize: AppTheme.fontSizeMedium,
+              color: AppColors.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: AppTheme.paddingMedium),
+          Container(
+            padding: EdgeInsets.all(AppTheme.paddingSmall),
+            decoration: BoxDecoration(
+              color: Colors.blue[50],
+              borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+              border: Border.all(color: Colors.blue[200]!),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.blue[700], size: 16),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '使用百度实时语音识别 WebSocket API',
+                    style: TextStyle(
+                      fontSize: AppTheme.fontSizeSmall,
+                      color: Colors.blue[900],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCurrentTextCard() {
+    return Container(
+      constraints: BoxConstraints(minHeight: 120),
+      decoration: BoxDecoration(
+        color: _isRecognizing 
+            ? AppColors.success.withOpacity(0.1) 
+            : AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        border: Border.all(
+          color: _isRecognizing ? AppColors.success : AppColors.borderDark,
+          width: 2.0,
+        ),
+        boxShadow: AppTheme.shadowSmall,
+      ),
+      padding: EdgeInsets.all(AppTheme.paddingLarge),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.text_fields,
+                color: _isRecognizing ? AppColors.success : AppColors.textSecondary,
+                size: 20,
+              ),
+              SizedBox(width: AppTheme.paddingSmall),
+              Text(
+                '实时识别结果',
+                style: TextStyle(
+                  fontSize: AppTheme.fontSizeMedium,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              if (_isRecognizing) ...[
+                SizedBox(width: 8),
+                SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.success),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          SizedBox(height: AppTheme.paddingMedium),
+          Text(
+            _currentText.isEmpty ? '等待识别...' : _currentText,
+            style: TextStyle(
+              fontSize: AppTheme.fontSizeLarge,
+              color: _currentText.isEmpty ? AppColors.textLight : AppColors.textPrimary,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildControlButtons() {
+    return Column(
+      children: [
+        if (!_isInitialized)
+          _buildButton(
+            label: '初始化',
+            icon: Icons.power_settings_new,
+            color: AppColors.primary,
+            onPressed: _initialize,
+          )
+        else ...[
+          _buildButton(
+            label: _isRecognizing ? '停止识别' : '开始识别',
+            icon: _isRecognizing ? Icons.stop : Icons.mic,
+            color: _isRecognizing ? AppColors.error : AppColors.success,
+            onPressed: _isRecognizing ? _stopRecognition : _startRecognition,
+          ),
+          SizedBox(height: AppTheme.paddingSmall),
+          Row(
+            children: [
+              Expanded(
+                child: _buildButton(
+                  label: '清空历史',
+                  icon: Icons.delete_outline,
+                  color: AppColors.warning,
+                  onPressed: _resultHistory.isEmpty ? () {} : _clearHistory,
+                  enabled: _resultHistory.isNotEmpty && !_isRecognizing,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onPressed,
+    bool enabled = true,
+  }) {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        color: enabled ? color : AppColors.borderLight,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(color: AppColors.borderDark, width: 2.0),
+        boxShadow: enabled ? AppTheme.shadowMedium : [],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: enabled ? onPressed : null,
+        icon: Icon(icon),
+        label: Text(
+          label,
+          style: TextStyle(
+            fontSize: AppTheme.fontSizeLarge,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryCard() {
+    return Container(
+      constraints: BoxConstraints(maxHeight: 400),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        border: Border.all(color: AppColors.borderDark, width: 2.0),
+        boxShadow: AppTheme.shadowSmall,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.all(AppTheme.paddingLarge),
+            child: Row(
+              children: [
+                Icon(Icons.history, color: AppColors.primary, size: 20),
+                SizedBox(width: AppTheme.paddingSmall),
+                Text(
+                  '识别历史',
+                  style: TextStyle(
+                    fontSize: AppTheme.fontSizeMedium,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                Spacer(),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                  ),
+                  child: Text(
+                    '${_resultHistory.length} 条',
+                    style: TextStyle(
+                      fontSize: AppTheme.fontSizeSmall,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: AppColors.borderMedium),
+          Expanded(
+            child: _resultHistory.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(AppTheme.paddingLarge),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.chat_bubble_outline,
+                            size: 48,
+                            color: AppColors.textLight,
+                          ),
+                          SizedBox(height: AppTheme.paddingMedium),
+                          Text(
+                            '暂无识别记录',
+                            style: TextStyle(
+                              fontSize: AppTheme.fontSizeMedium,
+                              color: AppColors.textLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    controller: _scrollController,
+                    padding: EdgeInsets.all(AppTheme.paddingMedium),
+                    itemCount: _resultHistory.length,
+                    separatorBuilder: (context, index) => SizedBox(height: AppTheme.paddingSmall),
+                    itemBuilder: (context, index) {
+                      final result = _resultHistory[index];
+                      return _buildHistoryItem(result, index);
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryItem(RecognitionResult result, int index) {
+    final duration = result.endTime - result.startTime;
+    final durationText = '${(duration / 1000).toStringAsFixed(1)}s';
+
+    return Container(
+      padding: EdgeInsets.all(AppTheme.paddingMedium),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    '${index + 1}',
+                    style: TextStyle(
+                      fontSize: AppTheme.fontSizeSmall,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: 8),
+              Text(
+                result.timestamp.toString().substring(11, 19),
+                style: TextStyle(
+                  fontSize: AppTheme.fontSizeSmall,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Spacer(),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  durationText,
+                  style: TextStyle(
+                    fontSize: AppTheme.fontSizeSmall,
+                    color: AppColors.success,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 8),
+          Text(
+            result.text,
+            style: TextStyle(
+              fontSize: AppTheme.fontSizeMedium,
+              color: AppColors.textPrimary,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// 识别结果数据类
+class RecognitionResult {
+  final String text;
+  final int startTime;
+  final int endTime;
+  final DateTime timestamp;
+
+  RecognitionResult({
+    required this.text,
+    required this.startTime,
+    required this.endTime,
+    required this.timestamp,
+  });
 }

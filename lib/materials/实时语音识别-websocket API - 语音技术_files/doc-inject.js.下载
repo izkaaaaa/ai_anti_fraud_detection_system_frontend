@@ -1,0 +1,528 @@
+var docInject = (function (exports) {
+    'use strict';
+
+    /* eslint-disable */
+
+    // https://github.com/sudodoki/copy-to-clipboard
+
+    function deselectCurrent() {
+        var selection = document.getSelection();
+        if (!selection.rangeCount) {
+            return function () { };
+        }
+        var active = document.activeElement;
+
+        var ranges = [];
+        for (var i = 0; i < selection.rangeCount; i++) {
+            ranges.push(selection.getRangeAt(i));
+        }
+
+        switch (active.tagName.toUpperCase()) { // .toUpperCase handles XHTML
+            case 'INPUT':
+            case 'TEXTAREA':
+                active.blur();
+                break;
+
+            default:
+                active = null;
+                break;
+        }
+
+        selection.removeAllRanges();
+        return function () {
+            selection.type === 'Caret' && selection.removeAllRanges();
+
+            if (!selection.rangeCount) {
+                ranges.forEach(function (range) {
+                    selection.addRange(range);
+                });
+            }
+
+            active && active.focus();
+        };
+    }
+    var clipboardToIE11Formatting = {
+        "text/plain": "Text",
+        "text/html": "Url",
+        "default": "Text"
+    };
+
+    var defaultMessage = "Copy to clipboard: #{key}, Enter";
+
+    function format(message) {
+        var copyKey = (/mac os x/i.test(navigator.userAgent) ? "⌘" : "Ctrl") + "+C";
+        return message.replace(/#{\s*key\s*}/g, copyKey);
+    }
+
+    function copy(text, options) {
+        var debug,
+            message,
+            reselectPrevious,
+            range,
+            selection,
+            mark,
+            success = false;
+        if (!options) {
+            options = {};
+        }
+        debug = options.debug || false;
+        try {
+            reselectPrevious = deselectCurrent();
+
+            range = document.createRange();
+            selection = document.getSelection();
+
+            mark = document.createElement("span");
+            mark.textContent = text;
+            // avoid screen readers from reading out loud the text
+            mark.ariaHidden = "true";
+            // reset user styles for span element
+            mark.style.all = "unset";
+            // prevents scrolling to the end of the page
+            mark.style.position = "fixed";
+            mark.style.top = 0;
+            mark.style.clip = "rect(0, 0, 0, 0)";
+            // used to preserve spaces and line breaks
+            mark.style.whiteSpace = "pre";
+            // do not inherit user-select (it may be `none`)
+            mark.style.webkitUserSelect = "text";
+            mark.style.MozUserSelect = "text";
+            mark.style.msUserSelect = "text";
+            mark.style.userSelect = "text";
+            mark.addEventListener("copy", function (e) {
+                e.stopPropagation();
+                if (options.format) {
+                    e.preventDefault();
+                    if (typeof e.clipboardData === "undefined") { // IE 11
+                        debug && console.warn("unable to use e.clipboardData");
+                        debug && console.warn("trying IE specific stuff");
+                        window.clipboardData.clearData();
+                        var format = clipboardToIE11Formatting[options.format] || clipboardToIE11Formatting["default"];
+                        window.clipboardData.setData(format, text);
+                    } else { // all other browsers
+                        e.clipboardData.clearData();
+                        e.clipboardData.setData(options.format, text);
+                    }
+                }
+                if (options.onCopy) {
+                    e.preventDefault();
+                    options.onCopy(e.clipboardData);
+                }
+            });
+
+            document.body.appendChild(mark);
+
+            range.selectNodeContents(mark);
+            selection.addRange(range);
+
+            var successful = document.execCommand("copy");
+            if (!successful) {
+                throw new Error("copy command was unsuccessful");
+            }
+            success = true;
+        } catch (err) {
+            debug && console.error("unable to copy using execCommand: ", err);
+            debug && console.warn("trying IE specific stuff");
+            try {
+                window.clipboardData.setData(options.format || "text", text);
+                options.onCopy && options.onCopy(window.clipboardData);
+                success = true;
+            } catch (err) {
+                debug && console.error("unable to copy using clipboardData: ", err);
+                debug && console.error("falling back to prompt");
+                message = format("message" in options ? options.message : defaultMessage);
+                window.prompt(message, text);
+            }
+        } finally {
+            if (selection) {
+                if (typeof selection.removeRange == "function") {
+                    selection.removeRange(range);
+                } else {
+                    selection.removeAllRanges();
+                }
+            }
+
+            if (mark) {
+                document.body.removeChild(mark);
+            }
+            reselectPrevious();
+        }
+
+        return success;
+    }
+
+    /* eslint-disable no-console */
+
+    // eslint-disable-next-line max-len
+    const copySuccessSvg = '<svg class="icon-copy-success" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.02859 11.0634L6.31959 10.3584L6.32059 10.3574L4.18959 8.24142L4.89459 7.53142L7.02559 9.64842L11.2526 5.39242L11.9616 6.09642L7.02859 11.0634ZM7.97659 1.02238C4.11059 1.03642 0.986592 4.18042 0.999552 8.04542C1.01259 11.9124 4.15759 15.0364 8.02359 15.0225C11.8896 15.0094 15.0126 11.8654 14.9996 7.99942C14.9866 4.13242 11.8426 1.00942 7.97659 1.02238Z" fill="#30BF13"/></svg>';
+
+    function initTextCopy() {
+        // Using event delegation to handle clicks on copy elements
+        const clickHandler = event => {
+            const el = event.target.closest('[data-copy-text]');
+            if (!el) {
+                return;
+            }
+
+            const text = el.dataset.copyText;
+            copy(text);
+            el.setAttribute('data-tooltip-text', copySuccessSvg + '已复制');
+            setTimeout(() => {
+                el.setAttribute('data-tooltip-text', '点击复制');
+            }, 2000);
+        };
+
+        // Initialize tooltip text for existing elements
+        document.querySelectorAll('[data-copy-text]').forEach(el => {
+            el.setAttribute('data-tooltip-text', '点击复制');
+        });
+
+        // Add single event listener to document
+        document.addEventListener('click', clickHandler);
+
+        // Return cleanup function that removes only the one event listener
+        return function cleanup() {
+            document.removeEventListener('click', clickHandler);
+        };
+    }
+
+    function initTooltip() {
+        // 移除之前的 tooltip DOM
+        document.querySelectorAll('.copy-info-tooltip').forEach(tooltip => tooltip.remove());
+
+        // 存储元素和对应的tooltip映射关系
+        const tooltipMap = new WeakMap();
+
+        const handleMouseOver = event => {
+            const target = event.target.closest('[data-tooltip-text]');
+            if (!target) {
+                return;
+            }
+
+            let tooltip = tooltipMap.get(target);
+
+            // 如果元素没有对应的tooltip，创建一个新的
+            if (!tooltip) {
+                tooltip = document.createElement('div');
+                tooltip.className = 'copy-info-tooltip';
+                document.body.appendChild(tooltip);
+                tooltipMap.set(target, tooltip);
+
+                // 添加监听器检查tooltip文本更新
+                const observer = new MutationObserver(() => {
+                    const newText = target.getAttribute('data-tooltip-text');
+                    tooltip.innerHTML = newText;
+                    // 适用于 code block 复制按钮, 如果 tooltip 文本包含 "已复制"，并且 tooltip 没有 active 类，则添加 active 类
+                    if (newText.includes('已复制') && !tooltip.classList.contains('active')) {
+                        tooltip.classList.add('active');
+                    }
+                });
+
+                observer.observe(target, {
+                    attributes: true,
+                    attributeFilter: ['data-tooltip-text'],
+                });
+            }
+
+            // 获取最新的 tooltip 文本
+            const text = target.getAttribute('data-tooltip-text');
+            tooltip.innerHTML = text;
+
+            const tooltipGap = target.dataset.tooltipGap || 16;
+
+            // 计算位置
+            const rect = target.getBoundingClientRect();
+            const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            tooltip.style.left = `${rect.left + rect.width / 2 + scrollLeft}px`;
+            tooltip.style.top = `${rect.top - tooltipGap + scrollTop}px`;
+
+            // 显示 tooltip, code-copy-btn 在 hover 的时候不显示
+            if (!target.classList.contains('code-copy-btn')) {
+                tooltip.classList.add('active');
+            }
+        };
+        // 监听所有带有 data-tooltip-text 属性的元素
+        document.addEventListener('mouseover', handleMouseOver);
+
+        const handleMouseOut = event => {
+            const target = event.target.closest('[data-tooltip-text]');
+            const relatedTarget = event.relatedTarget?.closest('[data-tooltip-text]');
+
+            if (!target || target === relatedTarget) {
+                return;
+            }
+
+            const tooltip = tooltipMap.get(target);
+            if (tooltip) {
+                // 隐藏 tooltip
+                tooltip.classList.remove('active');
+                setTimeout(() => tooltip.remove(), 250);
+                tooltipMap.delete(target);
+            }
+        };
+        document.addEventListener('mouseout', handleMouseOut);
+
+        return () => {
+            document.removeEventListener('mouseout', handleMouseOut);
+            document.removeEventListener('mouseover', handleMouseOver);
+            // 移除 tooltip DOM
+            document.querySelectorAll('.copy-info-tooltip').forEach(tooltip => tooltip.remove());
+        };
+    }
+
+    /** 为复制按钮添加事件监听，使用事件委托 */
+    function initCodeCopy() {
+        // 处理复制按钮点击的函数
+        const handleCodeCopyClick = event => {
+            // 检查点击的元素或其父元素是否是复制按钮
+            const btn = event.target.closest('.code-copy-btn');
+            if (!btn) {
+                return;
+            }
+
+            let codeElement = null;
+
+            // 表单生成的代码块
+            const codeBlock = btn.closest('.code-block');
+            if (codeBlock) {
+                const selectedRadio = codeBlock.querySelector('.doc-tab-item-radio:checked');
+                const index = Number(selectedRadio.dataset.index);
+                codeElement = codeBlock.querySelectorAll('pre.shiki')[index];
+            } else {
+                // 用户自定义 markdown 文本生成的代码块
+                codeElement = btn.closest('.api-doc-code')?.querySelector('pre.shiki');
+            }
+
+
+            if (codeElement) {
+                const textToCopy = codeElement.textContent || '';
+                copy(textToCopy);
+                btn.setAttribute('data-tooltip-text', copySuccessSvg + '已复制');
+                // setTimeout(() => {
+                //     btn.setAttribute('data-tooltip-text', '');
+                // }, 3000); // 3 seconds delay
+            }
+        };
+
+        // 使用事件委托，将事件监听器添加到文档
+        document.addEventListener('click', handleCodeCopyClick);
+
+        // 返回清理函数
+        return function cleanUp() {
+            document.removeEventListener('click', handleCodeCopyClick);
+        };
+    }
+
+    /** 初始化所有的 doc-tab */
+    function initTabGroups() {
+        // 用于存储所有添加的事件监听器
+        const listeners = [];
+        const resizeListeners = [];
+
+        // 处理所有 tab radio 元素的 change 事件
+        document.querySelectorAll('.doc-tab-item-radio').forEach(radio => {
+            radio.addEventListener('change', handleTabChange);
+            // 记录添加的事件监听器
+            listeners.push({element: radio, type: 'change', handler: handleTabChange});
+
+            // 如果当前 radio 是选中状态，初始化对应的 tab 样式
+            if (radio.checked) {
+                const id = radio.id;
+                // 找到对应的 label
+                const checkedLabel = document.querySelector(`label[for="${id}"]`);
+                const tabGroup = checkedLabel?.closest('.doc-tab-group');
+
+                if (tabGroup) {
+                    // 当前被选中 radio 的 index, 从 data-index 属性获取
+                    const index = Number(checkedLabel.dataset.index);
+                    const targetTabItem = tabGroup.querySelectorAll(':scope > .doc-tab-item')[index];
+                    updateSelectedTab(tabGroup, targetTabItem);
+                }
+            }
+        });
+
+        // 初始化所有可滚动的tab组的滚动状态
+        document.querySelectorAll('.doc-tab-group').forEach(tabGroup => {
+            initTabGroupScrollState(tabGroup);
+
+            // 为可滚动的tab组添加滚动事件监听
+            const scrollHandler = () => {
+                updateTabGroupScrollState(tabGroup);
+            };
+            tabGroup.addEventListener('scroll', scrollHandler);
+            // 记录添加的事件监听器
+            listeners.push({element: tabGroup, type: 'scroll', handler: scrollHandler});
+
+            // 记录为每个tabGroup添加的resize事件
+            const resizeHandler = () => {
+                updateTabGroupScrollState(tabGroup);
+            };
+            window.addEventListener('resize', resizeHandler);
+            resizeListeners.push(resizeHandler);
+        });
+
+        // 返回清理函数
+        return function cleanUp() {
+            // 移除所有添加的事件监听器
+            listeners.forEach(({element, type, handler}) => {
+                element.removeEventListener(type, handler);
+            });
+
+            // 移除所有resize事件监听器
+            resizeListeners.forEach(handler => {
+                window.removeEventListener('resize', handler);
+            });
+        };
+    }
+
+    // 处理 tab 切换事件
+    function handleTabChange(event) {
+        const radio = event.target;
+
+        const id = radio.id;
+        const checkedLabel = document.querySelector(`label[for="${id}"]`);
+        const tabGroup = checkedLabel?.closest('.doc-tab-group');
+
+        if (tabGroup) {
+            const index = Number(checkedLabel.dataset.index);
+            const targetTabItem = tabGroup.querySelectorAll(':scope > .doc-tab-item')[index];
+            updateSelectedTab(tabGroup, targetTabItem);
+        }
+    }
+
+    // 更新选中的 tab 样式
+    function updateSelectedTab(tabGroup, selectedTab) {
+        if (!selectedTab) {
+            console.warn('选中的tab元素不存在');
+            return;
+        }
+
+        // 移除当前tab组内所有tab的选中状态（限制在直接子元素范围内）
+        tabGroup.querySelectorAll(':scope > .doc-tab-item').forEach(tab => {
+            tab.classList.remove('doc-tab-item-selected');
+        });
+
+        // 为当前选中的 tab 添加选中状态
+        selectedTab.classList.add('doc-tab-item-selected');
+
+        // 更新 thumb 元素的位置和宽度
+        const thumb = tabGroup.querySelector(':scope > .doc-tab-thumb');
+
+        const rect = selectedTab.getBoundingClientRect();
+
+        // 设置 thumb 的位置和宽度
+        thumb.style.left = `${selectedTab.offsetLeft}px`;
+        thumb.style.width = `${rect.width}px`;
+
+        // 确保选中的 tab 可见 (不被遮罩遮住)
+        const tabGroupRect = tabGroup.getBoundingClientRect();
+        const selectedTabRect = selectedTab.getBoundingClientRect();
+
+        // 检查选中的 tab 是否被左侧遮罩遮住
+        if (selectedTabRect.left < tabGroupRect.left + 50) {
+            // 向左滚动使其可见
+            const scrollAmount = tabGroup.scrollLeft + (selectedTabRect.left - tabGroupRect.left) - 50; // 留出50px的边距
+            tabGroup.scrollTo({left: scrollAmount, behavior: 'smooth'});
+        }
+        // 检查选中的 tab 是否被右侧遮罩遮住
+        else if (selectedTabRect.right > tabGroupRect.right - 50) {
+            // 向右滚动使其可见
+            const scrollAmount = tabGroup.scrollLeft + (selectedTabRect.right - tabGroupRect.right) + 50; // 留出50px的边距
+            tabGroup.scrollTo({left: scrollAmount, behavior: 'smooth'});
+        }
+
+        // 更新滚动状态
+        updateTabGroupScrollState(tabGroup);
+    }
+
+    // 初始化Tab组的滚动状态
+    function initTabGroupScrollState(tabGroup) {
+        // 初始化时检查并更新滚动状态
+        updateTabGroupScrollState(tabGroup);
+
+        // 监听窗口大小变化，更新滚动状态
+        window.addEventListener('resize', () => {
+            updateTabGroupScrollState(tabGroup);
+        });
+    }
+
+    // 更新Tab组的滚动状态
+    function updateTabGroupScrollState(tabGroup) {
+        const wrapper = tabGroup.parentElement;
+        if (!wrapper || !wrapper.classList.contains('doc-tab-group-wrapper')) {
+            return;
+        }
+
+        // 检查是否滚动到最左边
+        const isScrollLeft = tabGroup.scrollLeft <= 0;
+
+        // 检查是否滚动到最右边
+        const isScrollRight = Math.abs(
+            tabGroup.scrollWidth - tabGroup.clientWidth - tabGroup.scrollLeft
+        ) <= 1; // 使用1px的误差容忍
+
+        // 根据滚动位置更新wrapper的类名
+        wrapper.classList.toggle('doc-tab-scroll-left', isScrollLeft);
+        wrapper.classList.toggle('doc-tab-scroll-right', isScrollRight);
+    }
+
+    const cleanUp = [];
+
+    /**
+     * 注入页面的 JavaScript 函数
+     * - Tab 的交互
+     * - 复制逻辑
+     */
+    function docInjected() {
+        const init = () => {
+            // 只在 API 文档中执行
+            if (!document.getElementById('API_DOC_DATA')) {
+                return;
+            }
+
+            // eslint-disable-next-line no-console
+            console.log('> docInjected');
+
+            cleanUp.push(
+                initTabGroups(),
+                initCodeCopy(),
+                initTextCopy(),
+                initTooltip()
+            );
+
+            // 计算 api-param-list-item-title 的宽度
+            const apiParamListItemTitle = Array.from(document.querySelectorAll('.api-param-list-item-title'));
+            for (const paramTitle of apiParamListItemTitle) {
+                const width = paramTitle.offsetWidth;
+                paramTitle.style.setProperty('--api-param-title-width', `${width}px`);
+            }
+
+            // 考虑到使用 :has 的兼容性 (尤其是 IOS 设备), 为 debug-wrapper 适时添加 debug-wrapper-has-btn 类
+            const debugWrapper = document.querySelector('.debug-wrapper');
+            if (debugWrapper && debugWrapper.querySelector('.debug-btn')) {
+                debugWrapper.classList.add('debug-wrapper-has-btn');
+            }
+
+            // eslint-disable-next-line no-console
+            console.log('init cleanUp:', cleanUp);
+        };
+
+        // 页面加载完成后初始化所有 tab 组
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+        return () => {
+            cleanUp.forEach(fn => fn());
+            cleanUp.length = 0;
+        };
+    }
+
+    exports.docInjected = docInjected;
+
+    return exports;
+
+})({});
