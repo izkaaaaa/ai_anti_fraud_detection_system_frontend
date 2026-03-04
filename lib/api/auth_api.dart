@@ -32,14 +32,15 @@ Future<LoginResponse> loginAPI(String phone, String password) async {
 /// 发送短信验证码 API
 /// 
 /// 参数:
-/// - phone: 手机号（作为查询参数）
+/// - phone: 手机号
 /// 
 /// 返回: Map 包含 code, message, data
 Future<Map<String, dynamic>> sendSmsCodeAPI(String phone) async {
   try {
-    // phone 参数作为查询参数传递
+    // 方式1：尝试 JSON Body（推荐）
     final response = await dioRequest.post(
-      '${HttpConstants.SEND_SMS_CODE}?phone=$phone',
+      HttpConstants.SEND_SMS_CODE,
+      data: {'phone': phone},
     );
     
     return response as Map<String, dynamic>;

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
-import 'package:ai_anti_fraud_detection_system_frontend/utils/DioRequest.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/services/family_service.dart';
+import 'dart:ui';
 
 class FamilyPage extends StatefulWidget {
   const FamilyPage({super.key});
@@ -12,54 +14,47 @@ class FamilyPage extends StatefulWidget {
 
 class _FamilyPageState extends State<FamilyPage> {
   bool _isLoading = true;
-  Map<String, dynamic>? _familyInfo;
-  List<dynamic> _members = [];
+  Map<String, dynamic>? _userInfo;
+  List<Map<String, dynamic>> _applications = [];
+  bool _isAdmin = false;
   String? _errorMessage;
+
+  final FamilyService _familyService = FamilyService();
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
     super.initState();
-    _loadFamilyInfo();
+    _loadData();
   }
 
-  Future<void> _loadFamilyInfo() async {
+  Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      // 重新从服务器获取最新的用户信息
-      final userInfo = await AuthService().getCurrentUser();
+      // 获取用户信息
+      _userInfo = await _authService.getCurrentUser();
       
-      if (userInfo == null || userInfo['family_id'] == null) {
-        setState(() {
-          _familyInfo = null;
-          _members = [];
-          _isLoading = false;
-        });
-        return;
+      // 如果是管理员，加载待审批列表
+      if (_userInfo != null && _userInfo!['family_id'] != null) {
+        try {
+          _applications = await _familyService.getApplications();
+          _isAdmin = true;
+        } catch (e) {
+          // 如果返回 403，说明不是管理员
+          _isAdmin = false;
+          _applications = [];
+        }
       }
 
-      // 暂时使用模拟数据，等待后端实现家庭组详情接口
       setState(() {
-        _familyInfo = {
-          'family_id': userInfo['family_id'],
-          'name': '家庭组 ${userInfo['family_id']}',
-          'invite_code': '${userInfo['family_id']}',
-        };
-        _members = [
-          {
-            'user_id': userInfo['user_id'],
-            'username': userInfo['username'],
-            'phone': userInfo['phone'],
-            'role': 'member',
-          }
-        ];
         _isLoading = false;
       });
     } catch (e) {
-      print('❌ 加载家庭组信息失败: $e');
+      print('❌ 加载数据失败: $e');
       setState(() {
         _errorMessage = '加载失败，请稍后重试';
         _isLoading = false;
@@ -67,8 +62,9 @@ class _FamilyPageState extends State<FamilyPage> {
     }
   }
 
+  /// 创建家庭组
   Future<void> _createFamily() async {
-    final familyIdController = TextEditingController();
+    final nameController = TextEditingController();
     
     final result = await showDialog<bool>(
       context: context,
@@ -78,7 +74,7 @@ class _FamilyPageState extends State<FamilyPage> {
           borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
         ),
         title: Text(
-          '创建/加入家庭组',
+          '创建家庭组',
           style: TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.bold,
@@ -89,7 +85,7 @@ class _FamilyPageState extends State<FamilyPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '输入家庭组ID（如果不存在会自动创建）',
+              '输入家庭组名称',
               style: TextStyle(
                 fontSize: AppTheme.fontSizeSmall,
                 color: AppColors.textSecondary,
@@ -97,10 +93,9 @@ class _FamilyPageState extends State<FamilyPage> {
             ),
             SizedBox(height: AppTheme.paddingSmall),
             TextField(
-              controller: familyIdController,
-              keyboardType: TextInputType.number,
+              controller: nameController,
               decoration: InputDecoration(
-                hintText: '例如：100',
+                hintText: '例如：我的家庭',
                 hintStyle: TextStyle(color: AppColors.textLight),
                 filled: true,
                 fillColor: AppColors.inputBackground,
@@ -124,44 +119,36 @@ class _FamilyPageState extends State<FamilyPage> {
           ),
           TextButton(
             onPressed: () async {
-              if (familyIdController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('请输入家庭组ID'),
-                    backgroundColor: AppColors.error,
-                  ),
-                );
+              if (nameController.text.trim().isEmpty) {
+                _showError('请输入家庭组名称');
                 return;
               }
               
               try {
-                final familyId = int.parse(familyIdController.text.trim());
-                await dioRequest.put('/api/users/family/$familyId');
+                final result = await _familyService.createFamily(nameController.text.trim());
                 
-                Navigator.pop(context, true);
+                if (result != null) {
+                  Navigator.pop(context, true);
+                  _showSuccess('家庭组创建成功！ID: ${result['family_id']}');
+                }
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('操作失败: $e'),
-                    backgroundColor: AppColors.error,
-                  ),
-                );
+                _showError('创建失败: $e');
               }
             },
-            child: Text('确定', style: TextStyle(color: AppColors.primary)),
+            child: Text('创建', style: TextStyle(color: AppColors.primary)),
           ),
         ],
       ),
     );
 
     if (result == true) {
-      _showSuccess('加入家庭组成功！');
-      await _loadFamilyInfo();
+      await _loadData();
     }
   }
 
+  /// 申请加入家庭组
   Future<void> _joinFamily() async {
-    final familyIdController = TextEditingController();
+    final idController = TextEditingController();
     
     final result = await showDialog<bool>(
       context: context,
@@ -190,10 +177,10 @@ class _FamilyPageState extends State<FamilyPage> {
             ),
             SizedBox(height: AppTheme.paddingSmall),
             TextField(
-              controller: familyIdController,
+              controller: idController,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
-                hintText: '例如：100',
+                hintText: '例如：1',
                 hintStyle: TextStyle(color: AppColors.textLight),
                 filled: true,
                 fillColor: AppColors.inputBackground,
@@ -208,6 +195,30 @@ class _FamilyPageState extends State<FamilyPage> {
               ),
               style: TextStyle(color: AppColors.textPrimary),
             ),
+            SizedBox(height: AppTheme.paddingSmall),
+            Container(
+              padding: EdgeInsets.all(AppTheme.paddingSmall),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue[700], size: 16),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '申请后需等待管理员审批',
+                      style: TextStyle(
+                        fontSize: AppTheme.fontSizeSmall,
+                        color: Colors.blue[900],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
         actions: [
@@ -217,82 +228,41 @@ class _FamilyPageState extends State<FamilyPage> {
           ),
           TextButton(
             onPressed: () async {
-              if (familyIdController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('请输入家庭组ID'),
-                    backgroundColor: AppColors.error,
-                  ),
-                );
+              if (idController.text.trim().isEmpty) {
+                _showError('请输入家庭组ID');
                 return;
               }
               
               try {
-                final familyId = int.parse(familyIdController.text.trim());
-                await dioRequest.put('/api/users/family/$familyId');
+                final familyId = int.parse(idController.text.trim());
+                final success = await _familyService.applyToJoin(familyId);
                 
-                Navigator.pop(context, true);
+                if (success) {
+                  Navigator.pop(context, true);
+                  _showSuccess('申请已发送，等待管理员审批');
+                }
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('加入失败: $e'),
-                    backgroundColor: AppColors.error,
-                  ),
-                );
+                _showError('申请失败: $e');
               }
             },
-            child: Text('加入', style: TextStyle(color: AppColors.primary)),
+            child: Text('申请', style: TextStyle(color: AppColors.primary)),
           ),
         ],
       ),
     );
-
-    if (result == true) {
-      _showSuccess('加入家庭组成功！');
-      await _loadFamilyInfo();
-    }
   }
 
-  Future<void> _leaveFamily() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.cardBackground,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        ),
-        title: Text(
-          '退出家庭组',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Text(
-          '确定要退出当前家庭组吗？',
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('取消', style: TextStyle(color: AppColors.textSecondary)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text('确定', style: TextStyle(color: AppColors.error)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      try {
-        await dioRequest.delete('/api/users/family');
-        _showSuccess('已退出家庭组');
-        await _loadFamilyInfo();
-      } catch (e) {
-        _showError('退出失败: $e');
+  /// 审批申请
+  Future<void> _reviewApplication(int appId, bool isApprove) async {
+    try {
+      final success = await _familyService.reviewApplication(appId, isApprove);
+      
+      if (success) {
+        _showSuccess(isApprove ? '已同意申请' : '已拒绝申请');
+        await _loadData();
       }
+    } catch (e) {
+      _showError('操作失败: $e');
     }
   }
 
@@ -325,40 +295,49 @@ class _FamilyPageState extends State<FamilyPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: AppColors.cardBackground,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text(
           '家庭组',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: Colors.white,
             fontSize: AppTheme.fontSizeLarge,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
           ),
         ),
         actions: [
-          if (_familyInfo != null)
-            IconButton(
-              icon: Icon(Icons.refresh, color: AppColors.primary),
-              onPressed: _loadFamilyInfo,
-            ),
+          IconButton(
+            icon: Icon(Icons.refresh, color: Colors.white),
+            onPressed: _loadData,
+          ),
         ],
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(1.5),
-          child: Container(
-            color: AppColors.borderMedium,
-            height: 1.5,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF1A237E),
+              Color(0xFF283593),
+              Color(0xFF3949AB),
+            ],
           ),
         ),
+        child: SafeArea(
+          child: _isLoading
+              ? Center(child: CircularProgressIndicator(color: Colors.white))
+              : _errorMessage != null
+                  ? _buildErrorView()
+                  : _userInfo?['family_id'] == null
+                      ? _buildNoFamilyView()
+                      : _buildFamilyView(),
+        ),
       ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : _errorMessage != null
-              ? _buildErrorView()
-              : _familyInfo == null
-                  ? _buildNoFamilyView()
-                  : _buildFamilyView(),
     );
   }
 
@@ -369,24 +348,24 @@ class _FamilyPageState extends State<FamilyPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 80, color: AppColors.error),
+            Icon(Icons.error_outline, size: 80, color: Colors.white.withOpacity(0.7)),
             SizedBox(height: AppTheme.paddingLarge),
             Text(
               _errorMessage!,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: AppTheme.fontSizeLarge,
-                color: AppColors.textSecondary,
+                color: Colors.white,
               ),
             ),
             SizedBox(height: AppTheme.paddingLarge),
             ElevatedButton.icon(
-              onPressed: _loadFamilyInfo,
+              onPressed: _loadData,
               icon: Icon(Icons.refresh),
               label: Text('重试'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.textWhite,
+                backgroundColor: Colors.white.withOpacity(0.2),
+                foregroundColor: Colors.white,
                 padding: EdgeInsets.symmetric(
                   horizontal: AppTheme.paddingLarge,
                   vertical: AppTheme.paddingMedium,
@@ -409,32 +388,32 @@ class _FamilyPageState extends State<FamilyPage> {
             Container(
               padding: EdgeInsets.all(40),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
+                color: Colors.white.withOpacity(0.1),
                 shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primary, width: 3.0),
+                border: Border.all(color: Colors.white.withOpacity(0.3), width: 3),
               ),
               child: Icon(
                 Icons.family_restroom,
                 size: 80,
-                color: AppColors.primary,
+                color: Colors.white,
               ),
             ),
             SizedBox(height: AppTheme.paddingXLarge),
             Text(
               '还没有加入家庭组',
               style: TextStyle(
-                fontSize: AppTheme.fontSizeXLarge,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
               ),
             ),
             SizedBox(height: AppTheme.paddingMedium),
             Text(
-              '创建或加入家庭组，与家人共享防诈骗保护',
+              '创建或加入家庭组\n与家人共享防诈骗保护',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: AppTheme.fontSizeMedium,
-                color: AppColors.textSecondary,
+                color: Colors.white.withOpacity(0.8),
                 height: 1.5,
               ),
             ),
@@ -443,45 +422,83 @@ class _FamilyPageState extends State<FamilyPage> {
             // 创建家庭组按钮
             Container(
               width: double.infinity,
-              height: 56,
+              height: 64,
               decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                border: Border.all(color: AppColors.borderDark, width: 2.0),
-                boxShadow: AppTheme.shadowMedium,
-              ),
-              child: ElevatedButton.icon(
-                onPressed: _createFamily,
-                icon: Icon(Icons.add_circle_outline, size: 24),
-                label: Text(
-                  '创建/加入家庭组',
-                  style: TextStyle(
-                    fontSize: AppTheme.fontSizeLarge,
-                    fontWeight: FontWeight.w600,
-                  ),
+                borderRadius: BorderRadius.circular(32),
+                gradient: LinearGradient(
+                  colors: [Color(0xFF00F5A0), Color(0xFF00D9F5)],
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  foregroundColor: AppColors.textWhite,
-                  shadowColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0xFF00F5A0).withOpacity(0.4),
+                    blurRadius: 20,
+                    spreadRadius: 0,
+                    offset: Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _createFamily,
+                  borderRadius: BorderRadius.circular(32),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_circle_outline, size: 28, color: Colors.white),
+                        SizedBox(width: 12),
+                        Text(
+                          '创建家庭组',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
             
-            SizedBox(height: AppTheme.paddingSmall),
+            SizedBox(height: AppTheme.paddingMedium),
             
-            // 说明文字
-            Center(
-              child: Text(
-                '输入家庭组ID即可加入\n如果家庭组不存在会自动创建',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: AppTheme.fontSizeSmall,
-                  color: AppColors.textLight,
-                  height: 1.5,
+            // 加入家庭组按钮
+            Container(
+              width: double.infinity,
+              height: 64,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(32),
+                border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _joinFamily,
+                  borderRadius: BorderRadius.circular(32),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.group_add, size: 28, color: Colors.white),
+                        SizedBox(width: 12),
+                        Text(
+                          '加入家庭组',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -498,10 +515,11 @@ class _FamilyPageState extends State<FamilyPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildFamilyInfoCard(),
-          SizedBox(height: AppTheme.paddingMedium),
-          _buildMembersSection(),
-          SizedBox(height: AppTheme.paddingMedium),
-          _buildActionsSection(),
+          
+          if (_isAdmin && _applications.isNotEmpty) ...[
+            SizedBox(height: AppTheme.paddingMedium),
+            _buildApplicationsSection(),
+          ],
         ],
       ),
     );
@@ -510,243 +528,268 @@ class _FamilyPageState extends State<FamilyPage> {
   Widget _buildFamilyInfoCard() {
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.primary.withOpacity(0.1),
-            AppColors.cardBackground,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+          width: 2,
         ),
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: AppColors.borderDark, width: 2.0),
-        boxShadow: AppTheme.shadowMedium,
       ),
-      padding: EdgeInsets.all(AppTheme.paddingLarge),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.primary, width: 2.0),
-                ),
-                child: Icon(
-                  Icons.family_restroom,
-                  size: 32,
-                  color: AppColors.primary,
-                ),
-              ),
-              SizedBox(width: AppTheme.paddingMedium),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: EdgeInsets.all(AppTheme.paddingLarge * 1.5),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Text(
-                      _familyInfo!['name'] ?? '未命名家庭组',
-                      style: TextStyle(
-                        fontSize: AppTheme.fontSizeXLarge,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                    Container(
+                      padding: EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Color(0xFF00F5A0).withOpacity(0.2),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Color(0xFF00F5A0).withOpacity(0.5),
+                          width: 2,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.family_restroom,
+                        size: 36,
+                        color: Color(0xFF00F5A0),
                       ),
                     ),
-                    SizedBox(height: 4),
-                    Text(
-                      '${_members.length} 位成员',
-                      style: TextStyle(
-                        fontSize: AppTheme.fontSizeMedium,
-                        color: AppColors.textSecondary,
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '家庭组 ${_userInfo!['family_id']}',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            _isAdmin ? '管理员' : '成员',
+                            style: TextStyle(
+                              fontSize: AppTheme.fontSizeMedium,
+                              color: Colors.white.withOpacity(0.7),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          
-          SizedBox(height: AppTheme.paddingMedium),
-          
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.background.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              border: Border.all(color: AppColors.borderLight, width: 1.0),
-            ),
-            padding: EdgeInsets.all(AppTheme.paddingMedium),
-            child: Row(
-              children: [
-                Icon(Icons.vpn_key, size: 18, color: AppColors.textSecondary),
-                SizedBox(width: 8),
-                Text(
-                  '邀请码',
-                  style: TextStyle(
-                    fontSize: AppTheme.fontSizeSmall,
-                    color: AppColors.textSecondary,
+                
+                SizedBox(height: AppTheme.paddingLarge),
+                
+                Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.2),
+                      width: 1,
+                    ),
                   ),
-                ),
-                Spacer(),
-                Text(
-                  _familyInfo!['invite_code'] ?? '无',
-                  style: TextStyle(
-                    fontSize: AppTheme.fontSizeMedium,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                    letterSpacing: 2,
+                  child: Row(
+                    children: [
+                      Icon(Icons.vpn_key, size: 20, color: Colors.white.withOpacity(0.7)),
+                      SizedBox(width: 12),
+                      Text(
+                        '家庭组ID',
+                        style: TextStyle(
+                          fontSize: AppTheme.fontSizeMedium,
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                      ),
+                      Spacer(),
+                      Text(
+                        '${_userInfo!['family_id']}',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF00F5A0),
+                          letterSpacing: 2,
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      IconButton(
+                        icon: Icon(Icons.copy, size: 20, color: Color(0xFF00F5A0)),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: '${_userInfo!['family_id']}'));
+                          _showSuccess('ID已复制');
+                        },
+                        padding: EdgeInsets.zero,
+                        constraints: BoxConstraints(),
+                      ),
+                    ],
                   ),
-                ),
-                SizedBox(width: 8),
-                IconButton(
-                  icon: Icon(Icons.copy, size: 18, color: AppColors.primary),
-                  onPressed: () {
-                    // TODO: 复制邀请码到剪贴板
-                    _showSuccess('邀请码已复制');
-                  },
-                  padding: EdgeInsets.zero,
-                  constraints: BoxConstraints(),
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildMembersSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            '成员列表',
-            style: TextStyle(
-              fontSize: AppTheme.fontSizeSmall,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
-          ),
+  Widget _buildApplicationsSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+          width: 2,
         ),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.cardBackground,
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-            border: Border.all(color: AppColors.borderDark, width: 2.0),
-            boxShadow: AppTheme.shadowSmall,
-          ),
-          child: _members.isEmpty
-              ? Padding(
-                  padding: EdgeInsets.all(AppTheme.paddingLarge),
-                  child: Center(
-                    child: Text(
-                      '暂无成员',
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: EdgeInsets.all(AppTheme.paddingLarge),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.pending_actions, color: Color(0xFFFFB800), size: 24),
+                    SizedBox(width: 12),
+                    Text(
+                      '待审批申请',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: AppTheme.fontSizeMedium,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
                       ),
                     ),
-                  ),
-                )
-              : ListView.separated(
-                  shrinkWrap: true,
-                  physics: NeverScrollableScrollPhysics(),
-                  itemCount: _members.length,
-                  separatorBuilder: (context, index) => Divider(
-                    height: 1,
-                    color: AppColors.borderLight,
-                  ),
-                  itemBuilder: (context, index) {
-                    final member = _members[index];
-                    final isCreator = member['role'] == 'creator';
-                    
-                    return ListTile(
-                      leading: Container(
-                        padding: EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: isCreator 
-                              ? AppColors.secondary.withOpacity(0.2)
-                              : AppColors.primary.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isCreator ? Icons.star : Icons.person,
-                          color: isCreator ? AppColors.secondary : AppColors.primary,
-                          size: 20,
+                    Spacer(),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Color(0xFFFFB800).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Color(0xFFFFB800).withOpacity(0.5),
+                          width: 1.5,
                         ),
                       ),
-                      title: Text(
-                        member['username'] ?? '未知用户',
+                      child: Text(
+                        '${_applications.length}',
                         style: TextStyle(
-                          fontSize: AppTheme.fontSizeMedium,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFFFFB800),
                         ),
                       ),
-                      subtitle: Text(
-                        member['phone'] ?? '',
-                        style: TextStyle(
-                          fontSize: AppTheme.fontSizeSmall,
-                          color: AppColors.textSecondary,
-                        ),
+                    ),
+                  ],
+                ),
+                
+                SizedBox(height: AppTheme.paddingMedium),
+                
+                ..._applications.map((app) => Container(
+                  margin: EdgeInsets.only(bottom: 12),
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.person, color: Colors.white, size: 20),
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  app['phone'] ?? '未知用户',
+                                  style: TextStyle(
+                                    fontSize: AppTheme.fontSizeMedium,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  app['apply_time'] ?? '',
+                                  style: TextStyle(
+                                    fontSize: AppTheme.fontSizeSmall,
+                                    color: Colors.white.withOpacity(0.6),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      trailing: isCreator
-                          ? Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.secondary.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                                border: Border.all(color: AppColors.secondary),
-                              ),
-                              child: Text(
-                                '创建者',
-                                style: TextStyle(
-                                  fontSize: AppTheme.fontSizeSmall,
-                                  color: AppColors.secondary,
-                                  fontWeight: FontWeight.w600,
+                      
+                      SizedBox(height: 12),
+                      
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () => _reviewApplication(app['application_id'], false),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white.withOpacity(0.2),
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                            )
-                          : null,
-                    );
-                  },
-                ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionsSection() {
-    return Container(
-      height: 50,
-      decoration: BoxDecoration(
-        color: AppColors.error,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        border: Border.all(color: AppColors.borderDark, width: 2.0),
-        boxShadow: AppTheme.shadowMedium,
-      ),
-      child: ElevatedButton.icon(
-        onPressed: _leaveFamily,
-        icon: Icon(Icons.exit_to_app, size: 20),
-        label: Text(
-          '退出家庭组',
-          style: TextStyle(
-            fontSize: AppTheme.fontSizeLarge,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          foregroundColor: AppColors.textWhite,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                              child: Text('拒绝', style: TextStyle(fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () => _reviewApplication(app['application_id'], true),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Color(0xFF00F5A0),
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Text('同意', style: TextStyle(fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                )).toList(),
+              ],
+            ),
           ),
         ),
       ),

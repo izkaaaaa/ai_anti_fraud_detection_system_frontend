@@ -314,6 +314,15 @@ class _ProfilePageState extends State<ProfilePage> {
           title: '功能',
           items: [
             _buildMenuItem(
+              icon: Icons.analytics_outlined,
+              title: '安全报告',
+              subtitle: 'AI 生成个性化防骗建议',
+              onTap: () {
+                Navigator.pushNamed(context, '/security-report');
+              },
+              highlight: true,
+            ),
+            _buildMenuItem(
               icon: Icons.history,
               title: '通话记录',
               subtitle: '查看检测历史',
@@ -441,13 +450,25 @@ class _ProfilePageState extends State<ProfilePage> {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    bool highlight = false,
   }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        child: Padding(
+        child: Container(
+          decoration: highlight
+              ? BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.secondary.withOpacity(0.1),
+                      Colors.transparent,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                )
+              : null,
           padding: EdgeInsets.symmetric(
             horizontal: AppTheme.paddingMedium,
             vertical: AppTheme.paddingMedium,
@@ -457,23 +478,51 @@ class _ProfilePageState extends State<ProfilePage> {
               Container(
                 padding: EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: highlight
+                      ? AppColors.secondary.withOpacity(0.2)
+                      : AppColors.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
                 ),
-                child: Icon(icon, color: AppColors.primary, size: 20),
+                child: Icon(
+                  icon,
+                  color: highlight ? AppColors.secondary : AppColors.primary,
+                  size: 20,
+                ),
               ),
               SizedBox(width: AppTheme.paddingMedium),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: AppTheme.fontSizeMedium,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: AppTheme.fontSizeMedium,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        if (highlight) ...[
+                          SizedBox(width: 6),
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.secondary,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'NEW',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     SizedBox(height: 2),
                     Text(

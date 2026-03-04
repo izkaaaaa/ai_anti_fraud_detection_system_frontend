@@ -80,7 +80,7 @@ class GlobalConstants {
     return "http://$host:$PORT";
   }
   
-  static const int TIME_OUT = 10; // 超时时间（秒）
+  static const int TIME_OUT = 60; // 超时时间（秒）- 增加到60秒以支持LLM报告生成
   static const String TOKEN_KEY = "auth_token"; // token 键名
 }
 
