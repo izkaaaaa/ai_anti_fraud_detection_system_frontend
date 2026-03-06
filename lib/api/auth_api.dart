@@ -57,6 +57,10 @@ Future<Map<String, dynamic>> sendSmsCodeAPI(String phone) async {
 /// - name: 姓名
 /// - password: 密码
 /// - smsCode: 短信验证码
+/// - roleType: 角色类型（可选）
+/// - gender: 性别（可选）
+/// - profession: 职业（可选）
+/// - maritalStatus: 婚姻状况（可选）
 /// 
 /// 返回: RegisterResponse 对象
 Future<RegisterResponse> registerAPI({
@@ -65,6 +69,10 @@ Future<RegisterResponse> registerAPI({
   required String name,
   required String password,
   required String smsCode,
+  String? roleType,
+  String? gender,
+  String? profession,
+  String? maritalStatus,
 }) async {
   try {
     final requestData = RegisterRequest(
@@ -73,6 +81,10 @@ Future<RegisterResponse> registerAPI({
       name: name,
       password: password,
       smsCode: smsCode,
+      roleType: roleType,
+      gender: gender,
+      profession: profession,
+      maritalStatus: maritalStatus,
     ).toJson();
     
     final response = await dioRequest.post(
@@ -81,6 +93,39 @@ Future<RegisterResponse> registerAPI({
     );
     
     return RegisterResponse.fromJson(response as Map<String, dynamic>);
+  } catch (e) {
+    rethrow;
+  }
+}
+
+/// 更新用户画像 API
+/// 
+/// 参数:
+/// - roleType: 角色类型（可选）
+/// - gender: 性别（可选）
+/// - profession: 职业（可选）
+/// - maritalStatus: 婚姻状况（可选）
+/// 
+/// 返回: Map 包含更新后的用户信息
+Future<Map<String, dynamic>> updateUserProfileAPI({
+  String? roleType,
+  String? gender,
+  String? profession,
+  String? maritalStatus,
+}) async {
+  try {
+    final data = <String, dynamic>{};
+    if (roleType != null) data['role_type'] = roleType;
+    if (gender != null) data['gender'] = gender;
+    if (profession != null) data['profession'] = profession;
+    if (maritalStatus != null) data['marital_status'] = maritalStatus;
+    
+    final response = await dioRequest.put(
+      HttpConstants.USER_PROFILE,
+      data: data,
+    );
+    
+    return response as Map<String, dynamic>;
   } catch (e) {
     rethrow;
   }

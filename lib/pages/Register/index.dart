@@ -17,6 +17,7 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
   final TextEditingController _smsCodeController = TextEditingController();
+  final TextEditingController _professionController = TextEditingController(); // 新增：职业
   final _formKey = GlobalKey<FormState>();
   
   bool _isPasswordVisible = false;
@@ -25,6 +26,12 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
   bool _agreeToTerms = false;
   bool _isSendingCode = false;
   int _countdown = 0;
+  bool _showAdvancedOptions = false; // 新增：是否显示高级选项
+  
+  // 新增：用户画像字段
+  String? _selectedRoleType = '青壮年';
+  String? _selectedGender;
+  String? _selectedMaritalStatus;
   
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -50,6 +57,7 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _smsCodeController.dispose();
+    _professionController.dispose(); // 新增
     _animationController.dispose();
     super.dispose();
   }
@@ -169,6 +177,10 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
         name: _nameController.text.trim(),
         password: _passwordController.text,
         smsCode: _smsCodeController.text.trim(),
+        roleType: _selectedRoleType,
+        gender: _selectedGender,
+        profession: _professionController.text.trim().isEmpty ? null : _professionController.text.trim(),
+        maritalStatus: _selectedMaritalStatus,
       );
 
       _showSuccess('注册成功！请登录');
@@ -427,6 +439,13 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
           _buildSmsCodeField(),
           SizedBox(height: AppTheme.paddingMedium),
           
+          _buildAdvancedOptionsToggle(),
+          if (_showAdvancedOptions) ...[
+            SizedBox(height: AppTheme.paddingMedium),
+            _buildAdvancedOptionsSection(),
+          ],
+          SizedBox(height: AppTheme.paddingMedium),
+          
           _buildAgreementCheckbox(),
           SizedBox(height: AppTheme.paddingLarge),
           
@@ -680,6 +699,197 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
                 ),
               ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 高级选项切换按钮
+  Widget _buildAdvancedOptionsToggle() {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _showAdvancedOptions = !_showAdvancedOptions;
+        });
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: AppTheme.paddingMedium,
+          vertical: AppTheme.paddingSmall,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.inputBackground,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          border: Border.all(color: AppColors.borderMedium, width: 1.5),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              _showAdvancedOptions ? Icons.expand_less : Icons.expand_more,
+              color: AppColors.primary,
+              size: 20,
+            ),
+            SizedBox(width: 8),
+            Text(
+              _showAdvancedOptions ? '收起完善资料' : '完善资料（选填）',
+              style: TextStyle(
+                fontSize: AppTheme.fontSizeSmall,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
+              ),
+            ),
+            SizedBox(width: 4),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.secondary,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                '推荐',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 高级选项区域
+  Widget _buildAdvancedOptionsSection() {
+    return Container(
+      padding: EdgeInsets.all(AppTheme.paddingMedium),
+      decoration: BoxDecoration(
+        color: AppColors.inputBackground.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(color: AppColors.borderLight, width: 1.0),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.info_outline, size: 16, color: AppColors.secondary),
+              SizedBox(width: 6),
+              Text(
+                '完善资料可获得更精准的防骗建议',
+                style: TextStyle(
+                  fontSize: AppTheme.fontSizeSmall,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: AppTheme.paddingMedium),
+          
+          _buildDropdownField(
+            label: '角色类型',
+            value: _selectedRoleType,
+            items: ['青壮年', '老人', '学生', '其他'],
+            onChanged: (value) {
+              setState(() {
+                _selectedRoleType = value;
+              });
+            },
+          ),
+          SizedBox(height: AppTheme.paddingMedium),
+          
+          _buildDropdownField(
+            label: '性别',
+            value: _selectedGender,
+            hint: '请选择性别',
+            items: ['男', '女', '未知'],
+            onChanged: (value) {
+              setState(() {
+                _selectedGender = value;
+              });
+            },
+          ),
+          SizedBox(height: AppTheme.paddingMedium),
+          
+          _buildTextField(
+            controller: _professionController,
+            label: '职业',
+            hint: '如：工程师、教师、学生等',
+            icon: Icons.work_outline,
+          ),
+          SizedBox(height: AppTheme.paddingMedium),
+          
+          _buildDropdownField(
+            label: '婚姻状况',
+            value: _selectedMaritalStatus,
+            hint: '请选择婚姻状况',
+            items: ['单身', '已婚', '离异'],
+            onChanged: (value) {
+              setState(() {
+                _selectedMaritalStatus = value;
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 下拉选择框
+  Widget _buildDropdownField({
+    required String label,
+    required String? value,
+    String? hint,
+    required List<String> items,
+    required Function(String?) onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: AppTheme.fontSizeSmall,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        SizedBox(height: AppTheme.paddingSmall),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.inputBackground,
+            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+            border: Border.all(color: AppColors.borderMedium, width: 1.5),
+          ),
+          padding: EdgeInsets.symmetric(horizontal: AppTheme.paddingMedium),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              hint: Text(
+                hint ?? '请选择$label',
+                style: TextStyle(
+                  color: AppColors.textLight,
+                  fontSize: AppTheme.fontSizeSmall,
+                ),
+              ),
+              isExpanded: true,
+              icon: Icon(Icons.arrow_drop_down, color: AppColors.primary),
+              style: TextStyle(
+                fontSize: AppTheme.fontSizeMedium,
+                color: AppColors.textPrimary,
+              ),
+              dropdownColor: AppColors.cardBackground,
+              items: items.map((String item) {
+                return DropdownMenuItem<String>(
+                  value: item,
+                  child: Text(item),
+                );
+              }).toList(),
+              onChanged: _isLoading ? null : onChanged,
+            ),
           ),
         ),
       ],

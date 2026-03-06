@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/pages/Settings/PermissionSettings.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/api/auth_api.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -251,6 +252,38 @@ class _ProfilePageState extends State<ProfilePage> {
                   label: '手机号',
                   value: _userInfo!['phone'] ?? '未绑定',
                 ),
+                if (_userInfo!['role_type'] != null) ...[
+                  Divider(height: 20, color: AppColors.borderLight),
+                  _buildInfoRow(
+                    icon: Icons.person_outline,
+                    label: '角色类型',
+                    value: _userInfo!['role_type'],
+                  ),
+                ],
+                if (_userInfo!['gender'] != null) ...[
+                  Divider(height: 20, color: AppColors.borderLight),
+                  _buildInfoRow(
+                    icon: Icons.wc,
+                    label: '性别',
+                    value: _userInfo!['gender'],
+                  ),
+                ],
+                if (_userInfo!['profession'] != null) ...[
+                  Divider(height: 20, color: AppColors.borderLight),
+                  _buildInfoRow(
+                    icon: Icons.work_outline,
+                    label: '职业',
+                    value: _userInfo!['profession'],
+                  ),
+                ],
+                if (_userInfo!['marital_status'] != null) ...[
+                  Divider(height: 20, color: AppColors.borderLight),
+                  _buildInfoRow(
+                    icon: Icons.favorite_outline,
+                    label: '婚姻状况',
+                    value: _userInfo!['marital_status'],
+                  ),
+                ],
                 if (_userInfo!['family_id'] != null) ...[
                   Divider(height: 20, color: AppColors.borderLight),
                   _buildInfoRow(
@@ -314,13 +347,29 @@ class _ProfilePageState extends State<ProfilePage> {
           title: '功能',
           items: [
             _buildMenuItem(
+              icon: Icons.edit_outlined,
+              title: '完善资料',
+              subtitle: '更新个人画像信息',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EditProfilePage(
+                      userInfo: _userInfo!,
+                      onProfileUpdated: _loadUserInfo,
+                    ),
+                  ),
+                );
+              },
+              highlight: true,
+            ),
+            _buildMenuItem(
               icon: Icons.analytics_outlined,
               title: '安全报告',
               subtitle: 'AI 生成个性化防骗建议',
               onTap: () {
                 Navigator.pushNamed(context, '/security-report');
               },
-              highlight: true,
             ),
             _buildMenuItem(
               icon: Icons.history,
@@ -911,6 +960,373 @@ class AboutPage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ==================== 完善资料页面 ====================
+class EditProfilePage extends StatefulWidget {
+  final Map<String, dynamic> userInfo;
+  final VoidCallback onProfileUpdated;
+
+  const EditProfilePage({
+    super.key,
+    required this.userInfo,
+    required this.onProfileUpdated,
+  });
+
+  @override
+  State<EditProfilePage> createState() => _EditProfilePageState();
+}
+
+class _EditProfilePageState extends State<EditProfilePage> {
+  final TextEditingController _professionController = TextEditingController();
+  String? _selectedRoleType;
+  String? _selectedGender;
+  String? _selectedMaritalStatus;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 初始化表单数据
+    _selectedRoleType = widget.userInfo['role_type'];
+    _selectedGender = widget.userInfo['gender'];
+    _professionController.text = widget.userInfo['profession'] ?? '';
+    _selectedMaritalStatus = widget.userInfo['marital_status'];
+  }
+
+  @override
+  void dispose() {
+    _professionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleUpdate() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // 导入 auth_api
+      final response = await updateUserProfileAPI(
+        roleType: _selectedRoleType,
+        gender: _selectedGender,
+        profession: _professionController.text.trim().isEmpty ? null : _professionController.text.trim(),
+        maritalStatus: _selectedMaritalStatus,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('资料更新成功'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+            ),
+          ),
+        );
+
+        // 刷新用户信息
+        widget.onProfileUpdated();
+        
+        // 延迟返回
+        await Future.delayed(const Duration(milliseconds: 500));
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('更新失败: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.cardBackground,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          '完善资料',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: AppTheme.fontSizeLarge,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(1.5),
+          child: Container(
+            color: AppColors.borderMedium,
+            height: 1.5,
+          ),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(AppTheme.paddingLarge),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 提示信息
+            Container(
+              padding: EdgeInsets.all(AppTheme.paddingMedium),
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                border: Border.all(color: AppColors.secondary.withOpacity(0.3), width: 1.5),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: AppColors.secondary, size: 20),
+                  SizedBox(width: AppTheme.paddingSmall),
+                  Expanded(
+                    child: Text(
+                      '完善资料可获得更精准的 AI 防骗建议',
+                      style: TextStyle(
+                        fontSize: AppTheme.fontSizeSmall,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            SizedBox(height: AppTheme.paddingLarge),
+            
+            // 表单
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.cardBackground,
+                borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                border: Border.all(color: AppColors.borderDark, width: 2.0),
+                boxShadow: AppTheme.shadowMedium,
+              ),
+              padding: EdgeInsets.all(AppTheme.paddingLarge),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildDropdownField(
+                    label: '角色类型',
+                    value: _selectedRoleType,
+                    hint: '请选择角色类型',
+                    items: ['青壮年', '老人', '学生', '其他'],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedRoleType = value;
+                      });
+                    },
+                  ),
+                  SizedBox(height: AppTheme.paddingMedium),
+                  
+                  _buildDropdownField(
+                    label: '性别',
+                    value: _selectedGender,
+                    hint: '请选择性别',
+                    items: ['男', '女', '未知'],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedGender = value;
+                      });
+                    },
+                  ),
+                  SizedBox(height: AppTheme.paddingMedium),
+                  
+                  _buildTextField(
+                    controller: _professionController,
+                    label: '职业',
+                    hint: '如：工程师、教师、学生等',
+                    icon: Icons.work_outline,
+                  ),
+                  SizedBox(height: AppTheme.paddingMedium),
+                  
+                  _buildDropdownField(
+                    label: '婚姻状况',
+                    value: _selectedMaritalStatus,
+                    hint: '请选择婚姻状况',
+                    items: ['单身', '已婚', '离异'],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedMaritalStatus = value;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+            
+            SizedBox(height: AppTheme.paddingLarge),
+            
+            // 保存按钮
+            Container(
+              height: 50,
+              decoration: BoxDecoration(
+                color: _isLoading ? AppColors.borderLight : AppColors.primary,
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                border: Border.all(color: AppColors.borderDark, width: 2.0),
+                boxShadow: _isLoading ? [] : AppTheme.shadowMedium,
+              ),
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _handleUpdate,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: AppColors.textWhite,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                  ),
+                ),
+                child: _isLoading
+                    ? SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.textWhite),
+                        ),
+                      )
+                    : Text(
+                        '保存',
+                        style: TextStyle(
+                          fontSize: AppTheme.fontSizeLarge,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: AppTheme.fontSizeSmall,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        SizedBox(height: AppTheme.paddingSmall),
+        TextFormField(
+          controller: controller,
+          enabled: !_isLoading,
+          style: TextStyle(fontSize: AppTheme.fontSizeMedium),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: AppColors.textLight, fontSize: AppTheme.fontSizeSmall),
+            prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
+            filled: true,
+            fillColor: AppColors.inputBackground,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              borderSide: BorderSide(color: AppColors.borderMedium, width: 1.5),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              borderSide: BorderSide(color: AppColors.borderMedium, width: 1.5),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              borderSide: BorderSide(color: AppColors.borderDark, width: 2.0),
+            ),
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: AppTheme.paddingMedium,
+              vertical: AppTheme.paddingMedium,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDropdownField({
+    required String label,
+    required String? value,
+    String? hint,
+    required List<String> items,
+    required Function(String?) onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: AppTheme.fontSizeSmall,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        SizedBox(height: AppTheme.paddingSmall),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.inputBackground,
+            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+            border: Border.all(color: AppColors.borderMedium, width: 1.5),
+          ),
+          padding: EdgeInsets.symmetric(horizontal: AppTheme.paddingMedium),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              hint: Text(
+                hint ?? '请选择$label',
+                style: TextStyle(
+                  color: AppColors.textLight,
+                  fontSize: AppTheme.fontSizeSmall,
+                ),
+              ),
+              isExpanded: true,
+              icon: Icon(Icons.arrow_drop_down, color: AppColors.primary),
+              style: TextStyle(
+                fontSize: AppTheme.fontSizeMedium,
+                color: AppColors.textPrimary,
+              ),
+              dropdownColor: AppColors.cardBackground,
+              items: items.map((String item) {
+                return DropdownMenuItem<String>(
+                  value: item,
+                  child: Text(item),
+                );
+              }).toList(),
+              onChanged: _isLoading ? null : onChanged,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

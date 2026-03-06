@@ -47,7 +47,7 @@ class _FamilyPageState extends State<FamilyPage> {
           // 如果返回 403，说明不是管理员
           _isAdmin = false;
           _applications = [];
-        }
+      }
       }
 
       setState(() {
@@ -128,7 +128,7 @@ class _FamilyPageState extends State<FamilyPage> {
                 final result = await _familyService.createFamily(nameController.text.trim());
                 
                 if (result != null) {
-                  Navigator.pop(context, true);
+                Navigator.pop(context, true);
                   _showSuccess('家庭组创建成功！ID: ${result['family_id']}');
                 }
               } catch (e) {
@@ -238,7 +238,7 @@ class _FamilyPageState extends State<FamilyPage> {
                 final success = await _familyService.applyToJoin(familyId);
                 
                 if (success) {
-                  Navigator.pop(context, true);
+                Navigator.pop(context, true);
                   _showSuccess('申请已发送，等待管理员审批');
                 }
               } catch (e) {
@@ -256,12 +256,12 @@ class _FamilyPageState extends State<FamilyPage> {
   Future<void> _reviewApplication(int appId, bool isApprove) async {
     try {
       final success = await _familyService.reviewApplication(appId, isApprove);
-      
+
       if (success) {
         _showSuccess(isApprove ? '已同意申请' : '已拒绝申请');
         await _loadData();
       }
-    } catch (e) {
+      } catch (e) {
       _showError('操作失败: $e');
     }
   }
@@ -310,10 +310,10 @@ class _FamilyPageState extends State<FamilyPage> {
           ),
         ),
         actions: [
-          IconButton(
+            IconButton(
             icon: Icon(Icons.refresh, color: Colors.white),
             onPressed: _loadData,
-          ),
+            ),
         ],
       ),
       body: Container(
@@ -331,11 +331,11 @@ class _FamilyPageState extends State<FamilyPage> {
         child: SafeArea(
           child: _isLoading
               ? Center(child: CircularProgressIndicator(color: Colors.white))
-              : _errorMessage != null
-                  ? _buildErrorView()
+          : _errorMessage != null
+              ? _buildErrorView()
                   : _userInfo?['family_id'] == null
-                      ? _buildNoFamilyView()
-                      : _buildFamilyView(),
+                  ? _buildNoFamilyView()
+                  : _buildFamilyView(),
         ),
       ),
     );
@@ -451,7 +451,7 @@ class _FamilyPageState extends State<FamilyPage> {
                         SizedBox(width: 12),
                         Text(
                           '创建家庭组',
-                          style: TextStyle(
+                  style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
                             color: Colors.white,
@@ -489,7 +489,7 @@ class _FamilyPageState extends State<FamilyPage> {
                         SizedBox(width: 12),
                         Text(
                           '加入家庭组',
-                          style: TextStyle(
+                style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
                             color: Colors.white,
@@ -517,7 +517,7 @@ class _FamilyPageState extends State<FamilyPage> {
           _buildFamilyInfoCard(),
           
           if (_isAdmin && _applications.isNotEmpty) ...[
-            SizedBox(height: AppTheme.paddingMedium),
+          SizedBox(height: AppTheme.paddingMedium),
             _buildApplicationsSection(),
           ],
         ],
@@ -541,101 +541,101 @@ class _FamilyPageState extends State<FamilyPage> {
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
             padding: EdgeInsets.all(AppTheme.paddingLarge * 1.5),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
                       padding: EdgeInsets.all(16),
-                      decoration: BoxDecoration(
+                decoration: BoxDecoration(
                         color: Color(0xFF00F5A0).withOpacity(0.2),
-                        shape: BoxShape.circle,
+                  shape: BoxShape.circle,
                         border: Border.all(
                           color: Color(0xFF00F5A0).withOpacity(0.5),
                           width: 2,
                         ),
-                      ),
-                      child: Icon(
-                        Icons.family_restroom,
+                ),
+                child: Icon(
+                  Icons.family_restroom,
                         size: 36,
                         color: Color(0xFF00F5A0),
-                      ),
-                    ),
+                ),
+              ),
                     SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
                             '家庭组 ${_userInfo!['family_id']}',
-                            style: TextStyle(
+                      style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.w900,
                               color: Colors.white,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
                             _isAdmin ? '管理员' : '成员',
-                            style: TextStyle(
-                              fontSize: AppTheme.fontSizeMedium,
+                      style: TextStyle(
+                        fontSize: AppTheme.fontSizeMedium,
                               color: Colors.white.withOpacity(0.7),
-                            ),
-                          ),
-                        ],
                       ),
                     ),
                   ],
                 ),
-                
+              ),
+            ],
+          ),
+          
                 SizedBox(height: AppTheme.paddingLarge),
-                
-                Container(
+          
+          Container(
                   padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
+            decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: Colors.white.withOpacity(0.2),
                       width: 1,
-                    ),
+            ),
                   ),
-                  child: Row(
-                    children: [
+            child: Row(
+              children: [
                       Icon(Icons.vpn_key, size: 20, color: Colors.white.withOpacity(0.7)),
                       SizedBox(width: 12),
-                      Text(
+                Text(
                         '家庭组ID',
-                        style: TextStyle(
+                  style: TextStyle(
                           fontSize: AppTheme.fontSizeMedium,
                           color: Colors.white.withOpacity(0.7),
-                        ),
-                      ),
-                      Spacer(),
-                      Text(
+                  ),
+                ),
+                Spacer(),
+                Text(
                         '${_userInfo!['family_id']}',
-                        style: TextStyle(
+                  style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
                           color: Color(0xFF00F5A0),
-                          letterSpacing: 2,
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      IconButton(
-                        icon: Icon(Icons.copy, size: 20, color: Color(0xFF00F5A0)),
-                        onPressed: () {
-                          Clipboard.setData(ClipboardData(text: '${_userInfo!['family_id']}'));
-                          _showSuccess('ID已复制');
-                        },
-                        padding: EdgeInsets.zero,
-                        constraints: BoxConstraints(),
-                      ),
-                    ],
+                    letterSpacing: 2,
                   ),
                 ),
+                      SizedBox(width: 12),
+                IconButton(
+                        icon: Icon(Icons.copy, size: 20, color: Color(0xFF00F5A0)),
+                  onPressed: () {
+                          Clipboard.setData(ClipboardData(text: '${_userInfo!['family_id']}'));
+                          _showSuccess('ID已复制');
+                  },
+                  padding: EdgeInsets.zero,
+                  constraints: BoxConstraints(),
+                ),
               ],
+            ),
+          ),
+        ],
             ),
           ),
         ),
@@ -645,7 +645,7 @@ class _FamilyPageState extends State<FamilyPage> {
 
   Widget _buildApplicationsSection() {
     return Container(
-      decoration: BoxDecoration(
+          decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.08),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
@@ -658,7 +658,7 @@ class _FamilyPageState extends State<FamilyPage> {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
-            padding: EdgeInsets.all(AppTheme.paddingLarge),
+                  padding: EdgeInsets.all(AppTheme.paddingLarge),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -672,19 +672,19 @@ class _FamilyPageState extends State<FamilyPage> {
                         fontSize: 20,
                         fontWeight: FontWeight.w900,
                         color: Colors.white,
-                      ),
+                  ),
                     ),
                     Spacer(),
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
+                        decoration: BoxDecoration(
                         color: Color(0xFFFFB800).withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: Color(0xFFFFB800).withOpacity(0.5),
                           width: 1.5,
                         ),
-                      ),
+                        ),
                       child: Text(
                         '${_applications.length}',
                         style: TextStyle(
@@ -739,11 +739,11 @@ class _FamilyPageState extends State<FamilyPage> {
                                 SizedBox(height: 4),
                                 Text(
                                   app['apply_time'] ?? '',
-                                  style: TextStyle(
-                                    fontSize: AppTheme.fontSizeSmall,
+                        style: TextStyle(
+                          fontSize: AppTheme.fontSizeSmall,
                                     color: Colors.white.withOpacity(0.6),
-                                  ),
-                                ),
+                        ),
+                      ),
                               ],
                             ),
                           ),
@@ -781,9 +781,9 @@ class _FamilyPageState extends State<FamilyPage> {
                                 ),
                               ),
                               child: Text('同意', style: TextStyle(fontWeight: FontWeight.w700)),
-                            ),
-                          ),
-                        ],
+                ),
+        ),
+      ],
                       ),
                     ],
                   ),

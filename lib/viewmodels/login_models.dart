@@ -25,6 +25,10 @@ class RegisterRequest {
   final String name;
   final String password;
   final String smsCode;
+  final String? roleType;      // 新增：角色类型
+  final String? gender;        // 新增：性别
+  final String? profession;    // 新增：职业
+  final String? maritalStatus; // 新增：婚姻状况
 
   RegisterRequest({
     required this.phone,
@@ -32,16 +36,36 @@ class RegisterRequest {
     required this.name,
     required this.password,
     required this.smsCode,
+    this.roleType,
+    this.gender,
+    this.profession,
+    this.maritalStatus,
   });
 
   Map<String, dynamic> toJson() {
-    return {
+    final map = <String, dynamic>{
       'phone': phone,
       'username': username,
       'name': name,
       'password': password,
       'sms_code': smsCode,
     };
+    
+    // 只添加非空的可选字段
+    if (roleType != null && roleType!.isNotEmpty) {
+      map['role_type'] = roleType;
+    }
+    if (gender != null && gender!.isNotEmpty) {
+      map['gender'] = gender;
+    }
+    if (profession != null && profession!.isNotEmpty) {
+      map['profession'] = profession;
+    }
+    if (maritalStatus != null && maritalStatus!.isNotEmpty) {
+      map['marital_status'] = maritalStatus;
+    }
+    
+    return map;
   }
 }
 
@@ -75,6 +99,10 @@ class User {
   final int familyId;
   final bool isActive;
   final String createdAt;
+  final String? roleType;      // 新增：角色类型
+  final String? gender;        // 新增：性别
+  final String? profession;    // 新增：职业
+  final String? maritalStatus; // 新增：婚姻状况
 
   User({
     required this.phone,
@@ -84,6 +112,10 @@ class User {
     required this.familyId,
     required this.isActive,
     required this.createdAt,
+    this.roleType,
+    this.gender,
+    this.profession,
+    this.maritalStatus,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -95,6 +127,10 @@ class User {
       familyId: json['family_id'] ?? 0,
       isActive: json['is_active'] ?? false,
       createdAt: json['created_at'] ?? '',
+      roleType: json['role_type'],
+      gender: json['gender'],
+      profession: json['profession'],
+      maritalStatus: json['marital_status'],
     );
   }
 
@@ -107,6 +143,10 @@ class User {
       'family_id': familyId,
       'is_active': isActive,
       'created_at': createdAt,
+      if (roleType != null) 'role_type': roleType,
+      if (gender != null) 'gender': gender,
+      if (profession != null) 'profession': profession,
+      if (maritalStatus != null) 'marital_status': maritalStatus,
     };
   }
 }
