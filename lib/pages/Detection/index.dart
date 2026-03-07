@@ -969,7 +969,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(
-          backgroundColor: AppColors.cardBackground,
+          backgroundColor: AppColors.backgroundCard,
           elevation: 0,
           title: Text(
             '实时监测',
@@ -988,15 +988,13 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                     AnimatedBuilder(
                       animation: _pulseAnimation,
                       builder: (context, child) {
-                        return Transform.scale(
-                          scale: _pulseAnimation.value,
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: AppColors.success,
-                              shape: BoxShape.circle,
-                            ),
+                        return Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                            boxShadow: AppTheme.glowGreen,
                           ),
                         );
                       },
@@ -1006,7 +1004,8 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                       '已连接',
                       style: TextStyle(
                         fontSize: AppTheme.fontSizeSmall,
-                        color: AppColors.success,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
@@ -1014,10 +1013,17 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
               ),
           ],
           bottom: PreferredSize(
-            preferredSize: Size.fromHeight(1.5),
+            preferredSize: Size.fromHeight(2),
             child: Container(
-              color: AppColors.borderMedium,
-              height: 1.5,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primary,
+                    AppColors.secondary,
+                  ],
+                ),
+              ),
+              height: 2,
             ),
           ),
         ),
@@ -1076,7 +1082,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     
     switch (_currentState) {
       case DetectionState.idle:
-        statusColor = AppColors.textSecondary;
+        statusColor = AppColors.textLight;
         statusIcon = Icons.radio_button_unchecked;
         statusText = '未启动';
         break;
@@ -1086,7 +1092,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
         statusText = '准备中';
         break;
       case DetectionState.connecting:
-        statusColor = AppColors.warning;
+        statusColor = AppColors.primary;
         statusIcon = Icons.sync;
         statusText = '连接中';
         break;
@@ -1101,7 +1107,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
         statusText = '警告';
         break;
       case DetectionState.stopping:
-        statusColor = AppColors.textSecondary;
+        statusColor = AppColors.textLight;
         statusIcon = Icons.stop_circle;
         statusText = '停止中';
         break;
@@ -1114,22 +1120,37 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            statusColor.withOpacity(0.1),
-            AppColors.cardBackground,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: AppColors.backgroundCard,
         borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: statusColor, width: 2.0),
-        boxShadow: AppTheme.shadowMedium,
+        border: Border.all(
+          color: statusColor,
+          width: AppTheme.borderThick,
+        ),
+        boxShadow: _currentState == DetectionState.monitoring
+            ? [
+                BoxShadow(
+                  color: statusColor.withOpacity(0.3),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+              ]
+            : AppTheme.shadowMedium,
       ),
       padding: EdgeInsets.all(AppTheme.paddingLarge),
       child: Column(
         children: [
-          Icon(statusIcon, color: statusColor, size: 48),
+          Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.1),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: statusColor,
+                width: 3,
+              ),
+            ),
+            child: Icon(statusIcon, color: statusColor, size: 48),
+          ),
           SizedBox(height: AppTheme.paddingMedium),
           Text(
             statusText,
@@ -1137,6 +1158,14 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
               fontSize: AppTheme.fontSizeXLarge,
               fontWeight: FontWeight.bold,
               color: statusColor,
+              shadows: _currentState == DetectionState.monitoring
+                  ? [
+                      Shadow(
+                        color: statusColor.withOpacity(0.5),
+                        blurRadius: 10,
+                      ),
+                    ]
+                  : null,
             ),
           ),
           SizedBox(height: AppTheme.paddingSmall),
@@ -1144,7 +1173,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
             _statusMessage,
             style: TextStyle(
               fontSize: AppTheme.fontSizeMedium,
-              color: AppColors.textSecondary,
+              color: AppColors.textLight,
             ),
             textAlign: TextAlign.center,
           ),
@@ -1158,9 +1187,18 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                 vertical: AppTheme.paddingSmall,
               ),
               decoration: BoxDecoration(
-                color: defenseColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                border: Border.all(color: defenseColor.withOpacity(0.3)),
+                color: defenseColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                border: Border.all(
+                  color: defenseColor,
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: defenseColor.withOpacity(0.3),
+                    blurRadius: 10,
+                  ),
+                ],
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -1194,9 +1232,12 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     return Container(
       height: 140,
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
+        color: AppColors.backgroundCard,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        border: Border.all(color: AppColors.borderDark, width: 2.0),
+        border: Border.all(
+          color: AppColors.borderMedium,
+          width: AppTheme.borderMedium,
+        ),
         boxShadow: AppTheme.shadowSmall,
       ),
       padding: EdgeInsets.all(AppTheme.paddingMedium),
@@ -1220,9 +1261,12 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.success.withOpacity(0.1),
+                    color: AppColors.success.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                    border: Border.all(color: AppColors.success.withOpacity(0.3)),
+                    border: Border.all(
+                      color: AppColors.success,
+                      width: 1.5,
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1247,8 +1291,12 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
             child: _currentState == DetectionState.monitoring
                 ? Container(
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.05),
+                      color: AppColors.secondary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                      border: Border.all(
+                        color: AppColors.secondary.withOpacity(0.3),
+                        width: 1,
+                      ),
                     ),
                     child: CustomPaint(
                       painter: RealWaveformPainter(
@@ -1288,22 +1336,46 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
   Widget _buildDetectionResults() {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
+        color: AppColors.backgroundCard,
         borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: AppColors.borderDark, width: 2.0),
+        border: Border.all(
+          color: AppColors.borderMedium,
+          width: AppTheme.borderMedium,
+        ),
         boxShadow: AppTheme.shadowSmall,
       ),
       padding: EdgeInsets.all(AppTheme.paddingLarge),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '检测结果',
-            style: TextStyle(
-              fontSize: AppTheme.fontSizeLarge,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppColors.primary,
+                    width: 2,
+                  ),
+                ),
+                child: Icon(
+                  Icons.analytics,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+              ),
+              SizedBox(width: 12),
+              Text(
+                '检测结果',
+                style: TextStyle(
+                  fontSize: AppTheme.fontSizeLarge,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
           ),
           SizedBox(height: AppTheme.paddingMedium),
           
@@ -1331,9 +1403,9 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
           _buildResultItem(
             icon: Icons.text_fields,
             label: '文本检测',
-            confidence: _textConfidence,  // ✅ 使用实际置信度
+            confidence: _textConfidence,
             isSafe: _textRiskLevel == 'safe',
-            keywords: _textKeywords,  // ✅ 传递关键词
+            keywords: _textKeywords,
           ),
         ],
       ),
@@ -1346,7 +1418,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     required String label,
     required double confidence,
     required bool isSafe,
-    List<String>? keywords,  // ✅ 新增关键词参数
+    List<String>? keywords,
   }) {
     final color = isSafe ? AppColors.success : AppColors.error;
     final statusText = isSafe ? '安全' : '风险';
@@ -1354,15 +1426,36 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     return Container(
       padding: EdgeInsets.all(AppTheme.paddingMedium),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: isSafe 
+            ? AppColors.secondary.withOpacity(0.1)
+            : AppColors.error.withOpacity(0.1),
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(
+          color: color,
+          width: 2,
+        ),
+        boxShadow: !isSafe
+            ? [
+                BoxShadow(
+                  color: color.withOpacity(0.2),
+                  blurRadius: 10,
+                ),
+              ]
+            : null,
       ),
       child: Column(
         children: [
           Row(
             children: [
-              Icon(icon, color: color, size: 24),
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: color, width: 2),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
               SizedBox(width: AppTheme.paddingMedium),
               Expanded(
                 child: Column(
@@ -1376,7 +1469,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    SizedBox(height: 6),
                     Row(
                       children: [
                         Expanded(
@@ -1384,8 +1477,8 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                             borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
                             child: LinearProgressIndicator(
                               value: confidence,
-                              minHeight: 6,
-                              backgroundColor: AppColors.borderLight,
+                              minHeight: 8,
+                              backgroundColor: AppColors.secondary.withOpacity(0.2),
                               valueColor: AlwaysStoppedAnimation<Color>(color),
                             ),
                           ),
@@ -1395,7 +1488,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                           '${(confidence * 100).toStringAsFixed(0)}%',
                           style: TextStyle(
                             fontSize: AppTheme.fontSizeSmall,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.bold,
                             color: color,
                           ),
                         ),
@@ -1407,19 +1500,27 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
               SizedBox(width: AppTheme.paddingMedium),
               Container(
                 padding: EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
+                  horizontal: 10,
+                  vertical: 6,
                 ),
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                  boxShadow: !isSafe
+                      ? [
+                          BoxShadow(
+                            color: color.withOpacity(0.4),
+                            blurRadius: 8,
+                          ),
+                        ]
+                      : null,
                 ),
                 child: Text(
                   statusText,
                   style: TextStyle(
                     fontSize: AppTheme.fontSizeSmall,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
+                    color: AppColors.textDark,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
@@ -1433,9 +1534,9 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
               width: double.infinity,
               padding: EdgeInsets.all(AppTheme.paddingSmall),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.05),
+                color: color.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                border: Border.all(color: color.withOpacity(0.2)),
+                border: Border.all(color: color.withOpacity(0.3)),
               ),
               child: Wrap(
                 spacing: 6,
@@ -1453,15 +1554,16 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                   ...keywords.map((keyword) => Container(
                     padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.15),
+                      color: color.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: color, width: 1),
                     ),
                     child: Text(
                       keyword,
                       style: TextStyle(
                         fontSize: AppTheme.fontSizeSmall,
                         color: color,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   )),
@@ -1478,15 +1580,29 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
   Widget _buildRiskWarning() {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.error,
+        gradient: LinearGradient(
+          colors: [
+            AppColors.error,
+            AppColors.error.withOpacity(0.8),
+          ],
+        ),
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        border: Border.all(color: AppColors.borderDark, width: 2.0),
-        boxShadow: AppTheme.shadowMedium,
+        border: Border.all(
+          color: AppColors.accent,
+          width: 3,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.error.withOpacity(0.4),
+            blurRadius: 20,
+            spreadRadius: 2,
+          ),
+        ],
       ),
       padding: EdgeInsets.all(AppTheme.paddingLarge),
       child: Row(
         children: [
-          Icon(Icons.warning, color: Colors.white, size: 32),
+          Icon(Icons.warning, color: AppColors.accent, size: 32),
           SizedBox(width: AppTheme.paddingMedium),
           Expanded(
             child: Column(
@@ -1497,7 +1613,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                   style: TextStyle(
                     fontSize: AppTheme.fontSizeLarge,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: AppColors.accent,
                   ),
                 ),
                 SizedBox(height: 4),
@@ -1505,7 +1621,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                   '检测到可疑内容，请提高警惕！',
                   style: TextStyle(
                     fontSize: AppTheme.fontSizeMedium,
-                    color: Colors.white,
+                    color: AppColors.cream,
                   ),
                 ),
               ],
@@ -1524,12 +1640,29 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                         _currentState == DetectionState.stopping;
     
     return Container(
-      height: 56,
+      height: 60,
       decoration: BoxDecoration(
-        color: isMonitoring ? AppColors.error : AppColors.primary,
+        gradient: isMonitoring
+            ? LinearGradient(
+                colors: [AppColors.error, AppColors.error.withOpacity(0.8)],
+              )
+            : AppTheme.gradientGreen,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        border: Border.all(color: AppColors.borderDark, width: 2.0),
-        boxShadow: isProcessing ? [] : AppTheme.shadowMedium,
+        border: Border.all(
+          color: isMonitoring ? AppColors.accent : AppColors.primary,
+          width: 3,
+        ),
+        boxShadow: isProcessing
+            ? []
+            : isMonitoring
+                ? [
+                    BoxShadow(
+                      color: AppColors.error.withOpacity(0.4),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : AppTheme.glowGreen,
       ),
       child: ElevatedButton.icon(
         onPressed: isProcessing
@@ -1539,16 +1672,16 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                 : _startMonitoring,
         icon: isProcessing
             ? SizedBox(
-                width: 20,
-                height: 20,
+                width: 24,
+                height: 24,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.textDark),
                 ),
               )
             : Icon(
                 isMonitoring ? Icons.stop : Icons.play_arrow,
-                size: 28,
+                size: 32,
               ),
         label: Text(
           isProcessing
@@ -1558,12 +1691,13 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                   : '开始监测',
           style: TextStyle(
             fontSize: AppTheme.fontSizeLarge,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
           ),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
-          foregroundColor: Colors.white,
+          foregroundColor: AppColors.textDark,
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
@@ -1578,13 +1712,16 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     return Container(
       padding: EdgeInsets.all(AppTheme.paddingMedium),
       decoration: BoxDecoration(
-        color: Colors.blue[50],
+        color: AppColors.secondary.withOpacity(0.15),
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        border: Border.all(color: Colors.blue[200]!),
+        border: Border.all(
+          color: AppColors.secondary,
+          width: 2,
+        ),
       ),
       child: Row(
         children: [
-          Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+          Icon(Icons.info_outline, color: AppColors.primary, size: 20),
           SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -1595,7 +1732,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                   style: TextStyle(
                     fontSize: AppTheme.fontSizeSmall,
                     fontWeight: FontWeight.bold,
-                    color: Colors.blue[900],
+                    color: AppColors.primary,
                   ),
                 ),
                 SizedBox(height: 4),
@@ -1603,7 +1740,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                   '实时监测需要麦克风和摄像头权限。如未授权，点击开始时会提示授权。',
                   style: TextStyle(
                     fontSize: AppTheme.fontSizeSmall,
-                    color: Colors.blue[800],
+                    color: AppColors.textLight,
                   ),
                 ),
               ],
@@ -1611,9 +1748,11 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
           ),
           TextButton(
             onPressed: () {
-              // 跳转到权限设置页面
               Navigator.pushNamed(context, '/permission-settings');
             },
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+            ),
             child: Text(
               '查看',
               style: TextStyle(

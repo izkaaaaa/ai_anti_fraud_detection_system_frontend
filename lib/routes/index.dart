@@ -4,6 +4,7 @@ import 'package:ai_anti_fraud_detection_system_frontend/pages/Main/index.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/pages/Register/index.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/pages/Settings/PermissionSettings.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/pages/SecurityReport/index.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/pages/UserAgreement/index.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
 import 'package:flutter/material.dart';
 
@@ -26,5 +27,6 @@ Map<String, Widget Function(BuildContext)> getRootRoutes(){
     "/register": (context) => RegisterPage(), // 注册路由
     "/permission-settings": (context) => PermissionSettingsPage(), // 权限设置路由
     "/security-report": (context) => SecurityReportPage(), // 安全报告路由
+    "/user-agreement": (context) => UserAgreementPage(), // 用户协议路由
   };
 }

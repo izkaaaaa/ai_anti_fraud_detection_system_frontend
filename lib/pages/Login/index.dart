@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
-import 'package:ai_anti_fraud_detection_system_frontend/pages/NetworkTest/index.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,6 +17,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   
   bool _isPasswordVisible = false;
   bool _rememberMe = false;
+  bool _agreeToTerms = false;
   bool _isLoading = false;
   bool _isSendingCode = false;
   int _countdown = 0;
@@ -28,19 +28,32 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  late Animation<Offset> _textSlideAnimation;
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 1200),
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Interval(0.3, 0.8, curve: Curves.easeOut),
+      ),
     );
     _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+    _textSlideAnimation = Tween<Offset>(
+      begin: Offset(-0.3, 0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Interval(0.2, 0.7, curve: Curves.easeOutCubic),
+      ),
     );
     _animationController.forward();
   }
@@ -125,6 +138,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   /// 处理登录逻辑
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (!_agreeToTerms) {
+      _showError('请先阅读并同意用户服务协议');
       return;
     }
 
@@ -217,38 +235,121 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          // 大图标背景（使用 ColorFiltered 去除白色背景）
-          Positioned.fill(
-            child: Opacity(
-              opacity: 0.08,
-              child: ColorFiltered(
-                colorFilter: ColorFilter.mode(
-                  Colors.white,
-                  BlendMode.dstOut,
-                ),
-                child: Image.asset(
-                  'lib/assets/登录界面图标.jpg',
-                  fit: BoxFit.cover,
+          // 背景图片（向上偏移20%，显示下半部分）
+          Positioned(
+            top: -MediaQuery.of(context).size.height * 0.2,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Image.asset(
+              'lib/UIimages/登录页背景.jpg',
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: AppColors.primary.withOpacity(0.1),
+                  child: Center(
+                    child: Icon(Icons.image, size: 50, color: AppColors.textSecondary),
+                  ),
+                );
+              },
+            ),
+          ),
+          
+          // 欢迎语（在图片上方，左对齐，带弹出效果）
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 40,
+            left: AppTheme.paddingLarge,
+            right: AppTheme.paddingLarge,
+            child: SlideTransition(
+              position: _textSlideAnimation,
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '只愿守护你，',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withOpacity(0.3),
+                            offset: Offset(0, 2),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      '每一次安心通话。',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withOpacity(0.3),
+                            offset: Offset(0, 2),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'We only wish to keep you safe in every call.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white.withOpacity(0.95),
+                        letterSpacing: 0.5,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withOpacity(0.3),
+                            offset: Offset(0, 1),
+                            blurRadius: 3,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
           
-          // 渐变色装饰圆圈
-          _buildGradientDecorations(),
-          
-          // 主要内容
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.all(AppTheme.paddingLarge),
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: ScaleTransition(
-                    scale: _scaleAnimation,
+          // 下半部分：登录表单容器（占60%，带弹出动画）
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: Offset(0, 1),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                parent: _animationController,
+                curve: Curves.easeOutCubic,
+              )),
+              child: FractionallySizedBox(
+                heightFactor: 0.6,
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(30),
+                      topRight: Radius.circular(30),
+                    ),
+                  ),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppTheme.paddingLarge,
+                    vertical: AppTheme.paddingMedium,
+                  ),
+                  child: Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 420),
                       child: Form(
@@ -256,11 +357,24 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.stretch,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            _buildHeader(),
-                            SizedBox(height: AppTheme.paddingXLarge),
-                            _buildLoginCard(),
-                            SizedBox(height: AppTheme.paddingLarge),
+                            _buildLoginModeTabs(),
+                            SizedBox(height: AppTheme.paddingMedium),
+                            _buildAccountField(),
+                            SizedBox(height: AppTheme.paddingSmall),
+                            if (_loginMode == 0) ...[
+                              _buildPasswordField(),
+                              SizedBox(height: AppTheme.paddingSmall),
+                              _buildRememberMeRow(),
+                            ] else ...[
+                              _buildSmsCodeField(),
+                            ],
+                            SizedBox(height: AppTheme.paddingSmall),
+                            _buildAgreementRow(),
+                            SizedBox(height: AppTheme.paddingMedium),
+                            _buildLoginButton(),
+                            SizedBox(height: AppTheme.paddingSmall),
                             _buildFooter(),
                           ],
                         ),
@@ -276,193 +390,127 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     );
   }
   
-  Widget _buildGradientDecorations() {
-    return Stack(
-      children: [
-        // 左上角 - 明黄色（无勾线）
-        Positioned(
-          top: -60,
-          left: -60,
-          child: Container(
-            width: 180,
-            height: 180,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.secondary.withOpacity(0.15),
-            ),
-          ),
-        ),
-        // 右上角 - 浅桃色（无勾线）
-        Positioned(
-          top: 100,
-          right: -50,
-          child: Container(
-            width: 160,
-            height: 160,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.accent.withOpacity(0.2),
-            ),
-          ),
-        ),
-        // 左下角 - 珊瑚橙（无勾线）
-        Positioned(
-          bottom: 120,
-          left: -40,
-          child: Container(
-            width: 140,
-            height: 140,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.primary.withOpacity(0.18),
-            ),
-          ),
-        ),
-        // 右下角 - 深橙棕（无勾线）
-        Positioned(
-          bottom: -80,
-          right: -60,
-          child: Container(
-            width: 200,
-            height: 200,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.brown.withOpacity(0.12),
-            ),
-          ),
-        ),
-      ],
+  Widget _buildAccountField() {
+    return _buildTextField(
+      controller: _accountController,
+      label: _loginMode == 0 ? '手机号/用户名' : '手机号',
+      hint: _loginMode == 0 ? '请输入手机号或用户名' : '请输入手机号',
+      icon: Icons.person_outline,
+      validator: _validateAccount,
+      keyboardType: _loginMode == 1 ? TextInputType.phone : TextInputType.text,
     );
   }
 
-  Widget _buildHeader() {
-    return Column(
-      children: [
-        // 大Logo图片（原图，无背景）
-        Container(
-          width: 160,
-          height: 160,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            boxShadow: AppTheme.shadowMedium,
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            child: Image.asset(
-              'lib/assets/登录界面图标.jpg',
-              fit: BoxFit.contain,
-            ),
-          ),
-        ),
-        SizedBox(height: AppTheme.paddingLarge),
-        
-        // 欢迎登录标题（无勾线）
-        Text(
-          '欢迎登录',
-          style: TextStyle(
-            fontSize: AppTheme.fontSizeTitle,
-            fontWeight: FontWeight.bold,
-            color: AppColors.primary,
-            letterSpacing: 1,
-          ),
-        ),
-      ],
+  Widget _buildPasswordField() {
+    return _buildTextField(
+      controller: _passwordController,
+      label: '密码',
+      hint: '请输入密码',
+      icon: Icons.lock_outline,
+      isPassword: true,
+      validator: _validatePassword,
     );
   }
 
-  Widget _buildLoginCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(
-          color: AppColors.borderDark,
-          width: 2.0,
-        ),
-        boxShadow: AppTheme.shadowMedium,
-      ),
-      padding: EdgeInsets.all(AppTheme.paddingLarge),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildLoginModeTabs(),
-          SizedBox(height: AppTheme.paddingLarge),
-          
-          _buildTextField(
-            controller: _accountController,
-            label: _loginMode == 0 ? '手机号/用户名' : '手机号',
-            hint: _loginMode == 0 ? '请输入手机号或用户名' : '请输入手机号',
-            icon: Icons.person_outline,
-            validator: _validateAccount,
-            keyboardType: _loginMode == 1 ? TextInputType.phone : TextInputType.text,
-          ),
-          SizedBox(height: AppTheme.paddingMedium),
-          
-          if (_loginMode == 0)
-            _buildTextField(
-              controller: _passwordController,
-              label: '密码',
-              hint: '请输入密码',
-              icon: Icons.lock_outline,
-              isPassword: true,
-              validator: _validatePassword,
-            )
-          else
-            _buildSmsCodeField(),
-          
-          if (_loginMode == 0) ...[
-            SizedBox(height: AppTheme.paddingMedium),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: Checkbox(
-                        value: _rememberMe,
-                        onChanged: (value) {
-                          setState(() {
-                            _rememberMe = value ?? false;
-                          });
-                        },
-                        activeColor: AppColors.primary,
-                        checkColor: AppColors.textWhite,
-                        side: BorderSide(
-                          color: AppColors.borderMedium,
-                          width: 1.5,
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: AppTheme.paddingSmall),
-                    Text(
-                      '记住我',
-                      style: TextStyle(
-                        fontSize: AppTheme.fontSizeSmall,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
+  Widget _buildRememberMeRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: Checkbox(
+                value: _rememberMe,
+                onChanged: (value) {
+                  setState(() {
+                    _rememberMe = value ?? false;
+                  });
+                },
+                activeColor: AppColors.primary,
+                checkColor: AppColors.textWhite,
+                side: BorderSide(
+                  color: AppColors.borderMedium,
+                  width: 1.5,
                 ),
-                TextButton(
-                  onPressed: () {},
-                  child: Text(
-                    '忘记密码？',
-                    style: TextStyle(
-                      fontSize: AppTheme.fontSizeSmall,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ],
+              ),
+            ),
+            SizedBox(width: AppTheme.paddingSmall),
+            Text(
+              '记住我',
+              style: TextStyle(
+                fontSize: AppTheme.fontSizeSmall,
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
-          
-          SizedBox(height: AppTheme.paddingLarge),
-          _buildLoginButton(),
-        ],
-      ),
+        ),
+        TextButton(
+          onPressed: () {},
+          child: Text(
+            '忘记密码？',
+            style: TextStyle(
+              fontSize: AppTheme.fontSizeSmall,
+              color: AppColors.primary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAgreementRow() {
+    return Row(
+      children: [
+        SizedBox(
+          width: 20,
+          height: 20,
+          child: Checkbox(
+            value: _agreeToTerms,
+            onChanged: (value) {
+              setState(() {
+                _agreeToTerms = value ?? false;
+              });
+            },
+            activeColor: AppColors.primary,
+            checkColor: AppColors.textWhite,
+            side: BorderSide(
+              color: AppColors.borderMedium,
+              width: 1.5,
+            ),
+          ),
+        ),
+        SizedBox(width: AppTheme.paddingSmall),
+        Flexible(
+          child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                '我已阅读并接受',
+                style: TextStyle(
+                  fontSize: AppTheme.fontSizeSmall,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.of(context).pushNamed('/user-agreement');
+                },
+                child: Text(
+                  '《用户服务协议》',
+                  style: TextStyle(
+                    fontSize: AppTheme.fontSizeSmall,
+                    color: AppColors.primary.withOpacity(0.8),
+                    decoration: TextDecoration.underline,
+                    decorationColor: AppColors.primary.withOpacity(0.8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -482,8 +530,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 color: _loginMode == 0 ? AppColors.primary : Colors.transparent,
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                 border: Border.all(
-                  color: _loginMode == 0 ? AppColors.borderDark : AppColors.borderMedium,
-                  width: 2.0,
+                  color: _loginMode == 0 ? AppColors.primary : AppColors.borderMedium,
+                  width: 1.0,
                 ),
               ),
               child: Text(
@@ -492,7 +540,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 style: TextStyle(
                   fontSize: AppTheme.fontSizeMedium,
                   fontWeight: FontWeight.w600,
-                  color: _loginMode == 0 ? AppColors.textWhite : AppColors.textSecondary,
+                  color: _loginMode == 0 ? AppColors.textDark : AppColors.textSecondary,
                 ),
               ),
             ),
@@ -512,8 +560,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 color: _loginMode == 1 ? AppColors.primary : Colors.transparent,
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                 border: Border.all(
-                  color: _loginMode == 1 ? AppColors.borderDark : AppColors.borderMedium,
-                  width: 2.0,
+                  color: _loginMode == 1 ? AppColors.primary : AppColors.borderMedium,
+                  width: 1.0,
                 ),
               ),
               child: Text(
@@ -522,7 +570,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 style: TextStyle(
                   fontSize: AppTheme.fontSizeMedium,
                   fontWeight: FontWeight.w600,
-                  color: _loginMode == 1 ? AppColors.textWhite : AppColors.textSecondary,
+                  color: _loginMode == 1 ? AppColors.textDark : AppColors.textSecondary,
                 ),
               ),
             ),
@@ -582,23 +630,23 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             fillColor: AppColors.inputBackground,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.borderMedium, width: 1.5),
+              borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.borderMedium, width: 1.5),
+              borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.borderDark, width: 2.0),
+              borderSide: BorderSide(color: AppColors.primary, width: 1.0),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.error, width: 1.5),
+              borderSide: BorderSide(color: AppColors.error, width: 1.0),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.error, width: 2.0),
+              borderSide: BorderSide(color: AppColors.error, width: 1.0),
             ),
             contentPadding: EdgeInsets.symmetric(
               horizontal: AppTheme.paddingMedium,
@@ -640,23 +688,23 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   fillColor: AppColors.inputBackground,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.borderMedium, width: 1.5),
+                    borderSide: BorderSide.none,
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.borderMedium, width: 1.5),
+                    borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.borderDark, width: 2.0),
+                    borderSide: BorderSide(color: AppColors.primary, width: 1.0),
                   ),
                   errorBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.error, width: 1.5),
+                    borderSide: BorderSide(color: AppColors.error, width: 1.0),
                   ),
                   focusedErrorBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.error, width: 2.0),
+                    borderSide: BorderSide(color: AppColors.error, width: 1.0),
                   ),
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: AppTheme.paddingMedium,
@@ -670,21 +718,17 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
               height: 48,
               decoration: BoxDecoration(
                 color: (_isSendingCode || _countdown > 0 || _isLoading) 
-                    ? AppColors.borderLight 
-                    : AppColors.secondaryLight,
+                    ? AppColors.backgroundCard
+                    : AppColors.primary,
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                border: Border.all(
-                  color: (_isSendingCode || _countdown > 0 || _isLoading)
-                      ? AppColors.borderMedium
-                      : AppColors.borderDark,
-                  width: 2.0,
-                ),
               ),
               child: ElevatedButton(
                 onPressed: (_isSendingCode || _countdown > 0 || _isLoading) ? null : _sendSmsCode,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
-                  foregroundColor: AppColors.textPrimary,
+                  foregroundColor: (_isSendingCode || _countdown > 0 || _isLoading)
+                      ? AppColors.textLight
+                      : AppColors.textDark,
                   shadowColor: Colors.transparent,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
@@ -697,7 +741,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                         height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.textPrimary),
+                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.textLight),
                         ),
                       )
                     : Text(
@@ -721,17 +765,19 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       decoration: BoxDecoration(
         color: _isLoading ? AppColors.borderLight : AppColors.primary,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        border: Border.all(
-          color: AppColors.borderDark,
-          width: 2.0,
-        ),
-        boxShadow: _isLoading ? [] : AppTheme.shadowMedium,
+        boxShadow: _isLoading ? [] : [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.3),
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: ElevatedButton(
         onPressed: _isLoading ? null : _handleLogin,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
-          foregroundColor: AppColors.textWhite,
+          foregroundColor: AppColors.textDark,
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
@@ -743,14 +789,14 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 width: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.textWhite),
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.textDark),
                 ),
               )
             : Text(
                 '登录',
                 style: TextStyle(
                   fontSize: AppTheme.fontSizeLarge,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.bold,
                   letterSpacing: 1,
                 ),
               ),
@@ -759,51 +805,29 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   }
 
   Widget _buildFooter() {
-    return Column(
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              '还没有账户？',
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: AppTheme.fontSizeMedium,
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pushNamed('/register');
-              },
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: AppTheme.paddingSmall),
-              ),
-              child: Text(
-                '立即注册',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontSize: AppTheme.fontSizeMedium,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
+        Text(
+          '还没有账户？',
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: AppTheme.fontSizeMedium,
+          ),
         ),
-        SizedBox(height: AppTheme.paddingSmall),
-        // 网络测试按钮
-        TextButton.icon(
+        TextButton(
           onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => NetworkTestPage()),
-            );
+            Navigator.of(context).pushNamed('/register');
           },
-          icon: Icon(Icons.wifi_find, size: 18, color: AppColors.textSecondary),
-          label: Text(
-            '网络测试',
+          style: TextButton.styleFrom(
+            padding: EdgeInsets.symmetric(horizontal: AppTheme.paddingSmall),
+          ),
+          child: Text(
+            '立即注册',
             style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: AppTheme.fontSizeSmall,
+              color: AppColors.primary,
+              fontSize: AppTheme.fontSizeMedium,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
