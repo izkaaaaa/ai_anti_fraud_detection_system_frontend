@@ -66,9 +66,9 @@
             android:foregroundServiceType="microphone"
             android:exported="false" />
         
-        <!-- 录屏前台服务（保留，后续使用） -->
+        <!-- 屏幕截图前台服务 -->
         <service
-            android:name="com.foregroundservice.ForegroundService"
+            android:name=".ScreenCaptureService"
             android:foregroundServiceType="mediaProjection"
             android:exported="false" />
     </application>

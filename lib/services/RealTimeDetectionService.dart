@@ -3,11 +3,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:camera/camera.dart';
 import 'package:image/image.dart' as img;
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
@@ -30,11 +30,11 @@ class RealTimeDetectionService {
   String? _currentAudioPath;
   StreamSubscription? _audioLevelSubscription;
   
-  // 摄像头控制器
-  CameraController? _cameraController;
-  bool _isCameraInitialized = false;
+  // 屏幕截图控制
+  static const platform = MethodChannel('com.example.ai_anti_fraud_detection_system_frontend/screen_capture');
+  bool _isScreenCaptureActive = false;
   Timer? _videoFrameTimer;
-  bool _isCapturingFrame = false; // 防止并发拍照
+  bool _isCapturingFrame = false; // 防止并发截图
   
   // ✅ 百度语音识别服务（用于文字流检测）
   final BaiduSpeechService _speechService = BaiduSpeechService();
@@ -105,10 +105,10 @@ class RealTimeDetectionService {
         return false;
       }
       
-      // 5. 开始视频采集
-      final cameraStarted = await _startVideoCapture();
-      if (!cameraStarted) {
-        print('⚠️ 摄像头启动失败，仅使用音频检测');
+      // 5. 开始屏幕截图
+      final screenCaptureStarted = await _startScreenCapture();
+      if (!screenCaptureStarted) {
+        print('⚠️ 屏幕截图启动失败，仅使用音频检测');
         // 不阻断流程，继续使用音频检测
       }
       
@@ -133,8 +133,8 @@ class RealTimeDetectionService {
       // 1. 停止录音
       await _stopAudioRecording();
       
-      // 2. 停止视频采集
-      await _stopVideoCapture();
+      // 2. 停止屏幕截图
+      await _stopScreenCapture();
       
       // ✅ 3. 停止语音识别
       await _stopSpeechRecognition();
@@ -597,69 +597,47 @@ class RealTimeDetectionService {
     });
   }
   
-  /// 开始视频采集
-  Future<bool> _startVideoCapture() async {
+  /// 开始屏幕截图
+  Future<bool> _startScreenCapture() async {
     try {
-      // 检查摄像头权限
-      final status = await Permission.camera.status;
-      if (!status.isGranted) {
-        final result = await Permission.camera.request();
-        if (!result.isGranted) {
-          print('❌ 没有摄像头权限');
-          return false;
-        }
-      }
+      print('📱 开始屏幕截图...');
       
-      // 获取可用摄像头
-      final cameras = await availableCameras();
-      if (cameras.isEmpty) {
-        print('❌ 没有可用的摄像头');
+      // 1. 请求屏幕截图权限
+      final result = await platform.invokeMethod('startCapture');
+      
+      if (result != true) {
+        print('❌ 屏幕截图权限获取失败');
         return false;
       }
       
-      // 使用前置摄像头（视频通话通常使用前置）
-      final frontCamera = cameras.firstWhere(
-        (camera) => camera.lensDirection == CameraLensDirection.front,
-        orElse: () => cameras.first,
-      );
+      _isScreenCaptureActive = true;
       
-      // 初始化摄像头控制器
-      _cameraController = CameraController(
-        frontCamera,
-        ResolutionPreset.medium, // 中等分辨率，平衡质量和性能
-        enableAudio: false, // 不需要音频
-      );
+      // 2. 开始定期截图
+      _startScreenshotCapture();
       
-      await _cameraController!.initialize();
-      _isCameraInitialized = true;
-      
-      // 开始定期采集视频帧
-      _startVideoFrameCapture();
-      
-      print('📹 摄像头已启动');
+      print('✅ 屏幕截图已启动');
       return true;
     } catch (e) {
-      print('❌ 启动摄像头失败: $e');
+      print('❌ 启动屏幕截图失败: $e');
       return false;
     }
   }
   
-  /// 开始视频帧采集
-  void _startVideoFrameCapture() {
+  /// 开始截图采集
+  void _startScreenshotCapture() {
     _videoFrameTimer?.cancel();
     
     // ✅ 根据当前防御等级动态调整帧率
     final interval = Duration(milliseconds: (1000 / _currentVideoFPS).round());
-    print('📹 视频采集间隔: ${interval.inMilliseconds}ms (${_currentVideoFPS} fps)');
+    print('📸 截图采集间隔: ${interval.inMilliseconds}ms ($_currentVideoFPS fps)');
     
     _videoFrameTimer = Timer.periodic(interval, (timer) async {
-      // ✅ 增加 _cameraController 空检查
-      if (!_isCameraInitialized || !_isConnected || _channel == null || _cameraController == null) {
+      if (!_isScreenCaptureActive || !_isConnected || _channel == null) {
         timer.cancel();
         return;
       }
       
-      // 防止并发拍照
+      // 防止并发截图
       if (_isCapturingFrame) {
         print('⏭️ 跳过本次采集（上次未完成）');
         return;
@@ -668,71 +646,51 @@ class RealTimeDetectionService {
       _isCapturingFrame = true;
       
       try {
-        // ✅ 再次检查 controller 是否还有效
-        if (_cameraController == null || !_cameraController!.value.isInitialized) {
-          _isCapturingFrame = false;
-          timer.cancel();
-          return;
-        }
+        // 调用原生方法截图
+        final Uint8List? jpegData = await platform.invokeMethod('captureScreen');
         
-        // 捕获当前帧
-        final image = await _cameraController!.takePicture();
-        
-        // 读取图像文件
-        final bytes = await File(image.path).readAsBytes();
-        
-        // 压缩图像（减少传输数据量）
-        final decodedImage = img.decodeImage(bytes);
-        if (decodedImage != null) {
-          // 调整大小到 640x480（按照文档建议）
-          final resized = img.copyResize(decodedImage, width: 640, height: 480);
-          
-          // 转换为 JPEG 格式，质量 0.8（按照文档建议 0.7-0.9）
-          final compressed = img.encodeJpg(resized, quality: 80);
-          
+        if (jpegData != null && jpegData.isNotEmpty) {
           // Base64 编码
-          final base64Frame = base64Encode(compressed);
+          final base64Frame = base64Encode(jpegData);
           
-          // 发送视频帧（按照文档格式）
+          // 发送视频帧
           _channel!.sink.add(json.encode({
             'type': 'video',
             'data': base64Frame,
           }));
           
-          print('🎥 发送视频帧: ${compressed.length} bytes (${resized.width}x${resized.height})');
+          print('📸 发送屏幕截图: ${jpegData.length} bytes');
         }
-        
-        // 删除临时文件
-        await File(image.path).delete();
       } catch (e) {
-        print('❌ 采集视频帧失败: $e');
+        print('❌ 截图失败: $e');
       } finally {
         _isCapturingFrame = false;
       }
     });
   }
   
-  /// 停止视频采集
-  Future<void> _stopVideoCapture() async {
+  /// 停止屏幕截图
+  Future<void> _stopScreenCapture() async {
     try {
-      // ✅ 先取消定时器，防止在 dispose 后还尝试采集
+      // 先取消定时器
       _videoFrameTimer?.cancel();
       _videoFrameTimer = null;
       
-      // ✅ 等待当前采集完成
+      // 等待当前采集完成
       while (_isCapturingFrame) {
         await Future.delayed(Duration(milliseconds: 100));
       }
       
-      if (_isCameraInitialized && _cameraController != null) {
-        _isCameraInitialized = false; // ✅ 先设置标志，防止定时器继续执行
-        await _cameraController!.dispose();
-        _cameraController = null;
+      if (_isScreenCaptureActive) {
+        _isScreenCaptureActive = false;
+        
+        // 停止屏幕截图
+        await platform.invokeMethod('stopCapture');
+        
+        print('📱 屏幕截图已停止');
       }
-      
-      print('📹 摄像头已停止');
     } catch (e) {
-      print('❌ 停止摄像头失败: $e');
+      print('❌ 停止屏幕截图失败: $e');
     }
   }
   
@@ -853,7 +811,7 @@ class RealTimeDetectionService {
     _videoFrameTimer?.cancel();
     _audioLevelSubscription?.cancel();
     await _stopAudioRecording();
-    await _stopVideoCapture();
+    await _stopScreenCapture();  // ✅ 停止屏幕截图
     await _stopSpeechRecognition();  // ✅ 停止语音识别
     _stopCallRecording();  // ✅ 停止通话录音（不需要 await，因为是同步方法）
     await _disconnectWebSocket();
@@ -901,11 +859,14 @@ class RealTimeDetectionService {
         await FlutterForegroundTask.requestIgnoreBatteryOptimization();
       }
       
-      // 3. 启动前台服务
+      // 3. 启动前台服务（只使用 microphone 类型）
+      // ⚠️ 注意：mediaProjection 类型需要在获取权限后才能使用
       final serviceResult = await FlutterForegroundTask.startService(
         notificationTitle: '🛡️ 实时监测中',
         notificationText: '正在保护您的通话安全',
         callback: startCallback,
+        // ✅ 暂时只使用 microphone 类型启动服务
+        // mediaProjection 会在用户授权后自动生效
       );
       
       // ✅ 使用模式匹配检查结果
@@ -954,14 +915,11 @@ class RealTimeDetectionService {
   /// 获取录音状态
   bool get isRecording => _isRecording;
   
-  /// 获取摄像头状态
-  bool get isCameraActive => _isCameraInitialized;
+  /// 获取屏幕截图状态
+  bool get isScreenCaptureActive => _isScreenCaptureActive;
   
   /// 获取当前通话记录ID
   String? get callRecordId => _callRecordId;
-  
-  /// 获取摄像头控制器（用于预览）
-  CameraController? get cameraController => _cameraController;
   
   /// 获取当前防御等级
   int get currentDefenseLevel => _currentDefenseLevel;
@@ -1005,8 +963,8 @@ class RealTimeDetectionService {
     _currentVideoFPS = 1.0;
     
     // 重启视频采集（应用新帧率）
-    if (_isCameraInitialized) {
-      _startVideoFrameCapture();
+    if (_isScreenCaptureActive) {
+      _startScreenshotCapture();
     }
     
     onStatusChange?.call('正常监测中');
@@ -1023,8 +981,8 @@ class RealTimeDetectionService {
       print('📹 提高视频帧率: $_currentVideoFPS fps');
       
       // 重启视频采集（应用新帧率）
-      if (_isCameraInitialized) {
-        _startVideoFrameCapture();
+      if (_isScreenCaptureActive) {
+        _startScreenshotCapture();
       }
     }
     
@@ -1048,8 +1006,8 @@ class RealTimeDetectionService {
       print('📹 最高视频帧率: $_currentVideoFPS fps');
       
       // 重启视频采集（应用新帧率）
-      if (_isCameraInitialized) {
-        _startVideoFrameCapture();
+      if (_isScreenCaptureActive) {
+        _startScreenshotCapture();
       }
     }
     

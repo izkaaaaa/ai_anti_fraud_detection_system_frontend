@@ -5,7 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
 import 'dart:math';
-import 'package:flutter_screen_recording/flutter_screen_recording.dart';
+// import 'package:flutter_screen_recording/flutter_screen_recording.dart'; // 已移除，使用原生实现
 import 'package:video_player/video_player.dart';
 import 'dart:io';
 import 'package:ai_anti_fraud_detection_system_frontend/services/baidu_speech_service.dart';
@@ -136,9 +136,10 @@ class _ScreenRecordTestTabState extends State<ScreenRecordTestTab> {
       final videoName = 'screen_record_${DateTime.now().millisecondsSinceEpoch}';
       print('🎬 视频文件名: $videoName');
 
-      // 开始录屏（带音频）
-      print('🎬 调用 startRecordScreenAndAudio...');
-      bool started = await FlutterScreenRecording.startRecordScreenAndAudio(videoName);
+      // 开始录屏（带音频）- 功能已移除
+      print('🎬 屏幕录制功能已移至原生实现');
+      // bool started = await FlutterScreenRecording.startRecordScreenAndAudio(videoName);
+      bool started = false; // 临时禁用
       print('🎬 录屏启动结果: $started');
 
       if (started) {
@@ -147,16 +148,16 @@ class _ScreenRecordTestTabState extends State<ScreenRecordTestTab> {
           _statusMessage = '正在录制屏幕...\n对着屏幕操作试试！';
         });
       } else {
-        throw Exception('录屏启动失败');
+        throw Exception('屏幕录制功能已移至实时检测页面');
       }
     } catch (e) {
       print('❌ 开始录屏失败: $e');
       _timer?.cancel();
       setState(() {
         _isRecording = false;
-        _statusMessage = '录屏失败: ${e.toString()}';
+        _statusMessage = '屏幕录制功能已移至实时检测页面\n请使用实时检测功能测试';
       });
-      _showError('开始录屏失败: ${e.toString()}');
+      _showError('请使用实时检测页面测试屏幕截图功能');
     }
   }
 
@@ -167,14 +168,15 @@ class _ScreenRecordTestTabState extends State<ScreenRecordTestTab> {
       print('🎬 停止录屏...');
       _timer?.cancel();
 
-      // 停止录屏并获取视频路径
-      var path = await FlutterScreenRecording.stopRecordScreen;
+      // 停止录屏并获取视频路径 - 功能已移除
+      // var path = await FlutterScreenRecording.stopRecordScreen;
+      String? path = null; // 临时禁用
       print('🎬 视频保存路径: $path');
 
       setState(() {
         _isRecording = false;
         _videoPath = path?.toString();
-        _statusMessage = '录屏完成！\n时长: ${_formatDuration(_recordDuration)}\n点击下方播放按钮查看录屏';
+        _statusMessage = '屏幕录制功能已移至实时检测页面';
       });
 
       // 初始化视频播放器
