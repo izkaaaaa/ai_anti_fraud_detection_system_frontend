@@ -1008,8 +1008,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     });
 
     try {
-      // 导入 auth_api
-      final response = await updateUserProfileAPI(
+      // 调用更新 API
+      await updateUserProfileAPI(
         roleType: _selectedRoleType,
         gender: _selectedGender,
         profession: _professionController.text.trim().isEmpty ? null : _professionController.text.trim(),
