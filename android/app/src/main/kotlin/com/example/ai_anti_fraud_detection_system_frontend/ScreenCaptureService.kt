@@ -25,6 +25,10 @@ class ScreenCaptureService : Service() {
         var virtualDisplay: VirtualDisplay? = null
         var isCapturing = false
         
+        // ✅ 保存最近的5张截图（用于验证）
+        private val recentScreenshots = mutableListOf<ByteArray>()
+        private const val MAX_SCREENSHOTS = 5
+        
         fun startService(context: Context, resultCode: Int, data: Intent) {
             val intent = Intent(context, ScreenCaptureService::class.java).apply {
                 putExtra("resultCode", resultCode)
@@ -40,6 +44,16 @@ class ScreenCaptureService : Service() {
         
         fun stopService(context: Context) {
             context.stopService(Intent(context, ScreenCaptureService::class.java))
+        }
+        
+        // ✅ 获取保存的截图
+        fun getRecentScreenshots(): List<ByteArray> {
+            return recentScreenshots.toList()
+        }
+        
+        // ✅ 清空截图缓存
+        fun clearScreenshots() {
+            recentScreenshots.clear()
         }
         
         // ✅ 静态方法：直接从 imageReader 获取截图
@@ -69,6 +83,14 @@ class ScreenCaptureService : Service() {
                     image.close()
                     bitmap.recycle()
                     croppedBitmap.recycle()
+                    
+                    // ✅ 保存截图到缓存（保留最近5张）
+                    synchronized(recentScreenshots) {
+                        recentScreenshots.add(jpegData)
+                        if (recentScreenshots.size > MAX_SCREENSHOTS) {
+                            recentScreenshots.removeAt(0)
+                        }
+                    }
                     
                     jpegData
                 } else {

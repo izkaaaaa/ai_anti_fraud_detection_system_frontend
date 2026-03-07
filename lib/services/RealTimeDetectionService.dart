@@ -694,6 +694,20 @@ class RealTimeDetectionService {
     }
   }
   
+  /// 获取最近的截图（用于验证）
+  Future<List<Uint8List>> getRecentScreenshots() async {
+    try {
+      final result = await platform.invokeMethod('getRecentScreenshots');
+      if (result != null && result is List) {
+        return result.map((e) => e as Uint8List).toList();
+      }
+      return [];
+    } catch (e) {
+      print('❌ 获取截图失败: $e');
+      return [];
+    }
+  }
+  
   // ============================================================
   // ✅ 语音识别（文字流检测）
   // ============================================================

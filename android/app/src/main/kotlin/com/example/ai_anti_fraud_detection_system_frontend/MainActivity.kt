@@ -29,6 +29,9 @@ class MainActivity : FlutterActivity() {
                     stopCapture()
                     result.success(null)
                 }
+                "getRecentScreenshots" -> {
+                    getRecentScreenshots(result)
+                }
                 else -> {
                     result.notImplemented()
                 }
@@ -80,6 +83,11 @@ class MainActivity : FlutterActivity() {
     
     private fun stopCapture() {
         ScreenCaptureService.stopService(this)
+    }
+    
+    private fun getRecentScreenshots(result: MethodChannel.Result) {
+        val screenshots = ScreenCaptureService.getRecentScreenshots()
+        result.success(screenshots)
     }
     
     override fun onDestroy() {

@@ -385,6 +385,9 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
       _statusMessage = '正在停止...';
     });
     
+    // ✅ 获取最近的截图
+    final screenshots = await _detectionService.getRecentScreenshots();
+    
     await _detectionService.stopDetection();
     
     if (mounted) {
@@ -402,6 +405,11 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
         _overallRisk = RiskLevel.safe;
       });
       
+      // ✅ 展示截图
+      if (screenshots.isNotEmpty) {
+        _showScreenshotsDialog(screenshots);
+      }
+      
       // ✅ 使用 ScaffoldMessenger 替代 Get.snackbar
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -411,6 +419,59 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
         ),
       );
     }
+  }
+  
+  /// 展示截图对话框
+  void _showScreenshotsDialog(List<dynamic> screenshots) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.photo_library, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('监测期间的截图'),
+          ],
+        ),
+        content: Container(
+          width: double.maxFinite,
+          height: 400,
+          child: ListView.builder(
+            itemCount: screenshots.length,
+            itemBuilder: (context, index) {
+              return Card(
+                margin: EdgeInsets.only(bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text(
+                        '截图 ${index + 1}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    Image.memory(
+                      screenshots[index],
+                      fit: BoxFit.contain,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('关闭'),
+          ),
+        ],
+      ),
+    );
   }
   
   /// 显示权限必需对话框
