@@ -2,14 +2,17 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:camera/camera.dart';
 import 'package:image/image.dart' as img;
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/baidu_speech_service.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/services/foreground_task_handler.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/DioRequest.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/index.dart';
 
@@ -69,37 +72,47 @@ class RealTimeDetectionService {
   /// 开始实时监测
   Future<bool> startDetection() async {
     try {
-      // 1. 创建通话记录
+      // ✅ 1. 初始化并启动前台服务
+      final foregroundServiceStarted = await _startForegroundService();
+      if (!foregroundServiceStarted) {
+        onError?.call('启动前台服务失败');
+        return false;
+      }
+      
+      // 2. 创建通话记录
       final recordId = await _createCallRecord();
       if (recordId == null) {
         onError?.call('创建通话记录失败');
+        await _stopForegroundService();
         return false;
       }
       _callRecordId = recordId;
       
-      // 2. 连接 WebSocket
+      // 3. 连接 WebSocket
       final connected = await _connectWebSocket();
       if (!connected) {
         onError?.call('连接服务器失败');
+        await _stopForegroundService();
         return false;
       }
       
-      // 3. 开始录音
+      // 4. 开始录音
       final recordingStarted = await _startAudioRecording();
       if (!recordingStarted) {
         onError?.call('启动录音失败');
         await _disconnectWebSocket();
+        await _stopForegroundService();
         return false;
       }
       
-      // 4. 开始视频采集
+      // 5. 开始视频采集
       final cameraStarted = await _startVideoCapture();
       if (!cameraStarted) {
         print('⚠️ 摄像头启动失败，仅使用音频检测');
         // 不阻断流程，继续使用音频检测
       }
       
-      // ✅ 5. 启动语音识别（用于文字流检测）
+      // ✅ 6. 启动语音识别（用于文字流检测）
       final speechStarted = await _startSpeechRecognition();
       if (!speechStarted) {
         print('⚠️ 语音识别启动失败，仅使用音视频检测');
@@ -128,6 +141,9 @@ class RealTimeDetectionService {
       
       // 4. 断开 WebSocket（根据文档，关闭连接即可，无需调用结束接口）
       await _disconnectWebSocket();
+      
+      // ✅ 5. 停止前台服务
+      await _stopForegroundService();
       
       onStatusChange?.call('监测已停止');
     } catch (e) {
@@ -280,7 +296,7 @@ class RealTimeDetectionService {
           print('🔍 检测结果:');
           print('   类型: $detectionType');
           print('   风险: ${isRisk ? "是" : "否"}');
-          print('   置信度: ${(confidence * 100).toFixed(1)}%');
+          print('   置信度: ${(confidence * 100).toStringAsFixed(1)}%');
           print('   消息: $message');
           print('   时间: $timestamp');
           
@@ -842,6 +858,94 @@ class RealTimeDetectionService {
     _stopCallRecording();  // ✅ 停止通话录音（不需要 await，因为是同步方法）
     await _disconnectWebSocket();
     await _speechService.dispose();  // ✅ 清理语音识别服务
+    await _stopForegroundService();  // ✅ 停止前台服务
+  }
+  
+  // ============================================================
+  // ✅ 前台服务管理
+  // ============================================================
+  
+  /// 初始化前台服务
+  Future<void> _initForegroundService() async {
+    FlutterForegroundTask.init(
+      androidNotificationOptions: AndroidNotificationOptions(
+        channelId: 'realtime_detection_channel',
+        channelName: '实时监测服务',
+        channelDescription: '保持实时监测功能在后台运行',
+        channelImportance: NotificationChannelImportance.HIGH,
+        priority: NotificationPriority.HIGH,
+      ),
+      iosNotificationOptions: const IOSNotificationOptions(
+        showNotification: true,
+        playSound: false,
+      ),
+      foregroundTaskOptions: ForegroundTaskOptions(
+        eventAction: ForegroundTaskEventAction.repeat(5000), // 每 5 秒触发一次
+        autoRunOnBoot: false,
+        allowWakeLock: true,
+        allowWifiLock: true,
+      ),
+    );
+  }
+  
+  /// 启动前台服务
+  Future<bool> _startForegroundService() async {
+    try {
+      print('🚀 启动前台服务...');
+      
+      // 1. 初始化前台服务
+      await _initForegroundService();
+      
+      // 2. 检查并请求通知权限（Android 13+）
+      if (await FlutterForegroundTask.isIgnoringBatteryOptimizations == false) {
+        await FlutterForegroundTask.requestIgnoreBatteryOptimization();
+      }
+      
+      // 3. 启动前台服务
+      final serviceResult = await FlutterForegroundTask.startService(
+        notificationTitle: '🛡️ 实时监测中',
+        notificationText: '正在保护您的通话安全',
+        callback: startCallback,
+      );
+      
+      // ✅ 使用模式匹配检查结果
+      if (serviceResult is ServiceRequestSuccess) {
+        print('✅ 前台服务启动成功');
+        return true;
+      } else {
+        print('❌ 前台服务启动失败');
+        return false;
+      }
+    } catch (e) {
+      print('❌ 启动前台服务失败: $e');
+      return false;
+    }
+  }
+  
+  /// 停止前台服务
+  Future<void> _stopForegroundService() async {
+    try {
+      print('🛑 停止前台服务...');
+      await FlutterForegroundTask.stopService();
+      print('✅ 前台服务已停止');
+    } catch (e) {
+      print('❌ 停止前台服务失败: $e');
+    }
+  }
+  
+  /// 更新前台服务通知
+  Future<void> _updateForegroundServiceNotification({
+    String? title,
+    String? text,
+  }) async {
+    // ✅ isRunningService 是一个 getter，返回 bool
+    final isRunning = await FlutterForegroundTask.isRunningService;
+    if (isRunning) {
+      FlutterForegroundTask.updateService(
+        notificationTitle: title,
+        notificationText: text,
+      );
+    }
   }
   
   /// 获取连接状态
@@ -982,4 +1086,18 @@ class RealTimeDetectionService {
       print('❌ 停止通话录音失败: $e');
     }
   }
+}
+
+// ============================================================
+// ✅ 前台服务回调函数（必须是顶层函数）
+// ============================================================
+
+/// 前台服务启动回调
+/// 
+/// 这个函数会在前台服务启动时被调用
+/// 注意：这个函数必须是顶层函数，不能是类的成员方法
+@pragma('vm:entry-point')
+void startCallback() {
+  // 初始化前台任务处理器
+  FlutterForegroundTask.setTaskHandler(ForegroundTaskHandler());
 }

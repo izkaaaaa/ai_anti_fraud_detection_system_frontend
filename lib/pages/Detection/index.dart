@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/PermissionManager.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/RealTimeDetectionService.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:get/get.dart';
 import 'dart:math' as math;
 
@@ -88,6 +89,28 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     
     // 设置检测服务回调
     _setupDetectionServiceCallbacks();
+    
+    // ✅ 添加前台服务监听
+    _initForegroundTask();
+  }
+  
+  /// ✅ 初始化前台服务监听
+  void _initForegroundTask() {
+    // 监听前台服务的数据
+    FlutterForegroundTask.addTaskDataCallback(_onReceiveTaskData);
+  }
+  
+  /// 处理前台服务数据
+  void _onReceiveTaskData(dynamic data) {
+    print('📨 收到前台服务数据: $data');
+    
+    if (data == 'stop_requested') {
+      // 用户点击了通知栏的"停止监测"按钮
+      _stopMonitoring();
+    } else if (data == 'notification_pressed') {
+      // 用户点击了通知
+      // 可以在这里做一些 UI 更新
+    }
   }
   
   @override
@@ -95,6 +118,8 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     _pulseController.dispose();
     _waveController.dispose();
     _detectionService.dispose();
+    // ✅ 移除前台服务监听
+    FlutterForegroundTask.removeTaskDataCallback(_onReceiveTaskData);
     super.dispose();
   }
   
@@ -878,80 +903,83 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.cardBackground,
-        elevation: 0,
-        title: Text(
-          '实时监测',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: AppTheme.fontSizeLarge,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          if (_isConnected)
-            Padding(
-              padding: EdgeInsets.only(right: 16),
-              child: Row(
-                children: [
-                  AnimatedBuilder(
-                    animation: _pulseAnimation,
-                    builder: (context, child) {
-                      return Transform.scale(
-                        scale: _pulseAnimation.value,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: AppColors.success,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    '已连接',
-                    style: TextStyle(
-                      fontSize: AppTheme.fontSizeSmall,
-                      color: AppColors.success,
-                    ),
-                  ),
-                ],
-              ),
+    // ✅ 使用 WithForegroundTask 包装，以便在前台服务运行时保持 UI 更新
+    return WithForegroundTask(
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: AppColors.cardBackground,
+          elevation: 0,
+          title: Text(
+            '实时监测',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: AppTheme.fontSizeLarge,
+              fontWeight: FontWeight.bold,
             ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(1.5),
-          child: Container(
-            color: AppColors.borderMedium,
-            height: 1.5,
+          ),
+          actions: [
+            if (_isConnected)
+              Padding(
+                padding: EdgeInsets.only(right: 16),
+                child: Row(
+                  children: [
+                    AnimatedBuilder(
+                      animation: _pulseAnimation,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: _pulseAnimation.value,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: AppColors.success,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      '已连接',
+                      style: TextStyle(
+                        fontSize: AppTheme.fontSizeSmall,
+                        color: AppColors.success,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+          bottom: PreferredSize(
+            preferredSize: Size.fromHeight(1.5),
+            child: Container(
+              color: AppColors.borderMedium,
+              height: 1.5,
+            ),
           ),
         ),
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(AppTheme.paddingMedium),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildStatusCard(),
-            SizedBox(height: AppTheme.paddingMedium),
-            _buildAudioWaveform(),
-            SizedBox(height: AppTheme.paddingMedium),
-            _buildDetectionResults(),
-            SizedBox(height: AppTheme.paddingMedium),
-            if (_overallRisk == RiskLevel.high || _overallRisk == RiskLevel.critical)
-              _buildRiskWarning(),
-            if (_overallRisk == RiskLevel.high || _overallRisk == RiskLevel.critical)
+        body: SingleChildScrollView(
+          padding: EdgeInsets.all(AppTheme.paddingMedium),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildStatusCard(),
               SizedBox(height: AppTheme.paddingMedium),
-            _buildControlButtons(),
-            SizedBox(height: AppTheme.paddingMedium),
-            _buildPermissionHint(),
-          ],
+              _buildAudioWaveform(),
+              SizedBox(height: AppTheme.paddingMedium),
+              _buildDetectionResults(),
+              SizedBox(height: AppTheme.paddingMedium),
+              if (_overallRisk == RiskLevel.high || _overallRisk == RiskLevel.critical)
+                _buildRiskWarning(),
+              if (_overallRisk == RiskLevel.high || _overallRisk == RiskLevel.critical)
+                SizedBox(height: AppTheme.paddingMedium),
+              _buildControlButtons(),
+              SizedBox(height: AppTheme.paddingMedium),
+              _buildPermissionHint(),
+            ],
+          ),
         ),
       ),
     );

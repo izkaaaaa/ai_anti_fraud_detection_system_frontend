@@ -60,7 +60,13 @@
             android:name="flutterEmbedding"
             android:value="2" />
         
-        <!-- 录屏前台服务 -->
+        <!-- flutter_foreground_task 前台服务 -->
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            android:foregroundServiceType="microphone"
+            android:exported="false" />
+        
+        <!-- 录屏前台服务（保留，后续使用） -->
         <service
             android:name="com.foregroundservice.ForegroundService"
             android:foregroundServiceType="mediaProjection"
