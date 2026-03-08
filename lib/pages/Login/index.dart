@@ -271,9 +271,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     Text(
                       '只愿守护你，',
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 28,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
+                        height: 1.3,
                         shadows: [
                           Shadow(
                             color: Colors.black.withOpacity(0.3),
@@ -286,9 +287,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     Text(
                       '每一次安心通话。',
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 28,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
+                        height: 1.3,
                         shadows: [
                           Shadow(
                             color: Colors.black.withOpacity(0.3),
@@ -302,10 +304,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     Text(
                       'We only wish to keep you safe in every call.',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 15,
                         fontWeight: FontWeight.w400,
                         color: Colors.white.withOpacity(0.95),
                         letterSpacing: 0.5,
+                        height: 1.3,
                         shadows: [
                           Shadow(
                             color: Colors.black.withOpacity(0.3),
@@ -358,21 +361,21 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             _buildLoginModeTabs(),
-                            SizedBox(height: AppTheme.paddingMedium),
+                            SizedBox(height: 16),
                             _buildAccountField(),
-                            SizedBox(height: AppTheme.paddingSmall),
+                            SizedBox(height: 12),
                             if (_loginMode == 0) ...[
                               _buildPasswordField(),
-                              SizedBox(height: AppTheme.paddingSmall),
+                              SizedBox(height: 12),
                               _buildRememberMeRow(),
                             ] else ...[
                               _buildSmsCodeField(),
                             ],
-                            SizedBox(height: AppTheme.paddingSmall),
+                            SizedBox(height: 12),
                             _buildAgreementRow(),
-                            SizedBox(height: AppTheme.paddingMedium),
+                            SizedBox(height: 20),
                             _buildLoginButton(),
-                            SizedBox(height: AppTheme.paddingSmall),
+                            SizedBox(height: 12),
                             _buildFooter(),
                           ],
                         ),
@@ -434,11 +437,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 ),
               ),
             ),
-            SizedBox(width: AppTheme.paddingSmall),
+            SizedBox(width: 8),
             Text(
               '记住我',
               style: TextStyle(
-                fontSize: AppTheme.fontSizeSmall,
+                fontSize: 14,
                 color: AppColors.textSecondary,
               ),
             ),
@@ -449,7 +452,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           child: Text(
             '忘记密码？',
             style: TextStyle(
-              fontSize: AppTheme.fontSizeSmall,
+              fontSize: 14,
               color: AppColors.primary,
             ),
           ),
@@ -479,7 +482,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             ),
           ),
         ),
-        SizedBox(width: AppTheme.paddingSmall),
+        SizedBox(width: 8),
         Flexible(
           child: Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
@@ -487,7 +490,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
               Text(
                 '我已阅读并接受',
                 style: TextStyle(
-                  fontSize: AppTheme.fontSizeSmall,
+                  fontSize: 14,
                   color: AppColors.textSecondary,
                 ),
               ),
@@ -498,7 +501,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 child: Text(
                   '《用户服务协议》',
                   style: TextStyle(
-                    fontSize: AppTheme.fontSizeSmall,
+                    fontSize: 14,
                     color: AppColors.primary.withOpacity(0.8),
                     decoration: TextDecoration.underline,
                     decorationColor: AppColors.primary.withOpacity(0.8),
@@ -523,20 +526,20 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
               });
             },
             child: Container(
-              padding: EdgeInsets.symmetric(vertical: AppTheme.paddingMedium),
+              padding: EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
                 color: _loginMode == 0 ? AppColors.primary : Colors.transparent,
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                 border: Border.all(
                   color: _loginMode == 0 ? AppColors.primary : AppColors.borderMedium,
-                  width: 1.0,
+                  width: 1.5,
                 ),
               ),
               child: Text(
                 '账号密码',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: AppTheme.fontSizeMedium,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
                   color: _loginMode == 0 ? AppColors.textDark : AppColors.textSecondary,
                 ),
@@ -553,20 +556,20 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
               });
             },
             child: Container(
-              padding: EdgeInsets.symmetric(vertical: AppTheme.paddingMedium),
+              padding: EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
                 color: _loginMode == 1 ? AppColors.primary : Colors.transparent,
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                 border: Border.all(
                   color: _loginMode == 1 ? AppColors.primary : AppColors.borderMedium,
-                  width: 1.0,
+                  width: 1.5,
                 ),
               ),
               child: Text(
                 '验证码登录',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: AppTheme.fontSizeMedium,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
                   color: _loginMode == 1 ? AppColors.textDark : AppColors.textSecondary,
                 ),
@@ -593,12 +596,12 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         Text(
           label,
           style: TextStyle(
-            fontSize: AppTheme.fontSizeSmall,
+            fontSize: 15,
             fontWeight: FontWeight.w600,
             color: AppColors.textPrimary,
           ),
         ),
-        SizedBox(height: AppTheme.paddingSmall),
+        SizedBox(height: 8),
         TextFormField(
           controller: controller,
           obscureText: isPassword && !_isPasswordVisible,
@@ -606,12 +609,12 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           validator: validator,
           enabled: !_isLoading,
           style: TextStyle(
-            fontSize: AppTheme.fontSizeMedium,
+            fontSize: 15,
             color: AppColors.textPrimary,
           ),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: AppColors.textLight, fontSize: AppTheme.fontSizeSmall),
+            hintStyle: TextStyle(color: AppColors.textLight, fontSize: 14),
             prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
             suffixIcon: isPassword
                 ? IconButton(
@@ -639,19 +642,19 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.primary, width: 1.0),
+              borderSide: BorderSide(color: AppColors.primary, width: 1.5),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.error, width: 1.0),
+              borderSide: BorderSide(color: AppColors.error, width: 1.5),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.error, width: 1.0),
+              borderSide: BorderSide(color: AppColors.error, width: 1.5),
             ),
             contentPadding: EdgeInsets.symmetric(
-              horizontal: AppTheme.paddingMedium,
-              vertical: AppTheme.paddingMedium,
+              horizontal: 16,
+              vertical: 14,
             ),
           ),
         ),
@@ -666,12 +669,12 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         Text(
           '验证码',
           style: TextStyle(
-            fontSize: AppTheme.fontSizeSmall,
+            fontSize: 15,
             fontWeight: FontWeight.w600,
             color: AppColors.textPrimary,
           ),
         ),
-        SizedBox(height: AppTheme.paddingSmall),
+        SizedBox(height: 8),
         Row(
           children: [
             Expanded(
@@ -681,12 +684,12 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 validator: _validateSmsCode,
                 enabled: !_isLoading,
                 style: TextStyle(
-                  fontSize: AppTheme.fontSizeMedium,
+                  fontSize: 15,
                   color: AppColors.textPrimary,
                 ),
                 decoration: InputDecoration(
                   hintText: '请输入验证码',
-                  hintStyle: TextStyle(color: AppColors.textLight, fontSize: AppTheme.fontSizeSmall),
+                  hintStyle: TextStyle(color: AppColors.textLight, fontSize: 14),
                   prefixIcon: Icon(Icons.sms_outlined, color: AppColors.primary, size: 20),
                   filled: true,
                   fillColor: AppColors.inputBackground,
@@ -700,19 +703,19 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.primary, width: 1.0),
+                    borderSide: BorderSide(color: AppColors.primary, width: 1.5),
                   ),
                   errorBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.error, width: 1.0),
+                    borderSide: BorderSide(color: AppColors.error, width: 1.5),
                   ),
                   focusedErrorBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.error, width: 1.0),
+                    borderSide: BorderSide(color: AppColors.error, width: 1.5),
                   ),
                   contentPadding: EdgeInsets.symmetric(
-                    horizontal: AppTheme.paddingMedium,
-                    vertical: AppTheme.paddingMedium,
+                    horizontal: 16,
+                    vertical: 14,
                   ),
                 ),
               ),
@@ -737,7 +740,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                   ),
-                  padding: EdgeInsets.symmetric(horizontal: AppTheme.paddingMedium),
+                  padding: EdgeInsets.symmetric(horizontal: 16),
                 ),
                 child: _isSendingCode
                     ? SizedBox(
@@ -751,7 +754,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     : Text(
                         _countdown > 0 ? '${_countdown}s' : '获取',
                         style: TextStyle(
-                          fontSize: AppTheme.fontSizeSmall,
+                          fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -765,14 +768,14 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
   Widget _buildLoginButton() {
     return Container(
-      height: 50,
+      height: 52,
       decoration: BoxDecoration(
         color: _isLoading ? AppColors.borderLight : AppColors.primary,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
         boxShadow: _isLoading ? [] : [
           BoxShadow(
             color: AppColors.primary.withOpacity(0.3),
-            blurRadius: 8,
+            blurRadius: 10,
             offset: Offset(0, 4),
           ),
         ],
@@ -799,9 +802,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             : Text(
                 '登录',
                 style: TextStyle(
-                  fontSize: AppTheme.fontSizeLarge,
+                  fontSize: 17,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: 1,
+                  letterSpacing: 2,
                 ),
               ),
       ),
@@ -816,7 +819,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           '还没有账户？',
           style: TextStyle(
             color: AppColors.textSecondary,
-            fontSize: AppTheme.fontSizeMedium,
+            fontSize: 14,
           ),
         ),
         TextButton(
@@ -830,7 +833,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             '立即注册',
             style: TextStyle(
               color: AppColors.primary,
-              fontSize: AppTheme.fontSizeMedium,
+              fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
           ),

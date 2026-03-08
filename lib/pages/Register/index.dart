@@ -805,15 +805,7 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
                 color: AppColors.primary,
               ),
             ),
-            SizedBox(width: 4),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.secondary,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              
-            ),
+            
           ],
         ),
       ),
