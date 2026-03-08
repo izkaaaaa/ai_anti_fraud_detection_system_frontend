@@ -27,6 +27,7 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
   bool _isSendingCode = false;
   int _countdown = 0;
   bool _showAdvancedOptions = false; // 新增：是否显示高级选项
+  String _countryCode = '+86'; // 国家代码
   
   // 新增：用户画像字段
   String? _selectedRoleType = '青壮年';
@@ -35,16 +36,29 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
   
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 1000),
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Interval(0.2, 0.8, curve: Curves.easeOut),
+      ),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: Offset(0, 0.1),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeOutCubic,
+      ),
     );
     _animationController.forward();
   }
@@ -295,24 +309,103 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
           icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        title: Text(
+          '注册账户',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        centerTitle: true,
       ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: EdgeInsets.all(AppTheme.paddingXLarge),
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildHeader(),
-                      SizedBox(height: AppTheme.paddingXLarge),
-                      _buildRegisterCard(),
-                    ],
+            padding: EdgeInsets.symmetric(
+              horizontal: AppTheme.paddingLarge,
+              vertical: AppTheme.paddingMedium,
+            ),
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildPhoneField(),
+                        SizedBox(height: AppTheme.paddingSmall),
+                        
+                        _buildTextField(
+                          controller: _usernameController,
+                          label: '用户名',
+                          hint: '请输入用户名',
+                          icon: Icons.person_outline,
+                          validator: _validateUsername,
+                        ),
+                        SizedBox(height: AppTheme.paddingSmall),
+                        
+                        _buildTextField(
+                          controller: _nameController,
+                          label: '姓名（可选）',
+                          hint: '请输入真实姓名',
+                          icon: Icons.badge_outlined,
+                          validator: _validateName,
+                        ),
+                        SizedBox(height: AppTheme.paddingSmall),
+                        
+                        _buildTextField(
+                          controller: _passwordController,
+                          label: '密码',
+                          hint: '请输入密码（6-20位）',
+                          icon: Icons.lock_outline,
+                          isPassword: true,
+                          isPasswordVisible: _isPasswordVisible,
+                          validator: _validatePassword,
+                          onTogglePassword: () {
+                            setState(() {
+                              _isPasswordVisible = !_isPasswordVisible;
+                            });
+                          },
+                        ),
+                        SizedBox(height: AppTheme.paddingSmall),
+                        
+                        _buildTextField(
+                          controller: _confirmPasswordController,
+                          label: '确认密码',
+                          hint: '请再次输入密码',
+                          icon: Icons.lock_outline,
+                          isPassword: true,
+                          isPasswordVisible: _isConfirmPasswordVisible,
+                          validator: _validateConfirmPassword,
+                          onTogglePassword: () {
+                            setState(() {
+                              _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                            });
+                          },
+                        ),
+                        SizedBox(height: AppTheme.paddingSmall),
+                        
+                        _buildSmsCodeField(),
+                        SizedBox(height: AppTheme.paddingSmall),
+                        
+                        _buildAdvancedOptionsToggle(),
+                        if (_showAdvancedOptions) ...[
+                          SizedBox(height: AppTheme.paddingSmall),
+                          _buildAdvancedOptionsSection(),
+                        ],
+                        SizedBox(height: AppTheme.paddingSmall),
+                        
+                        _buildAgreementCheckbox(),
+                        SizedBox(height: AppTheme.paddingMedium),
+                        
+                        _buildRegisterButton(),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -323,138 +416,7 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
     );
   }
 
-  Widget _buildHeader() {
-    return Column(
-      children: [
-        Container(
-          width: 70,
-          height: 70,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            shape: BoxShape.circle,
-            boxShadow: AppTheme.shadowMedium,
-          ),
-          child: Icon(
-            Icons.person_add_outlined,
-            size: 35,
-            color: AppColors.textWhite,
-          ),
-        ),
-        SizedBox(height: AppTheme.paddingMedium),
-        Text(
-          '创建账户',
-          style: TextStyle(
-            fontSize: AppTheme.fontSizeXXLarge,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        SizedBox(height: AppTheme.paddingSmall),
-        Text(
-          '加入 AI 反欺诈检测系统',
-          style: TextStyle(
-            fontSize: AppTheme.fontSizeMedium,
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRegisterCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(
-          color: AppColors.borderDark,
-          width: 2.0,
-        ),
-        boxShadow: AppTheme.shadowMedium,
-      ),
-      padding: EdgeInsets.all(AppTheme.paddingLarge),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildTextField(
-            controller: _phoneController,
-            label: '手机号',
-            hint: '请输入11位手机号',
-            icon: Icons.phone_outlined,
-            validator: _validatePhone,
-            keyboardType: TextInputType.phone,
-          ),
-          SizedBox(height: AppTheme.paddingMedium),
-          
-          _buildTextField(
-            controller: _usernameController,
-            label: '用户名',
-            hint: '请输入用户名',
-            icon: Icons.person_outline,
-            validator: _validateUsername,
-          ),
-          SizedBox(height: AppTheme.paddingMedium),
-          
-          _buildTextField(
-            controller: _nameController,
-            label: '姓名（可选）',
-            hint: '请输入真实姓名',
-            icon: Icons.badge_outlined,
-            validator: _validateName,
-          ),
-          SizedBox(height: AppTheme.paddingMedium),
-          
-          _buildTextField(
-            controller: _passwordController,
-            label: '密码',
-            hint: '请输入密码（6-20位）',
-            icon: Icons.lock_outline,
-            isPassword: true,
-            isPasswordVisible: _isPasswordVisible,
-            validator: _validatePassword,
-            onTogglePassword: () {
-              setState(() {
-                _isPasswordVisible = !_isPasswordVisible;
-              });
-            },
-          ),
-          SizedBox(height: AppTheme.paddingMedium),
-          
-          _buildTextField(
-            controller: _confirmPasswordController,
-            label: '确认密码',
-            hint: '请再次输入密码',
-            icon: Icons.lock_outline,
-            isPassword: true,
-            isPasswordVisible: _isConfirmPasswordVisible,
-            validator: _validateConfirmPassword,
-            onTogglePassword: () {
-              setState(() {
-                _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
-              });
-            },
-          ),
-          SizedBox(height: AppTheme.paddingMedium),
-          
-          _buildSmsCodeField(),
-          SizedBox(height: AppTheme.paddingMedium),
-          
-          _buildAdvancedOptionsToggle(),
-          if (_showAdvancedOptions) ...[
-            SizedBox(height: AppTheme.paddingMedium),
-            _buildAdvancedOptionsSection(),
-          ],
-          SizedBox(height: AppTheme.paddingMedium),
-          
-          _buildAgreementCheckbox(),
-          SizedBox(height: AppTheme.paddingLarge),
-          
-          _buildRegisterButton(),
-        ],
-      ),
-    );
-  }
-
+  
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -484,11 +446,13 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
           keyboardType: keyboardType,
           validator: validator,
           enabled: !_isLoading,
-          style: TextStyle(fontSize: AppTheme.fontSizeMedium),
+          style: TextStyle(
+            fontSize: AppTheme.fontSizeMedium,
+            color: AppColors.textPrimary,
+          ),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: AppColors.textLight, fontSize: AppTheme.fontSizeSmall),
-            prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
             suffixIcon: isPassword
                 ? IconButton(
                     icon: Icon(
@@ -503,23 +467,23 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
             fillColor: AppColors.inputBackground,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.borderMedium, width: 1.5),
+              borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.borderMedium, width: 1.5),
+              borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.borderDark, width: 2.0),
+              borderSide: BorderSide(color: AppColors.primary, width: 1.0),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.error, width: 1.5),
+              borderSide: BorderSide(color: AppColors.error, width: 1.0),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.error, width: 2.0),
+              borderSide: BorderSide(color: AppColors.error, width: 1.0),
             ),
             contentPadding: EdgeInsets.symmetric(
               horizontal: AppTheme.paddingMedium,
@@ -552,32 +516,34 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
                 keyboardType: TextInputType.number,
                 validator: _validateSmsCode,
                 enabled: !_isLoading,
-                style: TextStyle(fontSize: AppTheme.fontSizeMedium),
+                style: TextStyle(
+                  fontSize: AppTheme.fontSizeMedium,
+                  color: AppColors.textPrimary,
+                ),
                 decoration: InputDecoration(
                   hintText: '请输入验证码',
                   hintStyle: TextStyle(color: AppColors.textLight, fontSize: AppTheme.fontSizeSmall),
-                  prefixIcon: Icon(Icons.sms_outlined, color: AppColors.primary, size: 20),
                   filled: true,
                   fillColor: AppColors.inputBackground,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.borderMedium, width: 1.5),
+                    borderSide: BorderSide.none,
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.borderMedium, width: 1.5),
+                    borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.borderDark, width: 2.0),
+                    borderSide: BorderSide(color: AppColors.primary, width: 1.0),
                   ),
                   errorBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.error, width: 1.5),
+                    borderSide: BorderSide(color: AppColors.error, width: 1.0),
                   ),
                   focusedErrorBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.error, width: 2.0),
+                    borderSide: BorderSide(color: AppColors.error, width: 1.0),
                   ),
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: AppTheme.paddingMedium,
@@ -591,21 +557,17 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
               height: 48,
               decoration: BoxDecoration(
                 color: (_isSendingCode || _countdown > 0 || _isLoading) 
-                    ? AppColors.borderLight 
-                    : AppColors.secondaryLight,
+                    ? AppColors.backgroundCard
+                    : AppColors.primary,
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                border: Border.all(
-                  color: (_isSendingCode || _countdown > 0 || _isLoading)
-                      ? AppColors.borderMedium
-                      : AppColors.borderDark,
-                  width: 2.0,
-                ),
               ),
               child: ElevatedButton(
                 onPressed: (_isSendingCode || _countdown > 0 || _isLoading) ? null : _sendSmsCode,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
-                  foregroundColor: AppColors.textPrimary,
+                  foregroundColor: (_isSendingCode || _countdown > 0 || _isLoading)
+                      ? AppColors.textLight
+                      : AppColors.textDark,
                   shadowColor: Colors.transparent,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
@@ -618,7 +580,7 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
                         height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.textPrimary),
+                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.textLight),
                         ),
                       )
                     : Text(
@@ -628,6 +590,102 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
                           fontWeight: FontWeight.w600,
                         ),
                       ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPhoneField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '手机号',
+          style: TextStyle(
+            fontSize: AppTheme.fontSizeSmall,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        SizedBox(height: AppTheme.paddingSmall),
+        Row(
+          children: [
+            Container(
+              height: 48,
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: AppColors.inputBackground,
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _countryCode,
+                  icon: Icon(Icons.arrow_drop_down, color: AppColors.primary, size: 20),
+                  style: TextStyle(
+                    fontSize: AppTheme.fontSizeMedium,
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  dropdownColor: AppColors.cardBackground,
+                  items: [
+                    DropdownMenuItem(value: '+86', child: Text('+86')),
+                    DropdownMenuItem(value: '+1', child: Text('+1')),
+                    DropdownMenuItem(value: '+44', child: Text('+44')),
+                    DropdownMenuItem(value: '+81', child: Text('+81')),
+                    DropdownMenuItem(value: '+82', child: Text('+82')),
+                  ],
+                  onChanged: _isLoading ? null : (value) {
+                    setState(() {
+                      _countryCode = value!;
+                    });
+                  },
+                ),
+              ),
+            ),
+            SizedBox(width: AppTheme.paddingSmall),
+            Expanded(
+              child: TextFormField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                validator: _validatePhone,
+                enabled: !_isLoading,
+                style: TextStyle(
+                  fontSize: AppTheme.fontSizeMedium,
+                  color: AppColors.textPrimary,
+                ),
+                decoration: InputDecoration(
+                  hintText: '请输入11位手机号',
+                  hintStyle: TextStyle(color: AppColors.textLight, fontSize: AppTheme.fontSizeSmall),
+                  filled: true,
+                  fillColor: AppColors.inputBackground,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                    borderSide: BorderSide(color: AppColors.primary, width: 1.0),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                    borderSide: BorderSide(color: AppColors.error, width: 1.0),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                    borderSide: BorderSide(color: AppColors.error, width: 1.0),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: AppTheme.paddingMedium,
+                    vertical: AppTheme.paddingMedium,
+                  ),
+                ),
               ),
             ),
           ],
@@ -672,12 +730,16 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
                 ),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () {
+                  Navigator.of(context).pushNamed('/user-agreement');
+                },
                 child: Text(
                   '《用户协议》',
                   style: TextStyle(
                     fontSize: AppTheme.fontSizeSmall,
-                    color: AppColors.primary,
+                    color: AppColors.primary.withOpacity(0.8),
+                    decoration: TextDecoration.underline,
+                    decorationColor: AppColors.primary.withOpacity(0.8),
                   ),
                 ),
               ),
@@ -689,12 +751,16 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
                 ),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () {
+                  Navigator.of(context).pushNamed('/user-agreement');
+                },
                 child: Text(
                   '《隐私政策》',
                   style: TextStyle(
                     fontSize: AppTheme.fontSizeSmall,
-                    color: AppColors.primary,
+                    color: AppColors.primary.withOpacity(0.8),
+                    decoration: TextDecoration.underline,
+                    decorationColor: AppColors.primary.withOpacity(0.8),
                   ),
                 ),
               ),
@@ -721,7 +787,6 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
         decoration: BoxDecoration(
           color: AppColors.inputBackground,
           borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-          border: Border.all(color: AppColors.borderMedium, width: 1.5),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -747,14 +812,7 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
                 color: AppColors.secondary,
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: Text(
-                '推荐',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
+              
             ),
           ],
         ),
@@ -862,7 +920,6 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
           decoration: BoxDecoration(
             color: AppColors.inputBackground,
             borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-            border: Border.all(color: AppColors.borderMedium, width: 1.5),
           ),
           padding: EdgeInsets.symmetric(horizontal: AppTheme.paddingMedium),
           child: DropdownButtonHideUnderline(
@@ -902,17 +959,19 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
       decoration: BoxDecoration(
         color: _isLoading ? AppColors.borderLight : AppColors.primary,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        border: Border.all(
-          color: AppColors.borderDark,
-          width: 2.0,
-        ),
-        boxShadow: _isLoading ? [] : AppTheme.shadowMedium,
+        boxShadow: _isLoading ? [] : [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.3),
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: ElevatedButton(
         onPressed: _isLoading ? null : _handleRegister,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
-          foregroundColor: AppColors.textWhite,
+          foregroundColor: AppColors.textDark,
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
@@ -924,14 +983,14 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
                 width: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.textWhite),
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.textDark),
                 ),
               )
             : Text(
                 '注册',
                 style: TextStyle(
                   fontSize: AppTheme.fontSizeLarge,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.bold,
                   letterSpacing: 1,
                 ),
               ),

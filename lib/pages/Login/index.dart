@@ -67,19 +67,17 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     super.dispose();
   }
 
-  /// 验证账号格式（手机号或用户名）
+  /// 验证账号格式（手机号）
   String? _validateAccount(String? value) {
     if (value == null || value.isEmpty) {
-      return _loginMode == 1 ? '请输入手机号' : '请输入手机号或用户名';
+      return '请输入手机号';
     }
     
-    if (_loginMode == 1) {
-      if (value.length != 11) {
-        return '手机号必须是11位';
-      }
-      if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
-        return '手机号格式错误';
-      }
+    if (value.length != 11) {
+      return '手机号必须是11位';
+    }
+    if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
+      return '手机号格式错误';
     }
     
     return null;
@@ -393,11 +391,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   Widget _buildAccountField() {
     return _buildTextField(
       controller: _accountController,
-      label: _loginMode == 0 ? '手机号/用户名' : '手机号',
-      hint: _loginMode == 0 ? '请输入手机号或用户名' : '请输入手机号',
+      label: '手机号',
+      hint: '请输入11位手机号',
       icon: Icons.person_outline,
       validator: _validateAccount,
-      keyboardType: _loginMode == 1 ? TextInputType.phone : TextInputType.text,
+      keyboardType: TextInputType.phone,
     );
   }
 
@@ -607,7 +605,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           keyboardType: keyboardType,
           validator: validator,
           enabled: !_isLoading,
-          style: TextStyle(fontSize: AppTheme.fontSizeMedium),
+          style: TextStyle(
+            fontSize: AppTheme.fontSizeMedium,
+            color: AppColors.textPrimary,
+          ),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: AppColors.textLight, fontSize: AppTheme.fontSizeSmall),
@@ -679,7 +680,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 keyboardType: TextInputType.number,
                 validator: _validateSmsCode,
                 enabled: !_isLoading,
-                style: TextStyle(fontSize: AppTheme.fontSizeMedium),
+                style: TextStyle(
+                  fontSize: AppTheme.fontSizeMedium,
+                  color: AppColors.textPrimary,
+                ),
                 decoration: InputDecoration(
                   hintText: '请输入验证码',
                   hintStyle: TextStyle(color: AppColors.textLight, fontSize: AppTheme.fontSizeSmall),

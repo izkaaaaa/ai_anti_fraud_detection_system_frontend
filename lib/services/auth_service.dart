@@ -87,6 +87,7 @@ class AuthService {
     try {
       print('🔐 开始登录: $account');
       
+      // 后端只支持手机号登录，统一使用 phone 字段
       final response = await dioRequest.post(
         '/api/users/login',
         data: {
