@@ -76,9 +76,12 @@ class ScreenCaptureService : Service() {
                     
                     val croppedBitmap = Bitmap.createBitmap(bitmap, 0, 0, image.width, image.height)
                     
+                    // ✅ 提高 JPEG 压缩质量到 90%，确保图像清晰度
                     val outputStream = ByteArrayOutputStream()
-                    croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
+                    croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 90, outputStream)
                     val jpegData = outputStream.toByteArray()
+                    
+                    android.util.Log.d("ScreenCapture", "Captured image: ${image.width}x${image.height}, size: ${jpegData.size} bytes")
                     
                     image.close()
                     bitmap.recycle()
@@ -138,8 +141,10 @@ class ScreenCaptureService : Service() {
         }, null)
         
         val metrics = resources.displayMetrics
-        val width = 640
-        val height = 480
+        // ✅ 提高截图分辨率到 1280x720 (720p)，确保图像清晰度
+        // 如果设备性能允许，可以进一步提高到 1920x1080 (1080p)
+        val width = 1280
+        val height = 720
         
         imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
         
@@ -155,6 +160,7 @@ class ScreenCaptureService : Service() {
         )
         
         isCapturing = true
+        android.util.Log.d("ScreenCapture", "MediaProjection setup complete: ${width}x${height}")
     }
     
     private fun createNotificationChannel() {
