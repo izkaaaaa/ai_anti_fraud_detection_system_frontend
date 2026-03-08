@@ -129,6 +129,59 @@ class FamilyService {
     }
   }
 
+  /// 获取家庭组成员列表
+  /// 
+  /// 返回：
+  /// ```json
+  /// [
+  ///   {
+  ///     "user_id": 1,
+  ///     "name": "张三",
+  ///     "phone": "13800138000",
+  ///     "is_admin": true
+  ///   }
+  /// ]
+  /// ```
+  Future<List<Map<String, dynamic>>> getMembers() async {
+    try {
+      print('👥 获取家庭组成员列表');
+      
+      final response = await dioRequest.get('/api/family/members');
+
+      if (response != null && response['code'] == 200) {
+        final data = response['data'] as List;
+        print('✅ 获取成功，共 ${data.length} 个成员');
+        return data.cast<Map<String, dynamic>>();
+      }
+
+      return [];
+    } catch (e) {
+      print('❌ 获取成员列表失败: $e');
+      rethrow;
+    }
+  }
+
+  /// 退出家庭组
+  /// 
+  /// 返回：成功返回 true，失败返回 false
+  Future<bool> leaveFamily() async {
+    try {
+      print('🚪 退出家庭组');
+      
+      final response = await dioRequest.post('/api/family/leave');
+
+      if (response != null && response['code'] == 200) {
+        print('✅ 已退出家庭组: ${response['message']}');
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      print('❌ 退出家庭组失败: $e');
+      rethrow;
+    }
+  }
+
   /// 获取家庭组信息（可选实现）
   /// 
   /// 注：后端文档中未提供此接口，如需要可以让后端添加
