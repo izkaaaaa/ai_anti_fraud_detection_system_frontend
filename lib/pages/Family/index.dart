@@ -37,25 +37,32 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
     super.dispose();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData({bool forceRefresh = false}) async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _isAdmin = false;
+      _userInfo = null;
     });
 
     try {
-      // 获取用户信息
-      _userInfo = await _authService.getCurrentUser();
+      // 强制从服务器获取最新用户信息
+      _userInfo = await _authService.getCurrentUser(forceRefresh: true);
+      
+      print('🔍 用户信息: family_id=${_userInfo?['family_id']}');
       
       // 检查是否是管理员
       if (_userInfo != null && _userInfo!['family_id'] != null) {
         try {
           await _familyService.getApplications();
           _isAdmin = true;
+          print('✅ 用户是管理员');
         } catch (e) {
-          // 如果返回 403，说明不是管理员
           _isAdmin = false;
+          print('ℹ️ 用户是普通成员');
         }
+      } else {
+        print('ℹ️ 用户未加入家庭组');
       }
 
       setState(() {
@@ -74,8 +81,9 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
   Future<void> _createFamily() async {
     final nameController = TextEditingController();
     
-    final result = await showDialog<bool>(
+    final result = await showDialog<Map<String, dynamic>?>(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.cardBackground,
         shape: RoundedRectangleBorder(
@@ -102,6 +110,7 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
             SizedBox(height: AppTheme.paddingSmall),
             TextField(
               controller: nameController,
+              autofocus: true,
               decoration: InputDecoration(
                 hintText: '例如：我的家庭',
                 hintStyle: TextStyle(color: AppColors.textLight),
@@ -122,25 +131,37 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(context, null),
             child: Text('取消', style: TextStyle(color: AppColors.textSecondary)),
           ),
           TextButton(
             onPressed: () async {
               if (nameController.text.trim().isEmpty) {
-                _showError('请输入家庭组名称');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('请输入家庭组名称'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
                 return;
               }
               
               try {
-                final result = await _familyService.createFamily(nameController.text.trim());
+                print('📤 正在创建家庭组: ${nameController.text.trim()}');
+                final createResult = await _familyService.createFamily(nameController.text.trim());
                 
-                if (result != null) {
-                Navigator.pop(context, true);
-                  _showSuccess('家庭组创建成功！ID: ${result['family_id']}');
+                if (createResult != null) {
+                  print('✅ 家庭组创建成功: $createResult');
+                  Navigator.pop(context, createResult);
                 }
               } catch (e) {
-                _showError('创建失败: $e');
+                print('❌ 创建家庭组失败: $e');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('创建失败: $e'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
               }
             },
             child: Text('创建', style: TextStyle(color: AppColors.primary)),
@@ -149,8 +170,18 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
       ),
     );
 
-    if (result == true) {
-      await _loadData();
+    // 创建成功后立即刷新并跳转到家庭组页面
+    if (result != null && mounted) {
+      print('🎉 开始刷新页面，跳转到家庭组管理');
+      _showSuccess('家庭组创建成功！正在进入...');
+      
+      // 等待一小段时间让后端完全处理完
+      await Future.delayed(Duration(milliseconds: 300));
+      
+      // 强制刷新数据
+      await _loadData(forceRefresh: true);
+      
+      print('✅ 页面刷新完成，family_id=${_userInfo?['family_id']}, isAdmin=$_isAdmin');
     }
   }
 
@@ -186,6 +217,7 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
             SizedBox(height: AppTheme.paddingSmall),
             TextField(
               controller: idController,
+              autofocus: true,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 hintText: '例如：1',
@@ -207,20 +239,21 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
             Container(
               padding: EdgeInsets.all(AppTheme.paddingSmall),
               decoration: BoxDecoration(
-                color: Colors.blue[50],
+                color: Colors.orange[50],
                 borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                border: Border.all(color: Colors.blue[200]!),
+                border: Border.all(color: Colors.orange[200]!),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.blue[700], size: 16),
+                  Icon(Icons.info_outline, color: Colors.orange[700], size: 16),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       '申请后需等待管理员审批',
                       style: TextStyle(
                         fontSize: AppTheme.fontSizeSmall,
-                        color: Colors.blue[900],
+                        color: Colors.orange[900],
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -237,7 +270,12 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
           TextButton(
             onPressed: () async {
               if (idController.text.trim().isEmpty) {
-                _showError('请输入家庭组ID');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('请输入家庭组ID'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
                 return;
               }
               
@@ -246,11 +284,15 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                 final success = await _familyService.applyToJoin(familyId);
                 
                 if (success) {
-                Navigator.pop(context, true);
-                  _showSuccess('申请已发送，等待管理员审批');
+                  Navigator.pop(context, true);
                 }
               } catch (e) {
-                _showError('申请失败: $e');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('申请失败: $e'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
               }
             },
             child: Text('申请', style: TextStyle(color: AppColors.primary)),
@@ -258,6 +300,13 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
         ],
       ),
     );
+    
+    // 申请发送成功后显示提示，但不跳转（需要等管理员审批）
+    if (result == true) {
+      if (mounted) {
+        _showSuccess('申请已发送，请等待管理员审批');
+      }
+    }
   }
 
 
@@ -373,8 +422,14 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                           ? TabBarView(
                               controller: _tabController,
                               children: [
-                                ApplicationsTab(familyService: _familyService),
-                                MembersTab(familyService: _familyService),
+                                ApplicationsTab(
+                                  familyService: _familyService,
+                                  onApplicationProcessed: _loadData, // 审批后刷新
+                                ),
+                                MembersTab(
+                                  familyService: _familyService,
+                                  onMemberUpdated: _loadData, // 成员变化后刷新
+                                ),
                               ],
                             )
                           : _buildMemberOnlyView(),
@@ -771,13 +826,25 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
 
     if (confirm == true) {
       try {
+        print('📤 正在退出家庭组...');
         final success = await _familyService.leaveFamily();
-        if (success) {
+        if (success && mounted) {
+          print('✅ 退出家庭组成功');
           _showSuccess('已退出家庭组');
-          await _loadData(); // 重新加载数据
+          
+          // 等待一小段时间让后端完全处理完
+          await Future.delayed(Duration(milliseconds: 300));
+          
+          // 强制刷新数据，回到"未加入家庭组"页面
+          await _loadData(forceRefresh: true);
+          
+          print('✅ 页面刷新完成，已回到未加入家庭组页面');
         }
       } catch (e) {
-        _showError('退出失败: $e');
+        print('❌ 退出家庭组失败: $e');
+        if (mounted) {
+          _showError('退出失败: $e');
+        }
       }
     }
   }
@@ -787,8 +854,13 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
 // ==================== 申请管理标签页 ====================
 class ApplicationsTab extends StatefulWidget {
   final FamilyService familyService;
+  final VoidCallback? onApplicationProcessed; // 审批后的回调
 
-  const ApplicationsTab({super.key, required this.familyService});
+  const ApplicationsTab({
+    super.key, 
+    required this.familyService,
+    this.onApplicationProcessed,
+  });
 
   @override
   State<ApplicationsTab> createState() => _ApplicationsTabState();
@@ -832,21 +904,32 @@ class _ApplicationsTabState extends State<ApplicationsTab> with AutomaticKeepAli
     try {
       final success = await widget.familyService.reviewApplication(appId, isApprove);
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isApprove ? '已同意申请' : '已拒绝申请'),
-            backgroundColor: AppColors.success,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(isApprove ? '已同意申请' : '已拒绝申请'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
+        
+        // 刷新申请列表
         await _loadApplications();
+        
+        // 通知父组件刷新（如果同意了申请，成员列表会变化）
+        if (isApprove) {
+          widget.onApplicationProcessed?.call();
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('操作失败: $e'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('操作失败: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -999,8 +1082,13 @@ class _ApplicationsTabState extends State<ApplicationsTab> with AutomaticKeepAli
 // ==================== 成员管理标签页 ====================
 class MembersTab extends StatefulWidget {
   final FamilyService familyService;
+  final VoidCallback? onMemberUpdated; // 成员变化后的回调
 
-  const MembersTab({super.key, required this.familyService});
+  const MembersTab({
+    super.key, 
+    required this.familyService,
+    this.onMemberUpdated,
+  });
 
   @override
   State<MembersTab> createState() => _MembersTabState();

@@ -346,38 +346,38 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                       topRight: Radius.circular(30),
                     ),
                   ),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: AppTheme.paddingLarge,
-                    vertical: AppTheme.paddingMedium,
-                  ),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 420),
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildLoginModeTabs(),
-                            SizedBox(height: 16),
-                            _buildAccountField(),
-                            SizedBox(height: 12),
-                            if (_loginMode == 0) ...[
-                              _buildPasswordField(),
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppTheme.paddingLarge,
+                      vertical: AppTheme.paddingLarge,
+                    ),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 420),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _buildLoginModeTabs(),
+                              SizedBox(height: 16),
+                              _buildAccountField(),
                               SizedBox(height: 12),
-                              _buildRememberMeRow(),
-                            ] else ...[
-                              _buildSmsCodeField(),
+                              if (_loginMode == 0) ...[
+                                _buildPasswordField(),
+                                SizedBox(height: 12),
+                                _buildRememberMeRow(),
+                              ] else ...[
+                                _buildSmsCodeField(),
+                              ],
+                              SizedBox(height: 12),
+                              _buildAgreementRow(),
+                              SizedBox(height: 20),
+                              _buildLoginButton(),
+                              SizedBox(height: 12),
+                              _buildFooter(),
                             ],
-                            SizedBox(height: 12),
-                            _buildAgreementRow(),
-                            SizedBox(height: 20),
-                            _buildLoginButton(),
-                            SizedBox(height: 12),
-                            _buildFooter(),
-                          ],
+                          ),
                         ),
                       ),
                     ),

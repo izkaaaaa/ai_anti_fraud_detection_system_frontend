@@ -159,21 +159,23 @@ class AuthService {
   }
 
   /// 获取当前用户信息
-  Future<Map<String, dynamic>?> getCurrentUser() async {
-    print('👤 getCurrentUser 被调用');
+  /// 
+  /// [forceRefresh] 是否强制从服务器刷新（默认 false，使用缓存）
+  Future<Map<String, dynamic>?> getCurrentUser({bool forceRefresh = false}) async {
+    print('👤 getCurrentUser 被调用 (forceRefresh: $forceRefresh)');
     print('   当前 Token: ${_accessToken.isNotEmpty ? _accessToken : "无"}');
     print('   缓存的用户信息: ${_userInfo ?? "无"}');
-    
-    // 如果有缓存的用户信息，且不为空，直接返回
-    if (_userInfo != null && _userInfo!.isNotEmpty && _userInfo!.containsKey('username')) {
-      print('✅ 返回缓存的用户信息');
-      return _userInfo;
-    }
     
     // 检查是否已登录
     if (_accessToken.isEmpty) {
       print('⚠️ 未登录，无法获取用户信息');
       return null;
+    }
+    
+    // 如果不强制刷新，且有缓存的用户信息，直接返回
+    if (!forceRefresh && _userInfo != null && _userInfo!.isNotEmpty && _userInfo!.containsKey('username')) {
+      print('✅ 返回缓存的用户信息');
+      return _userInfo;
     }
 
     try {
@@ -185,7 +187,7 @@ class AuthService {
         _userInfo = response;
         await _saveToLocal();
         
-        print('✅ 用户信息获取成功: ${_userInfo?['username']}');
+        print('✅ 用户信息获取成功: ${_userInfo?['username']}, family_id: ${_userInfo?['family_id']}');
         return _userInfo;
       }
 

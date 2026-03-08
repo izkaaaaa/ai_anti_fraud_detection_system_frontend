@@ -815,34 +815,71 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet> {
           
           SizedBox(height: AppTheme.paddingMedium),
 
-          // LLM 最终评价 (从 record 中读取后端 LLM 分析字段，例如 analysis / llm_evaluation)
-          if (widget.record['analysis'] != null || widget.record['llm_evaluation'] != null)
-            Container(
-              padding: EdgeInsets.all(AppTheme.paddingMedium),
-              margin: EdgeInsets.only(bottom: AppTheme.paddingMedium),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                border: Border.all(color: AppColors.primary.withOpacity(0.3)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.smart_toy, color: AppColors.primary, size: 20),
-                      SizedBox(width: 8),
-                      Text('大模型智能评价', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
-                    ],
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    widget.record['analysis'] ?? widget.record['llm_evaluation'] ?? '无',
-                    style: TextStyle(fontSize: AppTheme.fontSizeSmall, color: AppColors.textPrimary, height: 1.5),
-                  ),
-                ],
-              ),
+          // LLM 最终评价与防骗建议（始终显示，即使为空）
+          Container(
+            padding: EdgeInsets.all(AppTheme.paddingMedium),
+            margin: EdgeInsets.only(bottom: AppTheme.paddingMedium),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              border: Border.all(color: AppColors.primary.withOpacity(0.3)),
             ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. 智能评价区块
+                Row(
+                  children: [
+                    Icon(Icons.smart_toy, color: AppColors.primary, size: 20),
+                    SizedBox(width: 8),
+                    Text('大模型智能评价', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  ],
+                ),
+                SizedBox(height: 8),
+                Text(
+                  widget.record['analysis']?.toString().isNotEmpty == true
+                      ? widget.record['analysis']
+                      : '暂无智能评价（LLM 分析中或未生成）',
+                  style: TextStyle(
+                    fontSize: AppTheme.fontSizeSmall,
+                    color: widget.record['analysis']?.toString().isNotEmpty == true
+                        ? AppColors.textPrimary
+                        : AppColors.textSecondary,
+                    height: 1.5,
+                    fontStyle: widget.record['analysis']?.toString().isNotEmpty == true
+                        ? FontStyle.normal
+                        : FontStyle.italic,
+                  ),
+                ),
+                SizedBox(height: AppTheme.paddingMedium),
+
+                // 2. 防骗建议区块
+                Row(
+                  children: [
+                    Icon(Icons.security, color: AppColors.success, size: 20),
+                    SizedBox(width: 8),
+                    Text('专属防骗建议', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.success)),
+                  ],
+                ),
+                SizedBox(height: 8),
+                Text(
+                  widget.record['advice']?.toString().isNotEmpty == true
+                      ? widget.record['advice']
+                      : '暂无防骗建议（LLM 分析中或未生成）',
+                  style: TextStyle(
+                    fontSize: AppTheme.fontSizeSmall,
+                    color: widget.record['advice']?.toString().isNotEmpty == true
+                        ? AppColors.textPrimary
+                        : AppColors.textSecondary,
+                    height: 1.5,
+                    fontStyle: widget.record['advice']?.toString().isNotEmpty == true
+                        ? FontStyle.normal
+                        : FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
 
           // 审计事件时间轴标题与提交审查按钮
           Row(
