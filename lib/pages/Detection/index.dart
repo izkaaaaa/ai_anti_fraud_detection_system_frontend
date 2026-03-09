@@ -973,14 +973,18 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          centerTitle: true,
+          centerTitle: false,
           toolbarHeight: 50,
-          title: Text(
-            '实时监测',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+          automaticallyImplyLeading: false, // 移除左上角的返回按钮
+          title: Padding(
+            padding: EdgeInsets.only(left: 8),
+            child: Text(
+              '实时监测',
+              style: TextStyle(
+                color: Color(0xFF1F2937),
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ),
