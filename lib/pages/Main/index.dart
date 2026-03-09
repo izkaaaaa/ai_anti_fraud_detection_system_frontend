@@ -58,19 +58,13 @@ class _MainPageState extends State<MainPage> {
       body: _pages[_currentIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
+          color: Color(0xFFF0FFF1),
           border: Border(
             top: BorderSide(
-              color: AppColors.borderMedium,
+              color: Color(0xFFD0E8D0),
               width: 1.5,
             ),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: Offset(0, -2),
-            ),
-          ],
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
@@ -80,11 +74,11 @@ class _MainPageState extends State<MainPage> {
             });
           },
           type: BottomNavigationBarType.fixed,
-          backgroundColor: AppColors.cardBackground,
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.textSecondary,
-          selectedFontSize: AppTheme.fontSizeSmall,
-          unselectedFontSize: AppTheme.fontSizeSmall,
+          backgroundColor: Color(0xFFF0FFF1),
+          selectedItemColor: Color(0xFF4CAF50),
+          unselectedItemColor: Color(0xFF5A8C3A),
+          selectedFontSize: 12,
+          unselectedFontSize: 12,
           selectedLabelStyle: TextStyle(fontWeight: FontWeight.w600),
           elevation: 0,
           items: [

@@ -964,95 +964,702 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    // ✅ 使用 WithForegroundTask 包装，以便在前台服务运行时保持 UI 更新
+    final screenHeight = MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - 50;
+    
     return WithForegroundTask(
       child: Scaffold(
-        backgroundColor: AppColors.background,
         appBar: AppBar(
-          backgroundColor: AppColors.backgroundCard,
+          backgroundColor: Colors.transparent,
           elevation: 0,
+          centerTitle: true,
+          toolbarHeight: 50,
           title: Text(
             '实时监测',
             style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: AppTheme.fontSizeLarge,
+              color: Colors.white,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
           ),
-          actions: [
-            if (_isConnected)
-              Padding(
-                padding: EdgeInsets.only(right: 16),
-                child: Row(
-                  children: [
-                    AnimatedBuilder(
-                      animation: _pulseAnimation,
-                      builder: (context, child) {
-                        return Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                            boxShadow: AppTheme.glowGreen,
-                          ),
-                        );
-                      },
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      '已连接',
-                      style: TextStyle(
-                        fontSize: AppTheme.fontSizeSmall,
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-          bottom: PreferredSize(
-            preferredSize: Size.fromHeight(2),
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary,
-                    AppColors.secondary,
-                  ],
-                ),
-              ),
-              height: 2,
+        ),
+        extendBodyBehindAppBar: true,
+        body: Container(
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('lib/UIimages/检测页背景.png'),
+              fit: BoxFit.cover,
             ),
           ),
-        ),
-        body: SingleChildScrollView(
-          padding: EdgeInsets.all(AppTheme.paddingMedium),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildStatusCard(),
-              SizedBox(height: AppTheme.paddingMedium),
-              _buildAudioWaveform(),
-              SizedBox(height: AppTheme.paddingMedium),
-              _buildDetectionResults(),
-              SizedBox(height: AppTheme.paddingMedium),
-              if (_overallRisk == RiskLevel.high || _overallRisk == RiskLevel.critical)
-                _buildRiskWarning(),
-              if (_overallRisk == RiskLevel.high || _overallRisk == RiskLevel.critical)
-                SizedBox(height: AppTheme.paddingMedium),
-              _buildControlButtons(),
-              SizedBox(height: AppTheme.paddingMedium),
-              _buildPermissionHint(),
-            ],
+          child: SafeArea(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  // 上部留白，让主卡片居中
+                  Spacer(flex: 2),
+                  
+                  // 中间主卡片（30%高度，带左上角缺口）
+                  Container(
+                    height: screenHeight * 0.3,
+                    child: Stack(
+                      children: [
+                        // 主卡片（带缺口）
+                        Positioned(
+                          top: 50,
+                          left: 50,
+                          right: 0,
+                          bottom: 0,
+                          child: _buildMainCard(),
+                        ),
+                        
+                        // 左上角开始检测按钮
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          child: _buildStartButton(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  Spacer(flex: 1),
+                  
+                  // 两个并列矩形
+                  Container(
+                    height: screenHeight * 0.2,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildLeftCard(),
+                        ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: _buildRightCard(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  SizedBox(height: 16),
+                  
+                  // 底部矩形（音频波形）
+                  Container(
+                    height: screenHeight * 0.15,
+                    child: _buildBottomCard(),
+                  ),
+                  
+                  SizedBox(height: 20),
+                ],
+              ),
+            ),
           ),
         ),
       ),
     );
   }
   
-  // 状态卡片
+  // 主卡片（带左上角缺口）
+  Widget _buildMainCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Color(0xFF1A1C1F).withOpacity(0.9),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.3),
+            blurRadius: 20,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: _isConnected ? AppColors.primary : AppColors.textLight,
+                  shape: BoxShape.circle,
+                  boxShadow: _isConnected ? [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.6),
+                      blurRadius: 8,
+                      spreadRadius: 2,
+                    ),
+                  ] : [],
+                ),
+              ),
+              SizedBox(width: 12),
+              Text(
+                '检测状态',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _statusMessage,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (_currentState == DetectionState.monitoring || _currentState == DetectionState.warning) ...[
+                    SizedBox(height: 12),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _currentDefenseLevel == 1 
+                            ? AppColors.success.withOpacity(0.2)
+                            : _currentDefenseLevel == 2
+                                ? AppColors.warning.withOpacity(0.2)
+                                : AppColors.error.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _currentDefenseLevel == 1 
+                              ? AppColors.success
+                              : _currentDefenseLevel == 2
+                                  ? AppColors.warning
+                                  : AppColors.error,
+                          width: 2,
+                        ),
+                      ),
+                      child: Text(
+                        'Level $_currentDefenseLevel',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: _currentDefenseLevel == 1 
+                              ? AppColors.success
+                              : _currentDefenseLevel == 2
+                                  ? AppColors.warning
+                                  : AppColors.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // 开始检测按钮
+  Widget _buildStartButton() {
+    final isMonitoring = _currentState == DetectionState.monitoring;
+    final isProcessing = _currentState == DetectionState.preparing ||
+                        _currentState == DetectionState.connecting ||
+                        _currentState == DetectionState.stopping;
+    
+    return GestureDetector(
+      onTap: isProcessing
+          ? null
+          : isMonitoring
+              ? _stopMonitoring
+              : _startMonitoring,
+      child: Container(
+        width: 110,
+        height: 110,
+        decoration: BoxDecoration(
+          gradient: isMonitoring
+              ? LinearGradient(
+                  colors: [Color(0xFFFF6B6B), Color(0xFFFF8E8E)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : LinearGradient(
+                  colors: [AppColors.primary, AppColors.primaryLight],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: (isMonitoring ? Color(0xFFFF6B6B) : AppColors.primary).withOpacity(0.5),
+              blurRadius: 20,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: isProcessing
+            ? Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.textDark),
+                ),
+              )
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    isMonitoring ? Icons.stop_circle : Icons.play_circle_filled,
+                    size: 42,
+                    color: AppColors.textDark,
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    isMonitoring ? '停止' : '开始',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textDark,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+  
+  // 左侧卡片
+  Widget _buildLeftCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Color(0xFF2D3748).withOpacity(0.9),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.green.withOpacity(0.2),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.all(16),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.mic, color: AppColors.green, size: 32),
+          SizedBox(height: 8),
+          Text(
+            '音频检测',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            '${(_audioConfidence * 100).toStringAsFixed(0)}%',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.green,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // 右侧卡片
+  Widget _buildRightCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Color(0xFFF6F6EF).withOpacity(0.95),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.secondary.withOpacity(0.2),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.all(16),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.videocam, color: AppColors.secondary, size: 32),
+          SizedBox(height: 8),
+          Text(
+            '视频检测',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textDark,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            '${(_videoConfidence * 100).toStringAsFixed(0)}%',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.secondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // 底部卡片（音频波形）
+  Widget _buildBottomCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Color(0xFFFFFFFF).withOpacity(0.95),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.2),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.graphic_eq, color: AppColors.primary, size: 20),
+              SizedBox(width: 8),
+              Text(
+                '音频波形',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textDark,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 8),
+          Expanded(
+            child: _currentState == DetectionState.monitoring
+                ? CustomPaint(
+                    painter: RealWaveformPainter(
+                      waveformData: _realAudioWaveform,
+                      color: AppColors.primary,
+                    ),
+                    size: Size.infinite,
+                  )
+                : Center(
+                    child: Text(
+                      '未监测',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textLight,
+                      ),
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // 状态信息卡片
+  Widget _buildStatusInfoCard() {
+    String statusText;
+    Color statusColor;
+    
+    // 根据防御等级显示不同颜色
+    Color defenseColor;
+    String defenseText;
+    
+    switch (_currentDefenseLevel) {
+      case 1:
+        defenseColor = AppColors.success;
+        defenseText = 'Level 1 - 正常';
+        break;
+      case 2:
+        defenseColor = AppColors.warning;
+        defenseText = 'Level 2 - 警惕';
+        break;
+      case 3:
+        defenseColor = AppColors.error;
+        defenseText = 'Level 3 - 危险';
+        break;
+      default:
+        defenseColor = AppColors.textSecondary;
+        defenseText = 'Level 1 - 正常';
+    }
+    
+    switch (_currentState) {
+      case DetectionState.idle:
+        statusText = '点击开始按钮启动实时监测';
+        statusColor = AppColors.textLight;
+        break;
+      case DetectionState.preparing:
+        statusText = '正在准备...';
+        statusColor = AppColors.warning;
+        break;
+      case DetectionState.connecting:
+        statusText = '正在连接服务器...';
+        statusColor = AppColors.primary;
+        break;
+      case DetectionState.monitoring:
+        statusText = '监测中...';
+        statusColor = defenseColor;
+        break;
+      case DetectionState.warning:
+        statusText = '⚠️ 检测到风险！';
+        statusColor = AppColors.error;
+        break;
+      case DetectionState.stopping:
+        statusText = '正在停止...';
+        statusColor = AppColors.textLight;
+        break;
+      case DetectionState.error:
+        statusText = _statusMessage;
+        statusColor = AppColors.error;
+        break;
+    }
+    
+    return Container(
+      padding: EdgeInsets.all(AppTheme.paddingLarge),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        border: Border.all(
+          color: AppColors.borderMedium,
+          width: AppTheme.borderMedium,
+        ),
+        boxShadow: AppTheme.shadowSmall,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: statusColor.withOpacity(0.5),
+                      blurRadius: 8,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  statusText,
+                  style: TextStyle(
+                    fontSize: AppTheme.fontSizeMedium,
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (_isConnected)
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                    border: Border.all(
+                      color: AppColors.primary,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Text(
+                    '已连接',
+                    style: TextStyle(
+                      fontSize: AppTheme.fontSizeSmall,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          if (_currentState == DetectionState.monitoring || _currentState == DetectionState.warning) ...[
+            SizedBox(height: AppTheme.paddingMedium),
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: AppTheme.paddingMedium,
+                vertical: AppTheme.paddingSmall,
+              ),
+              decoration: BoxDecoration(
+                color: defenseColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                border: Border.all(
+                  color: defenseColor,
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: defenseColor.withOpacity(0.3),
+                    blurRadius: 10,
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.shield, color: defenseColor, size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    defenseText,
+                    style: TextStyle(
+                      fontSize: AppTheme.fontSizeMedium,
+                      fontWeight: FontWeight.bold,
+                      color: defenseColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+  
+  // 底部三个检测数据卡片（纵向排列）
+  Widget _buildDetectionDataCards() {
+    return Column(
+      children: [
+        Expanded(
+          child: _buildSmallDataCard(
+            icon: Icons.mic,
+            label: '音频',
+            confidence: _audioConfidence,
+            isSafe: !_audioIsFake,
+            color: Color(0xFF00D9FF),
+          ),
+        ),
+        SizedBox(height: 8),
+        Expanded(
+          child: _buildSmallDataCard(
+            icon: Icons.videocam,
+            label: '视频',
+            confidence: _videoConfidence,
+            isSafe: !_videoIsDeepfake,
+            color: Color(0xFFFF6B9D),
+          ),
+        ),
+        SizedBox(height: 8),
+        Expanded(
+          child: _buildSmallDataCard(
+            icon: Icons.text_fields,
+            label: '文本',
+            confidence: _textConfidence,
+            isSafe: _textRiskLevel == 'safe',
+            color: Color(0xFFFFC107),
+          ),
+        ),
+      ],
+    );
+  }
+  
+  // 小数据卡片
+  Widget _buildSmallDataCard({
+    required IconData icon,
+    required String label,
+    required double confidence,
+    required bool isSafe,
+    required Color color,
+  }) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(
+          color: color,
+          width: AppTheme.borderMedium,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.2),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: color, width: 2),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: AppTheme.fontSizeSmall,
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  '${(confidence * 100).toStringAsFixed(0)}%',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                    shadows: [
+                      Shadow(
+                        color: color.withOpacity(0.5),
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isSafe ? AppColors.success : AppColors.error,
+              borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+            ),
+            child: Text(
+              isSafe ? '安全' : '风险',
+              style: TextStyle(
+                fontSize: 11,
+                color: AppColors.textDark,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // 状态卡片（旧的，保留以防需要）
   Widget _buildStatusCard() {
     Color statusColor;
     IconData statusIcon;
@@ -1764,6 +2371,216 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
         ],
       ),
     );
+  }
+}
+
+// 半圆仪表盘绘制器（三个半圆环形进度条）
+class SemiCircularGaugePainter extends CustomPainter {
+  final double audioProgress;
+  final double videoProgress;
+  final double textProgress;
+  final bool isMonitoring;
+  
+  SemiCircularGaugePainter({
+    required this.audioProgress,
+    required this.videoProgress,
+    required this.textProgress,
+    required this.isMonitoring,
+  });
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2 + 40);
+    final baseRadius = size.width / 2 - 40;
+    
+    // 定义三种漂亮的颜色
+    final audioColor = Color(0xFF00D9FF); // 青蓝色
+    final videoColor = Color(0xFFFF6B9D); // 粉红色
+    final textColor = Color(0xFFFFC107);  // 金黄色
+    
+    // 绘制三层半圆环（从外到内）
+    _drawSemiCircle(canvas, center, baseRadius + 40, audioProgress, audioColor);
+    _drawSemiCircle(canvas, center, baseRadius + 20, videoProgress, videoColor);
+    _drawSemiCircle(canvas, center, baseRadius, textProgress, textColor);
+  }
+  
+  void _drawSemiCircle(Canvas canvas, Offset center, double radius, double progress, Color color) {
+    // 背景半圆环（黑色）
+    final bgPaint = Paint()
+      ..color = Color(0xFF1A1C1F)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 16
+      ..strokeCap = StrokeCap.round;
+    
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      math.pi,
+      math.pi,
+      false,
+      bgPaint,
+    );
+    
+    // 进度半圆环（彩色）
+    final progressPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 16
+      ..strokeCap = StrokeCap.round;
+    
+    // 添加发光效果
+    final glowPaint = Paint()
+      ..color = color.withOpacity(0.4)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 20
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 10);
+    
+    final sweepAngle = math.pi * progress;
+    
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      math.pi,
+      sweepAngle,
+      false,
+      glowPaint,
+    );
+    
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      math.pi,
+      sweepAngle,
+      false,
+      progressPaint,
+    );
+  }
+  
+  @override
+  bool shouldRepaint(SemiCircularGaugePainter oldDelegate) {
+    return oldDelegate.audioProgress != audioProgress ||
+           oldDelegate.videoProgress != videoProgress ||
+           oldDelegate.textProgress != textProgress ||
+           oldDelegate.isMonitoring != isMonitoring;
+  }
+}
+
+// 向下凹陷的曲线分隔线绘制器
+class CurveDividerPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Color(0xFFD0E8D0)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    
+    final path = Path();
+    
+    // 从左边开始
+    path.moveTo(0, 0);
+    
+    // 绘制向下凹陷的贝塞尔曲线
+    path.quadraticBezierTo(
+      size.width / 2, // 控制点 x（中心）
+      80,             // 控制点 y（向下凹陷的深度）
+      size.width,     // 终点 x
+      0,              // 终点 y
+    );
+    
+    canvas.drawPath(path, paint);
+    
+    // 添加阴影效果
+    final shadowPaint = Paint()
+      ..color = Color(0xFFD0E8D0).withOpacity(0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 4);
+    
+    canvas.drawPath(path, shadowPaint);
+  }
+  
+  @override
+  bool shouldRepaint(CurveDividerPainter oldDelegate) => false;
+}
+
+// 圆形仪表盘绘制器（三个环形进度条）
+class CircularGaugePainter extends CustomPainter {
+  final double audioProgress;
+  final double videoProgress;
+  final double textProgress;
+  final bool isMonitoring;
+  
+  CircularGaugePainter({
+    required this.audioProgress,
+    required this.videoProgress,
+    required this.textProgress,
+    required this.isMonitoring,
+  });
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final baseRadius = math.min(size.width, size.height) / 2 - 40;
+    
+    // 定义三种漂亮的颜色
+    final audioColor = Color(0xFF00D9FF); // 青蓝色
+    final videoColor = Color(0xFFFF6B9D); // 粉红色
+    final textColor = Color(0xFFFFC107);  // 金黄色
+    
+    // 绘制三层圆环（从外到内）
+    _drawCircle(canvas, center, baseRadius + 30, audioProgress, audioColor);
+    _drawCircle(canvas, center, baseRadius + 15, videoProgress, videoColor);
+    _drawCircle(canvas, center, baseRadius, textProgress, textColor);
+  }
+  
+  void _drawCircle(Canvas canvas, Offset center, double radius, double progress, Color color) {
+    // 背景圆环（黑色）
+    final bgPaint = Paint()
+      ..color = Color(0xFF1A1C1F)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 12
+      ..strokeCap = StrokeCap.round;
+    
+    canvas.drawCircle(center, radius, bgPaint);
+    
+    // 进度圆环（彩色）
+    final progressPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 12
+      ..strokeCap = StrokeCap.round;
+    
+    // 添加发光效果
+    final glowPaint = Paint()
+      ..color = color.withOpacity(0.4)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 16
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8);
+    
+    final sweepAngle = 2 * math.pi * progress;
+    
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      sweepAngle,
+      false,
+      glowPaint,
+    );
+    
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      sweepAngle,
+      false,
+      progressPaint,
+    );
+  }
+  
+  @override
+  bool shouldRepaint(CircularGaugePainter oldDelegate) {
+    return oldDelegate.audioProgress != audioProgress ||
+           oldDelegate.videoProgress != videoProgress ||
+           oldDelegate.textProgress != textProgress ||
+           oldDelegate.isMonitoring != isMonitoring;
   }
 }
 
