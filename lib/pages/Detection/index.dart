@@ -4,6 +4,7 @@ import 'package:ai_anti_fraud_detection_system_frontend/utils/PermissionManager.
 import 'package:ai_anti_fraud_detection_system_frontend/services/RealTimeDetectionService.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:get/get.dart';
+import 'package:action_slider/action_slider.dart';
 import 'dart:math' as math;
 
 class DetectionPage extends StatefulWidget {
@@ -998,28 +999,10 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                   // 上部留白，让主卡片居中
                   Spacer(flex: 2),
                   
-                  // 中间主卡片（30%高度，带左上角缺口）
+                  // 中间主卡片（30%高度，ActionSlider + 两个矩形）
                   Container(
                     height: screenHeight * 0.3,
-                    child: Stack(
-                      children: [
-                        // 主卡片（带缺口）
-                        Positioned(
-                          top: 50,
-                          left: 50,
-                          right: 0,
-                          bottom: 0,
-                          child: _buildMainCard(),
-                        ),
-                        
-                        // 左上角开始检测按钮
-                        Positioned(
-                          top: 0,
-                          left: 0,
-                          child: _buildStartButton(),
-                        ),
-                      ],
-                    ),
+                    child: _buildMainCardWithToggle(),
                   ),
                   
                   Spacer(flex: 1),
@@ -1058,71 +1041,134 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     );
   }
   
-  // 主卡片（带左上角缺口）
-  Widget _buildMainCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Color(0xFF1A1C1F).withOpacity(0.9),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
-            blurRadius: 20,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: _isConnected ? AppColors.primary : AppColors.textLight,
-                  shape: BoxShape.circle,
-                  boxShadow: _isConnected ? [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.6),
-                      blurRadius: 8,
-                      spreadRadius: 2,
+  // 主卡片（ActionSlider + 两个矩形重新布局）
+  Widget _buildMainCardWithToggle() {
+    final isMonitoring = _currentState == DetectionState.monitoring;
+    final isProcessing = _currentState == DetectionState.preparing ||
+                        _currentState == DetectionState.connecting ||
+                        _currentState == DetectionState.stopping;
+    
+    // 尺寸定义
+    const double sliderWidth = 200.0;
+    const double sliderHeight = 60.0;
+    const double cardRadius = 16.0;
+    const double containerAHeight = 120.0;  // 矩形A固定高度
+    const double containerBHeight = 50.0;   // 矩形B高度
+    const double spacing = 12.0;  // 间距
+    
+    // 计算矩形A的top位置
+    final double containerATop = sliderHeight + spacing;
+    
+    return Stack(
+      children: [
+        // ActionSlider（左上角）
+        Positioned(
+          top: 0,
+          left: 0,
+          child: Container(
+            width: sliderWidth,
+            height: sliderHeight,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(sliderHeight / 2),
+              boxShadow: [
+                BoxShadow(
+                  color: (isMonitoring ? Color(0xFFFF6B6B) : AppColors.primary).withOpacity(0.4),
+                  blurRadius: 15,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: isProcessing
+                ? Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.borderMedium,
+                      borderRadius: BorderRadius.circular(sliderHeight / 2),
                     ),
-                  ] : [],
-                ),
-              ),
-              SizedBox(width: 12),
-              Text(
-                '检测状态',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
+                    child: Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.textDark),
+                        ),
+                      ),
+                    ),
+                  )
+                : ActionSlider.standard(
+                    width: sliderWidth,
+                    height: sliderHeight,
+                    backgroundColor: isMonitoring 
+                        ? Color(0xFFFF6B6B).withOpacity(0.3)
+                        : AppColors.primary.withOpacity(0.3),
+                    toggleColor: isMonitoring 
+                        ? Color(0xFFFF6B6B)
+                        : AppColors.primary,
+                    action: (controller) async {
+                      controller.loading();
+                      if (isMonitoring) {
+                        await _stopMonitoring();
+                      } else {
+                        await _startMonitoring();
+                      }
+                      controller.success();
+                      await Future.delayed(Duration(milliseconds: 500));
+                      controller.reset();
+                    },
+                    child: Text(
+                      isMonitoring ? '滑动停止检测' : '滑动开始检测',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textDark,
+                      ),
+                    ),
+                    icon: Icon(
+                      isMonitoring ? Icons.stop_rounded : Icons.play_arrow_rounded,
+                      size: 24,
+                      color: AppColors.textDark,
+                    ),
+                  ),
           ),
-          SizedBox(height: 16),
-          Expanded(
-            child: Center(
+        ),
+        
+        // 矩形A（在ActionSlider下方，显示具体检测状态信息）
+        Positioned(
+          top: containerATop,
+          left: 0,
+          right: 0,
+          child: Container(
+            height: containerAHeight,
+            decoration: BoxDecoration(
+              color: Color(0xFF25282B),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(cardRadius),
+                topRight: Radius.circular(0),  // 右上角无圆角，和B连接
+                bottomLeft: Radius.circular(cardRadius),
+                bottomRight: Radius.circular(cardRadius),
+              ),
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(20),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
                     _statusMessage,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w500,
                     ),
-                    textAlign: TextAlign.center,
+                    textAlign: TextAlign.left,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   if (_currentState == DetectionState.monitoring || _currentState == DetectionState.warning) ...[
                     SizedBox(height: 12),
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: _currentDefenseLevel == 1 
                             ? AppColors.success.withOpacity(0.2)
@@ -1142,7 +1188,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                       child: Text(
                         'Level $_currentDefenseLevel',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
                           color: _currentDefenseLevel == 1 
                               ? AppColors.success
@@ -1157,75 +1203,58 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-  
-  // 开始检测按钮
-  Widget _buildStartButton() {
-    final isMonitoring = _currentState == DetectionState.monitoring;
-    final isProcessing = _currentState == DetectionState.preparing ||
-                        _currentState == DetectionState.connecting ||
-                        _currentState == DetectionState.stopping;
-    
-    return GestureDetector(
-      onTap: isProcessing
-          ? null
-          : isMonitoring
-              ? _stopMonitoring
-              : _startMonitoring,
-      child: Container(
-        width: 110,
-        height: 110,
-        decoration: BoxDecoration(
-          gradient: isMonitoring
-              ? LinearGradient(
-                  colors: [Color(0xFFFF6B6B), Color(0xFFFF8E8E)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : LinearGradient(
-                  colors: [AppColors.primary, AppColors.primaryLight],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: (isMonitoring ? Color(0xFFFF6B6B) : AppColors.primary).withOpacity(0.5),
-              blurRadius: 20,
-              offset: Offset(0, 4),
-            ),
-          ],
         ),
-        child: isProcessing
-            ? Center(
-                child: CircularProgressIndicator(
-                  strokeWidth: 3,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.textDark),
-                ),
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+        
+        // 矩形B（在ActionSlider右侧，显示"检测状态"，下边和A的上边连接）
+        Positioned(
+          top: containerATop - containerBHeight,  // B的下边 = A的上边
+          left: sliderWidth + spacing,
+          right: 0,
+          child: Container(
+            height: containerBHeight,
+            decoration: BoxDecoration(
+              color: Color(0xFF25282B),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(cardRadius),
+                topRight: Radius.circular(cardRadius),
+                bottomLeft: Radius.circular(0),
+                bottomRight: Radius.circular(0),
+              ),
+            ),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
                 children: [
-                  Icon(
-                    isMonitoring ? Icons.stop_circle : Icons.play_circle_filled,
-                    size: 42,
-                    color: AppColors.textDark,
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _isConnected ? AppColors.primary : AppColors.textLight,
+                      shape: BoxShape.circle,
+                      boxShadow: _isConnected ? [
+                        BoxShadow(
+                          color: AppColors.primary.withOpacity(0.6),
+                          blurRadius: 8,
+                          spreadRadius: 2,
+                        ),
+                      ] : [],
+                    ),
                   ),
-                  SizedBox(height: 6),
+                  SizedBox(width: 12),
                   Text(
-                    isMonitoring ? '停止' : '开始',
+                    '检测状态',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textDark,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ],
               ),
-      ),
+            ),
+          ),
+        ),
+      ],
     );
   }
   
