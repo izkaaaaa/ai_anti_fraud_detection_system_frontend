@@ -999,9 +999,9 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                   // 上部留白，让主卡片居中
                   Spacer(flex: 2),
                   
-                  // 中间主卡片（30%高度，ActionSlider + 两个矩形）
-                  Container(
-                    height: screenHeight * 0.3,
+                  // 中间主卡片（ActionSlider + 两个矩形，自适应高度）
+                  SizedBox(
+                    height: 222,  // 固定高度：60(slider) + 12(spacing) + 150(containerA) = 222
                     child: _buildMainCardWithToggle(),
                   ),
                   
@@ -1052,7 +1052,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     const double sliderWidth = 200.0;
     const double sliderHeight = 60.0;
     const double cardRadius = 16.0;
-    const double containerAHeight = 120.0;  // 矩形A固定高度
+    const double containerAHeight = 150.0;  // 矩形A固定高度（增大了30）
     const double containerBHeight = 50.0;   // 矩形B高度
     const double spacing = 12.0;  // 间距
     
