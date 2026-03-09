@@ -13,6 +13,7 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/baidu_speech_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/foreground_task_handler.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/services/local_notification_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/DioRequest.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/index.dart';
 
@@ -40,6 +41,9 @@ class RealTimeDetectionService {
   final BaiduSpeechService _speechService = BaiduSpeechService();
   bool _isSpeechRecognitionActive = false;
   
+  // ✅ 本地通知服务（用于后台警告）
+  final LocalNotificationService _notificationService = LocalNotificationService();
+  
   // 音频波形数据（使用可变列表）
   final List<double> _audioWaveformData = List.generate(50, (_) => 0.0);
   
@@ -51,6 +55,10 @@ class RealTimeDetectionService {
   int _currentDefenseLevel = 1;  // 当前防御等级（1/2/3）
   double _currentVideoFPS = 1.0;  // 当前视频帧率
   bool _isRecordingCall = false;  // 是否正在录音
+  
+  // ✅ 定时通知
+  Timer? _notificationTimer;
+  int _notificationCount = 0;
   
   // 回调函数
   Function(Map<String, dynamic>)? onDetectionResult;  // 检测结果回调
@@ -72,6 +80,9 @@ class RealTimeDetectionService {
   /// 开始实时监测
   Future<bool> startDetection() async {
     try {
+      // ✅ 0. 初始化本地通知服务
+      await _notificationService.initialize();
+      
       // ✅ 1. 初始化并启动前台服务
       final foregroundServiceStarted = await _startForegroundService();
       if (!foregroundServiceStarted) {
@@ -119,6 +130,9 @@ class RealTimeDetectionService {
         // 不阻断流程，继续使用音视频检测
       }
       
+      // ✅ 7. 启动定时通知（每5秒弹一次）
+      _startPeriodicNotifications();
+      
       onStatusChange?.call('监测已启动');
       return true;
     } catch (e) {
@@ -130,6 +144,9 @@ class RealTimeDetectionService {
   /// 停止实时监测
   Future<void> stopDetection() async {
     try {
+      // 0. 停止定时通知
+      _stopPeriodicNotifications();
+      
       // 1. 停止录音
       await _stopAudioRecording();
       
@@ -144,6 +161,9 @@ class RealTimeDetectionService {
       
       // ✅ 5. 停止前台服务
       await _stopForegroundService();
+      
+      // ✅ 6. 取消所有通知
+      await _notificationService.cancelAll();
       
       onStatusChange?.call('监测已停止');
     } catch (e) {
@@ -816,12 +836,78 @@ class RealTimeDetectionService {
     }
   }
   
+  // ============================================================
+  // ✅ 定时通知功能
+  // ============================================================
+  
+  /// 启动定时通知（每5秒弹一次）
+  void _startPeriodicNotifications() {
+    _notificationTimer?.cancel();
+    _notificationCount = 0;
+    
+    // 立即发送第一次通知
+    _sendPeriodicNotification();
+    
+    // 每5秒发送一次通知
+    _notificationTimer = Timer.periodic(Duration(seconds: 5), (timer) {
+      _sendPeriodicNotification();
+    });
+    
+    print('🔔 定时通知已启动（每5秒一次）');
+  }
+  
+  /// 发送定时通知
+  void _sendPeriodicNotification() {
+    _notificationCount++;
+    
+    print('🔔 [定时通知] 第 $_notificationCount 次，当前防御等级: Level $_currentDefenseLevel');
+    
+    // 根据当前防御等级发送不同级别的通知
+    switch (_currentDefenseLevel) {
+      case 1:
+        print('🔔 [定时通知] 发送低风险通知...');
+        _notificationService.showLowRiskAlert(
+          title: '🛡️ 实时监测中',
+          message: '正在保护您的通话安全（第 $_notificationCount 次检测）',
+          payload: 'periodic_level_1',
+        );
+        break;
+      case 2:
+        print('🔔 [定时通知] 发送中风险通知...');
+        _notificationService.showMediumRiskAlert(
+          title: '⚠️ 警惕模式',
+          message: '检测到可疑行为，请提高警惕！（第 $_notificationCount 次检测）',
+          payload: 'periodic_level_2',
+        );
+        break;
+      case 3:
+        print('🔔 [定时通知] 发送高风险通知...');
+        _notificationService.showHighRiskAlert(
+          title: '🚨 危险警告',
+          message: '检测到高风险诈骗行为，强烈建议立即挂断！（第 $_notificationCount 次检测）',
+          payload: 'periodic_level_3',
+        );
+        break;
+    }
+    
+    print('🔔 [定时通知] 已发送第 $_notificationCount 次定时通知（Level $_currentDefenseLevel）');
+  }
+  
+  /// 停止定时通知
+  void _stopPeriodicNotifications() {
+    _notificationTimer?.cancel();
+    _notificationTimer = null;
+    _notificationCount = 0;
+    print('🔕 定时通知已停止');
+  }
+  
   /// 清理资源
   Future<void> dispose() async {
     _heartbeatTimer?.cancel();
     _audioStreamTimer?.cancel();
     _videoFrameTimer?.cancel();
     _audioLevelSubscription?.cancel();
+    _notificationTimer?.cancel();  // ✅ 清理定时通知
     await _stopAudioRecording();
     await _stopScreenCapture();  // ✅ 停止屏幕截图
     await _stopSpeechRecognition();  // ✅ 停止语音识别
@@ -986,6 +1072,14 @@ class RealTimeDetectionService {
   void _applyLevel2(Map<String, dynamic> config) {
     print('⚠️ 切换到警惕模式');
     
+    // ✅ 发送中风险警告通知
+    final uiMessage = config['ui_message'] ?? '检测到可疑行为，请提高警惕！';
+    _notificationService.showMediumRiskAlert(
+      title: '⚠️ 中风险警告',
+      message: uiMessage,
+      payload: 'level_2',
+    );
+    
     // 提高检测频率
     final videoFps = config['video_fps'];
     if (videoFps != null) {
@@ -1010,6 +1104,14 @@ class RealTimeDetectionService {
   /// Level 3: 危险模式（红色）
   void _applyLevel3(Map<String, dynamic> config) {
     print('🚨 切换到危险模式');
+    
+    // ✅ 发送高风险警告通知（全屏显示）
+    final uiMessage = config['ui_message'] ?? '检测到高风险诈骗行为，强烈建议立即挂断！';
+    _notificationService.showHighRiskAlert(
+      title: '🚨 高风险警告',
+      message: uiMessage,
+      payload: 'level_3',
+    );
     
     // 最高检测频率
     final videoFps = config['video_fps'];
