@@ -7,7 +7,7 @@ import 'package:ai_anti_fraud_detection_system_frontend/pages/Profile/index.dart
 import 'package:ai_anti_fraud_detection_system_frontend/pages/Test/index.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/PermissionManager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
+import 'package:convex_bottom_bar/convex_bottom_bar.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -16,7 +16,7 @@ class MainPage extends StatefulWidget {
   _MainPageState createState() => _MainPageState();
 }
 
-class _MainPageState extends State<MainPage> with SingleTickerProviderStateMixin {
+class _MainPageState extends State<MainPage> {
   int _currentIndex = 2; // 默认显示实时监测页面
   final PermissionManager _permissionManager = PermissionManager();
   bool _hasRequestedPermissions = false;
@@ -27,14 +27,6 @@ class _MainPageState extends State<MainPage> with SingleTickerProviderStateMixin
     DetectionPage(),
     FamilyPage(),
     ProfilePage(),
-  ];
-  
-  // 导航栏图标列表（左边2个，右边2个）
-  final List<IconData> _iconList = [
-    Icons.history,
-    Icons.science_outlined,
-    Icons.family_restroom,
-    Icons.person_outline,
   ];
 
   @override
@@ -65,46 +57,34 @@ class _MainPageState extends State<MainPage> with SingleTickerProviderStateMixin
   Widget build(BuildContext context) {
     return Scaffold(
       body: _pages[_currentIndex],
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
+      bottomNavigationBar: ConvexAppBar(
+        style: TabStyle.reactCircle,
+        items: [
+          TabItem(icon: Icons.history, title: '通话记录'),
+          TabItem(icon: Icons.science_outlined, title: '测试'),
+          TabItem(icon: Icons.radar, title: '实时监测'),
+          TabItem(icon: Icons.family_restroom, title: '家庭组'),
+          TabItem(icon: Icons.person_outline, title: '我的'),
+        ],
+        initialActiveIndex: _currentIndex,
+        onTap: (int index) {
           setState(() {
-            _currentIndex = 2; // 跳转到实时监测页（中间）
+            _currentIndex = index;
           });
         },
-        backgroundColor: Color(0xFF10B981), // 翠绿色
-        child: Icon(
-          Icons.radar,
-          color: Colors.white,
-          size: 28,
+        // 墨绿色系配色
+        backgroundColor: Color(0xFF064E3B), // 墨绿色背景
+        activeColor: Colors.white, // 激活时的图标和文字颜色
+        color: Color(0xFF6EE7B7).withOpacity(0.6), // 未激活时的图标和文字颜色（浅绿色半透明）
+        gradient: LinearGradient(
+          colors: [
+            Color(0xFF059669), // 深绿色
+            Color(0xFF047857), // 墨绿色
+          ],
         ),
-        elevation: 8,
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: AnimatedBottomNavigationBar(
-        icons: _iconList,
-        activeIndex: _currentIndex == 2 ? 0 : (_currentIndex > 2 ? _currentIndex - 1 : _currentIndex),
-        gapLocation: GapLocation.center,
-        notchSmoothness: NotchSmoothness.verySmoothEdge,
-        leftCornerRadius: 32,
-        rightCornerRadius: 32,
-        onTap: (index) {
-          setState(() {
-            // 映射索引：0->0(通话记录), 1->1(测试), 2->3(家庭组), 3->4(我的)
-            if (index >= 2) {
-              _currentIndex = index + 1;
-            } else {
-              _currentIndex = index;
-            }
-          });
-        },
-        // 黑绿色系配色
-        backgroundColor: Color(0xFF1F2937), // 深灰黑色
-        activeColor: Color(0xFF10B981), // 翠绿色
-        inactiveColor: Color(0xFF6B7280), // 中灰色
-        splashColor: Color(0xFF10B981).withOpacity(0.3),
-        splashSpeedInMilliseconds: 300,
-        iconSize: 26,
         height: 60,
+        top: -20,
+        curveSize: 80,
         elevation: 8,
       ),
     );
