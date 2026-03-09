@@ -84,6 +84,9 @@ flutter:
     - lib/assets/test_audio.mp3
     - lib/UIimages/登录页背景.jpg
     - lib/UIimages/检测页背景.png
+    - lib/UIimages/检测状态-安全.png
+    - lib/UIimages/检测状态-可疑.png
+    - lib/UIimages/检测状态-危险.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -1147,6 +1147,19 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                 bottomLeft: Radius.circular(cardRadius),
                 bottomRight: Radius.circular(cardRadius),
               ),
+              // 根据防御等级显示不同的背景图片
+              image: (_currentState == DetectionState.monitoring || _currentState == DetectionState.warning)
+                  ? DecorationImage(
+                      image: AssetImage(
+                        _currentDefenseLevel == 1
+                            ? 'lib/UIimages/检测状态-安全.png'
+                            : _currentDefenseLevel == 2
+                                ? 'lib/UIimages/检测状态-可疑.png'
+                                : 'lib/UIimages/检测状态-危险.png',
+                      ),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
             ),
             child: Padding(
               padding: EdgeInsets.all(20),
