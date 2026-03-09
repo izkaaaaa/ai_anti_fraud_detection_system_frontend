@@ -148,12 +148,16 @@ class FamilyService {
       
       final response = await dioRequest.get('/api/family/members');
 
+      print('📦 原始响应: $response');
+
       if (response != null && response['code'] == 200) {
         final data = response['data'] as List;
         print('✅ 获取成功，共 ${data.length} 个成员');
+        print('📋 成员数据: $data');
         return data.cast<Map<String, dynamic>>();
       }
 
+      print('⚠️ 响应格式不正确或code不是200');
       return [];
     } catch (e) {
       print('❌ 获取成员列表失败: $e');

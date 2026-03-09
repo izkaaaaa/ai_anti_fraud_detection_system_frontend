@@ -235,9 +235,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     return Scaffold(
       body: Stack(
         children: [
-          // 背景图片（向上偏移20%，显示下半部分）
+          // 背景图片（向上偏移25%，显示下半部分）
           Positioned(
-            top: -MediaQuery.of(context).size.height * 0.2,
+            top: -MediaQuery.of(context).size.height * 0.25,
             left: 0,
             right: 0,
             bottom: 0,
@@ -258,7 +258,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           
           // 欢迎语（在图片上方，左对齐，带弹出效果）
           Positioned(
-            top: MediaQuery.of(context).padding.top + 40,
+            top: MediaQuery.of(context).padding.top + 30,
             left: AppTheme.paddingLarge,
             right: AppTheme.paddingLarge,
             child: SlideTransition(
@@ -324,7 +324,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             ),
           ),
           
-          // 下半部分：登录表单容器（占60%，带弹出动画）
+          // 下半部分：登录表单容器（占55%，带弹出动画）
           Align(
             alignment: Alignment.bottomCenter,
             child: SlideTransition(
@@ -336,7 +336,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 curve: Curves.easeOutCubic,
               )),
               child: FractionallySizedBox(
-                heightFactor: 0.6,
+                heightFactor: 0.62,
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
@@ -349,7 +349,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   child: SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
                       horizontal: AppTheme.paddingLarge,
-                      vertical: AppTheme.paddingLarge,
+                      vertical: AppTheme.paddingMedium,
                     ),
                     child: Center(
                       child: ConstrainedBox(
@@ -360,21 +360,21 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               _buildLoginModeTabs(),
-                              SizedBox(height: 16),
-                              _buildAccountField(),
                               SizedBox(height: 12),
+                              _buildAccountField(),
+                              SizedBox(height: 10),
                               if (_loginMode == 0) ...[
                                 _buildPasswordField(),
-                                SizedBox(height: 12),
+                                SizedBox(height: 10),
                                 _buildRememberMeRow(),
                               ] else ...[
                                 _buildSmsCodeField(),
                               ],
-                              SizedBox(height: 12),
+                              SizedBox(height: 10),
                               _buildAgreementRow(),
-                              SizedBox(height: 20),
+                              SizedBox(height: 16),
                               _buildLoginButton(),
-                              SizedBox(height: 12),
+                              SizedBox(height: 10),
                               _buildFooter(),
                             ],
                           ),
@@ -768,7 +768,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
   Widget _buildLoginButton() {
     return Container(
-      height: 52,
+      height: 48,
       decoration: BoxDecoration(
         color: _isLoading ? AppColors.borderLight : AppColors.primary,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),

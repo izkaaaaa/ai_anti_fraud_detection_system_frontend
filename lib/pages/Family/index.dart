@@ -342,7 +342,7 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
     return Scaffold(
       extendBodyBehindAppBar: true,
       backgroundColor: Colors.transparent,
-      appBar: _userInfo?['family_id'] != null && _isAdmin
+      appBar: _userInfo?['family_id'] != null
           ? AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
@@ -361,24 +361,26 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                   onPressed: _loadData,
                 ),
               ],
-              bottom: PreferredSize(
-                preferredSize: Size.fromHeight(50),
-                child: TabBar(
-                  controller: _tabController,
-                  labelColor: Color(0xFF00F5A0),
-                  unselectedLabelColor: Colors.white.withOpacity(0.6),
-                  indicatorColor: Color(0xFF00F5A0),
-                  indicatorWeight: 3,
-                  labelStyle: TextStyle(
-                    fontSize: AppTheme.fontSizeMedium,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  tabs: [
-                    Tab(text: '申请管理'),
-                    Tab(text: '成员管理'),
-                  ],
-                ),
-              ),
+              bottom: _isAdmin
+                  ? PreferredSize(
+                      preferredSize: Size.fromHeight(50),
+                      child: TabBar(
+                        controller: _tabController,
+                        labelColor: Color(0xFF00F5A0),
+                        unselectedLabelColor: Colors.white.withOpacity(0.6),
+                        indicatorColor: Color(0xFF00F5A0),
+                        indicatorWeight: 3,
+                        labelStyle: TextStyle(
+                          fontSize: AppTheme.fontSizeMedium,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        tabs: [
+                          Tab(text: '申请管理'),
+                          Tab(text: '成员管理'),
+                        ],
+                      ),
+                    )
+                  : null,
             )
           : AppBar(
               backgroundColor: Colors.transparent,
@@ -432,7 +434,7 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                                 ),
                               ],
                             )
-                          : _buildMemberOnlyView(),
+                          : _buildMemberView(), // 普通成员也显示成员列表
         ),
       ),
     );
@@ -605,50 +607,23 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildMemberOnlyView() {
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(AppTheme.paddingMedium),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildFamilyInfoCard(),
-          SizedBox(height: AppTheme.paddingMedium),
-          Container(
-            padding: EdgeInsets.all(AppTheme.paddingLarge),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.2),
-                width: 2,
-              ),
-            ),
-            child: Column(
-              children: [
-                Icon(Icons.info_outline, size: 60, color: Colors.white.withOpacity(0.7)),
-                SizedBox(height: AppTheme.paddingMedium),
-                Text(
-                  '您是家庭组成员',
-                  style: TextStyle(
-                    fontSize: AppTheme.fontSizeLarge,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(height: AppTheme.paddingSmall),
-                Text(
-                  '只有管理员可以查看申请和成员信息',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: AppTheme.fontSizeMedium,
-                    color: Colors.white.withOpacity(0.7),
-                  ),
-                ),
-              ],
-            ),
+  Widget _buildMemberView() {
+    return Column(
+      children: [
+        // 家庭信息卡片
+        Padding(
+          padding: EdgeInsets.all(AppTheme.paddingMedium),
+          child: _buildFamilyInfoCard(),
+        ),
+        
+        // 成员列表
+        Expanded(
+          child: MembersTab(
+            familyService: _familyService,
+            onMemberUpdated: _loadData,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1115,14 +1090,17 @@ class _MembersTabState extends State<MembersTab> with AutomaticKeepAliveClientMi
     });
 
     try {
+      print('🔄 MembersTab: 开始加载成员列表');
       final members = await widget.familyService.getMembers();
+      print('✅ MembersTab: 成员列表加载成功，共 ${members.length} 个成员');
       setState(() {
         _members = members;
         _isLoading = false;
       });
     } catch (e) {
+      print('❌ MembersTab: 加载成员列表失败: $e');
       setState(() {
-        _errorMessage = '加载失败';
+        _errorMessage = '加载失败: $e';
         _isLoading = false;
       });
     }
@@ -1147,18 +1125,46 @@ class _MembersTabState extends State<MembersTab> with AutomaticKeepAliveClientMi
 
     if (_errorMessage != null) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 60, color: Colors.white.withOpacity(0.7)),
-            SizedBox(height: 16),
-            Text(_errorMessage!, style: TextStyle(color: Colors.white)),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadMembers,
-              child: Text('重试'),
-            ),
-          ],
+        child: Padding(
+          padding: EdgeInsets.all(AppTheme.paddingLarge),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 60, color: Colors.white.withOpacity(0.7)),
+              SizedBox(height: 16),
+              Text(
+                '加载成员列表失败',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: AppTheme.fontSizeLarge,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: AppTheme.fontSizeSmall,
+                ),
+              ),
+              SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _loadMembers,
+                icon: Icon(Icons.refresh),
+                label: Text('重试'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFF00F5A0),
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppTheme.paddingLarge,
+                    vertical: AppTheme.paddingMedium,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -1175,6 +1181,14 @@ class _MembersTabState extends State<MembersTab> with AutomaticKeepAliveClientMi
               style: TextStyle(
                 fontSize: 18,
                 color: Colors.white.withOpacity(0.7),
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              '邀请家人加入家庭组',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white.withOpacity(0.5),
               ),
             ),
           ],
@@ -1312,17 +1326,31 @@ class _MemberRecordsPageState extends State<MemberRecordsPage> {
 
     try {
       final userId = widget.member['user_id'];
-      final response = await dioRequest.get('/api/call-records/member/$userId/records');
+      print('📞 开始加载成员通话记录: userId=$userId');
+      
+      // 尝试正确的接口路径：/api/family/members/{user_id}/call-records
+      final response = await dioRequest.get('/api/family/members/$userId/call-records');
+      
+      print('📦 通话记录响应: $response');
       
       if (response != null && response['data'] != null) {
+        final records = List<Map<String, dynamic>>.from(response['data']);
+        print('✅ 通话记录加载成功，共 ${records.length} 条记录');
         setState(() {
-          _records = List<Map<String, dynamic>>.from(response['data']);
+          _records = records;
+          _isLoading = false;
+        });
+      } else {
+        print('⚠️ 响应格式不正确');
+        setState(() {
+          _records = [];
           _isLoading = false;
         });
       }
     } catch (e) {
+      print('❌ 加载通话记录失败: $e');
       setState(() {
-        _errorMessage = '加载失败';
+        _errorMessage = '加载失败: $e';
         _isLoading = false;
       });
     }
