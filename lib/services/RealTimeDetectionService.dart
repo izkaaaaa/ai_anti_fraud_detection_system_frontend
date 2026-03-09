@@ -425,14 +425,13 @@ class RealTimeDetectionService {
       
       // 获取临时目录
       final tempDir = await getTemporaryDirectory();
-      _currentAudioPath = '${tempDir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.aac';
+      _currentAudioPath = '${tempDir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.wav';
       
       // 开始录音（启用音量监测）
       await _audioRecorder.startRecorder(
         toFile: _currentAudioPath,
-        codec: Codec.aacADTS,
-        bitRate: 128000,
-        sampleRate: 44100,
+        codec: Codec.pcm16WAV,
+        sampleRate: 16000,
       );
       
       _isRecording = true;
@@ -446,7 +445,7 @@ class RealTimeDetectionService {
       // 定期发送音频数据
       _startAudioStreaming();
       
-      print('🎤 录音已启动');
+      print('🎤 录音已启动 (WAV format, 16kHz)');
       return true;
     } catch (e) {
       print('❌ 开始录音失败: $e');
@@ -581,12 +580,11 @@ class RealTimeDetectionService {
         
         // 重新开始录音
         final tempDir = await getTemporaryDirectory();
-        _currentAudioPath = '${tempDir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.aac';
+        _currentAudioPath = '${tempDir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.wav';
         await _audioRecorder.startRecorder(
           toFile: _currentAudioPath,
-          codec: Codec.aacADTS,
-          bitRate: 128000,
-          sampleRate: 44100,
+          codec: Codec.pcm16WAV,
+          sampleRate: 16000,
         );
         
         // ✅ 重新启动音频音量监听（关键修复！）
