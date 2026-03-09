@@ -5,6 +5,7 @@ import 'package:ai_anti_fraud_detection_system_frontend/services/RealTimeDetecti
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:get/get.dart';
 import 'package:action_slider/action_slider.dart';
+import 'package:step_progress_indicator/step_progress_indicator.dart';
 import 'dart:math' as math;
 
 class DetectionPage extends StatefulWidget {
@@ -1271,143 +1272,459 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     );
   }
   
-  // 左侧卡片
+  // 左侧卡片C（视频检测 - 带背景图片和环形进度条）
   Widget _buildLeftCard() {
+    final confidence = _videoConfidence;
+    final isActive = _currentState == DetectionState.monitoring;
+    
     return Container(
       decoration: BoxDecoration(
-        color: Color(0xFF2D3748).withOpacity(0.9),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
+        image: DecorationImage(
+          image: AssetImage('lib/UIimages/视频检测背景.png'),
+          fit: BoxFit.cover,
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.green.withOpacity(0.2),
-            blurRadius: 12,
-            offset: Offset(0, 4),
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 20,
+            offset: Offset(0, 8),
           ),
         ],
       ),
-      padding: EdgeInsets.all(16),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.mic, color: AppColors.green, size: 32),
-          SizedBox(height: 8),
-          Text(
-            '音频检测',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            '${(_audioConfidence * 100).toStringAsFixed(0)}%',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.green,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  // 右侧卡片
-  Widget _buildRightCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Color(0xFFF6F6EF).withOpacity(0.95),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.secondary.withOpacity(0.2),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: EdgeInsets.all(16),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.videocam, color: AppColors.secondary, size: 32),
-          SizedBox(height: 8),
-          Text(
-            '视频检测',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textDark,
-            ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            '${(_videoConfidence * 100).toStringAsFixed(0)}%',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.secondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  // 底部卡片（音频波形）
-  Widget _buildBottomCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Color(0xFFFFFFFF).withOpacity(0.95),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.2),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: EdgeInsets.only(left: 8, right: 16, top: 12, bottom: 12),
+          child: Row(
             children: [
-              Icon(Icons.graphic_eq, color: AppColors.primary, size: 20),
-              SizedBox(width: 8),
-              Text(
-                '音频波形',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textDark,
+              // 左侧：环形进度条（60%宽度）
+              Expanded(
+                flex: 60,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // 根据可用高度动态调整进度条大小
+                    final availableHeight = constraints.maxHeight;
+                    final progressSize = math.min(availableHeight * 0.6, 70.0);
+                    
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 环形进度条
+                        SizedBox(
+                          width: progressSize,
+                          height: progressSize,
+                          child: Stack(
+                            children: [
+                              // 圆形进度条 - 浅绿色系
+                              CircularStepProgressIndicator(
+                                totalSteps: 100,
+                                currentStep: (confidence * 100).toInt(),
+                                stepSize: 5,
+                                selectedColor: Color(0xFF34D399),
+                                unselectedColor: Colors.white.withOpacity(0.3),
+                                padding: 0,
+                                width: progressSize,
+                                height: progressSize,
+                                selectedStepSize: 6,
+                                unselectedStepSize: 4,
+                                roundedCap: (_, __) => true,
+                                gradientColor: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Color(0xFF6EE7B7), // 浅绿色
+                                    Color(0xFF34D399), // 翠绿色
+                                  ],
+                                ),
+                              ),
+                              
+                              // 中心内容 - 白色文字
+                              Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.videocam,
+                                      color: Colors.white,
+                                      size: progressSize * 0.3,
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      '${(confidence * 100).toStringAsFixed(0)}%',
+                                      style: TextStyle(
+                                        fontSize: progressSize * 0.22,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        SizedBox(height: 6),
+                        
+                        // 标签 - 白色，左对齐
+                        Text(
+                          '视频',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                        
+                        SizedBox(height: 2),
+                        
+                        // 状态 - 白色，左对齐
+                        Text(
+                          isActive ? '监测中' : '未监测',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.white.withOpacity(0.9),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+              
+              // 右侧：留白（40%宽度）
+              Expanded(
+                flex: 40,
+                child: SizedBox(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  // 右侧卡片D（文本检测 - 带背景图片和环形进度条）
+  Widget _buildRightCard() {
+    final confidence = _textConfidence;
+    final isActive = _currentState == DetectionState.monitoring;
+    final hasKeywords = _textKeywords.isNotEmpty;
+    
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        image: DecorationImage(
+          image: AssetImage('lib/UIimages/文本检测背景.png'),
+          fit: BoxFit.cover,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: EdgeInsets.only(left: 16, right: 8, top: 12, bottom: 12),
+          child: Row(
+            children: [
+              // 左侧：留白（50%宽度）
+              Expanded(
+                flex: 50,
+                child: SizedBox(),
+              ),
+              
+              // 右侧：环形进度条（50%宽度）
+              Expanded(
+                flex: 50,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // 根据可用高度动态调整进度条大小
+                    final availableHeight = constraints.maxHeight;
+                    final progressSize = math.min(availableHeight * 0.6, 70.0);
+                    
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        // 环形进度条
+                        SizedBox(
+                          width: progressSize,
+                          height: progressSize,
+                          child: Stack(
+                            children: [
+                              // 圆形进度条 - 墨绿色
+                              CircularStepProgressIndicator(
+                                totalSteps: 100,
+                                currentStep: (confidence * 100).toInt(),
+                                stepSize: 5,
+                                selectedColor: Color(0xFF047857),
+                                unselectedColor: Colors.white.withOpacity(0.3),
+                                padding: 0,
+                                width: progressSize,
+                                height: progressSize,
+                                selectedStepSize: hasKeywords ? 6 : 5,
+                                unselectedStepSize: 4,
+                                roundedCap: (_, __) => true,
+                                gradientColor: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Color(0xFF059669), // 深绿色
+                                    Color(0xFF047857), // 墨绿色
+                                  ],
+                                ),
+                              ),
+                              
+                              // 中心内容 - 深色文字
+                              Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      hasKeywords ? Icons.warning_amber : Icons.text_fields,
+                                      color: Color(0xFF2D3748),
+                                      size: progressSize * 0.3,
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      '${(confidence * 100).toStringAsFixed(0)}%',
+                                      style: TextStyle(
+                                        fontSize: progressSize * 0.22,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF2D3748),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        SizedBox(height: 6),
+                        
+                        // 标签 - 深色，右对齐
+                        Text(
+                          '文本',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF2D3748),
+                          ),
+                        ),
+                        
+                        SizedBox(height: 2),
+                        
+                        // 状态 - 深色，右对齐
+                        Text(
+                          hasKeywords 
+                              ? '${_textKeywords.length}个关键词' 
+                              : (isActive ? '监测中' : '未监测'),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF6B7280),
+                            fontWeight: FontWeight.w500,
+                          ),
+                          textAlign: TextAlign.right,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ],
           ),
-          SizedBox(height: 8),
-          Expanded(
-            child: _currentState == DetectionState.monitoring
-                ? CustomPaint(
-                    painter: RealWaveformPainter(
-                      waveformData: _realAudioWaveform,
-                      color: AppColors.primary,
-                    ),
-                    size: Size.infinite,
-                  )
-                : Center(
-                    child: Text(
-                      '未监测',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textLight,
-                      ),
-                    ),
-                  ),
+        ),
+      ),
+    );
+  }
+  
+  // 底部卡片E（音频检测 - 带背景图片和线性进度条）
+  Widget _buildBottomCard() {
+    final isActive = _currentState == DetectionState.monitoring;
+    final confidence = _audioConfidence;
+    
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        image: DecorationImage(
+          image: AssetImage('lib/UIimages/音频检测背景.png'),
+          fit: BoxFit.cover,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 20,
+            offset: Offset(0, 8),
           ),
         ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: [
+              // 左侧：线性进度条（30%宽度）
+              Expanded(
+                flex: 30,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 进度条（文本叠加在上方）
+                    Container(
+                      height: 36,
+                      child: Stack(
+                        children: [
+                          // 底层：进度条
+                          Positioned.fill(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(18),
+                              child: StepProgressIndicator(
+                                totalSteps: 100,
+                                currentStep: (confidence * 100).toInt(),
+                                size: 36,
+                                padding: 0,
+                                selectedGradientColor: LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: [
+                                    Color(0xFF10B981), // 翠绿色
+                                    Color(0xFF34D399), // 浅绿色
+                                  ],
+                                ),
+                                unselectedGradientColor: LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: [
+                                    Color(0xFFE5E7EB),
+                                    Color(0xFFE5E7EB),
+                                  ],
+                                ),
+                                roundedEdges: Radius.circular(18),
+                              ),
+                            ),
+                          ),
+                          
+                          // 上层：文本
+                          Positioned.fill(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 12),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    '音频',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Color(0xFF2D3748),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${(confidence * 100).toStringAsFixed(0)}%',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF10B981),
+                                      shadows: [
+                                        Shadow(
+                                          color: Colors.white,
+                                          blurRadius: 2,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    SizedBox(height: 8),
+                    
+                    // 状态文字
+                    Center(
+                      child: Text(
+                        isActive ? '正在监测...' : '未监测',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF6B7280),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              SizedBox(width: 16),
+              
+              // 中间：音频波形（45%宽度）
+              Expanded(
+                flex: 45,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Color(0xFFF8FAF9), // 指定的背景颜色
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: isActive
+                        ? CustomPaint(
+                            painter: RealWaveformPainter(
+                              waveformData: _realAudioWaveform,
+                              color: Color(0xFF059669), // 深绿色
+                            ),
+                            size: Size.infinite,
+                          )
+                        : Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.graphic_eq,
+                                  color: Color(0xFF9CA3AF),
+                                  size: 32,
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  '未监测',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF6B7280),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+              
+              // 右侧：留白（25%宽度）
+              Expanded(
+                flex: 25,
+                child: SizedBox(),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -2626,6 +2943,74 @@ class CircularGaugePainter extends CustomPainter {
   }
 }
 
+// 环形进度条绘制器（用于矩形E的音频百分比显示）
+class CircularProgressPainter extends CustomPainter {
+  final double progress;
+  final Color backgroundColor;
+  final Color progressColor;
+  final double strokeWidth;
+  
+  CircularProgressPainter({
+    required this.progress,
+    required this.backgroundColor,
+    required this.progressColor,
+    required this.strokeWidth,
+  });
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = math.min(size.width, size.height) / 2 - strokeWidth / 2;
+    
+    // 背景圆环
+    final bgPaint = Paint()
+      ..color = backgroundColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+    
+    canvas.drawCircle(center, radius, bgPaint);
+    
+    // 进度圆环
+    final progressPaint = Paint()
+      ..color = progressColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+    
+    // 添加发光效果
+    final glowPaint = Paint()
+      ..color = progressColor.withOpacity(0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth + 4
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8);
+    
+    final sweepAngle = 2 * math.pi * progress;
+    
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      sweepAngle,
+      false,
+      glowPaint,
+    );
+    
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      sweepAngle,
+      false,
+      progressPaint,
+    );
+  }
+  
+  @override
+  bool shouldRepaint(CircularProgressPainter oldDelegate) {
+    return oldDelegate.progress != progress;
+  }
+}
+
 // 真实音频波形绘制器
 class RealWaveformPainter extends CustomPainter {
   final List<double> waveformData;
@@ -2637,7 +3022,7 @@ class RealWaveformPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color
-      ..strokeWidth = 3.0
+      ..strokeWidth = 6.0  // 增加线条粗细
       ..style = PaintingStyle.fill
       ..strokeCap = StrokeCap.round;
     
@@ -2648,39 +3033,42 @@ class RealWaveformPainter extends CustomPainter {
       final x = i * barWidth;
       final normalizedValue = waveformData[i];
       
-      // ✅ 增强显示效果：
-      // 1. 使用平方根函数压缩高值，放大低值
-      // 2. 乘以更大的系数
-      // 3. 设置最小高度，确保有基础显示
+      // 增强显示效果
       final enhancedValue = math.sqrt(normalizedValue) * 1.5;
-      final barHeight = math.max(enhancedValue * size.height * 0.9, 4.0);
+      final barHeight = math.max(enhancedValue * size.height * 0.9, 6.0);  // 增加最小高度
       
       // 从中心向上下绘制
       final topY = centerY - barHeight / 2;
       final bottomY = centerY + barHeight / 2;
       
-      // ✅ 使用渐变色增强视觉效果
+      // 使用绿色渐变增强视觉效果
       final gradient = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          color.withOpacity(0.3),
+          color.withOpacity(0.5),
           color,
-          color.withOpacity(0.3),
+          color.withOpacity(0.5),
         ],
       );
       
-      final rect = Rect.fromLTRB(x, topY, x + barWidth - 1, bottomY);
+      final rect = Rect.fromLTRB(x, topY, x + barWidth - 2, bottomY);  // 增加条形宽度
       final gradientPaint = Paint()
         ..shader = gradient.createShader(rect)
         ..style = PaintingStyle.fill;
       
-      // 绘制圆角矩形
+      // 绘制圆角矩形，增加圆角半径
       final rrect = RRect.fromRectAndRadius(
         rect,
-        Radius.circular(2),
+        Radius.circular(3),
       );
       canvas.drawRRect(rrect, gradientPaint);
+      
+      // 添加绿色发光效果
+      final glowPaint = Paint()
+        ..color = color.withOpacity(0.3)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 4);
+      canvas.drawRRect(rrect, glowPaint);
     }
   }
   

@@ -53,6 +53,7 @@ dependencies:
   flutter_markdown: ^0.7.4+1
   screenshot: ^3.0.0
   action_slider: ^0.7.0
+  step_progress_indicator: ^1.0.2
 
 dev_dependencies:
   flutter_test:
@@ -87,6 +88,9 @@ flutter:
     - lib/UIimages/检测状态-安全.png
     - lib/UIimages/检测状态-可疑.png
     - lib/UIimages/检测状态-危险.png
+    - lib/UIimages/音频检测背景.png
+    - lib/UIimages/视频检测背景.png
+    - lib/UIimages/文本检测背景.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
