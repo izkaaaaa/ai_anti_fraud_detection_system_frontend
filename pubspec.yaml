@@ -57,6 +57,8 @@ dependencies:
   animated_bottom_navigation_bar: ^1.4.0
   convex_bottom_bar: ^3.2.0
   flutter_local_notifications: ^17.2.3
+  hyper_effects: ^0.3.0+1
+  table_calendar: ^3.2.0
 
 dev_dependencies:
   flutter_test:
