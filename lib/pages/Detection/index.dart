@@ -979,11 +979,11 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
           title: Padding(
             padding: EdgeInsets.only(left: 8),
             child: Text(
-              '实时监测',
-              style: TextStyle(
+            '实时监测',
+            style: TextStyle(
                 color: Color(0xFF1F2937),
                 fontSize: 18,
-                fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.bold,
               ),
             ),
           ),
@@ -1073,19 +1073,19 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
           child: Container(
             width: sliderWidth,
             height: sliderHeight,
-            decoration: BoxDecoration(
+      decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(sliderHeight / 2),
-              boxShadow: [
-                BoxShadow(
+        boxShadow: [
+          BoxShadow(
                   color: (isMonitoring ? Color(0xFFFF6B6B) : AppColors.primary).withOpacity(0.4),
                   blurRadius: 15,
-                  offset: Offset(0, 4),
-                ),
-              ],
-            ),
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
             child: isProcessing
                 ? Container(
-                    decoration: BoxDecoration(
+                decoration: BoxDecoration(
                       color: AppColors.borderMedium,
                       borderRadius: BorderRadius.circular(sliderHeight / 2),
                     ),
@@ -1122,9 +1122,9 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                     },
                     child: Text(
                       isMonitoring ? '滑动停止检测' : '滑动开始检测',
-                      style: TextStyle(
+                style: TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.bold,
                         color: AppColors.textDark,
                       ),
                     ),
@@ -1132,10 +1132,10 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                       isMonitoring ? Icons.stop_rounded : Icons.play_arrow_rounded,
                       size: 24,
                       color: AppColors.textDark,
-                    ),
-                  ),
+                ),
+              ),
           ),
-        ),
+          ),
         
         // 矩形A（在ActionSlider下方，显示具体检测状态信息）
         Positioned(
@@ -1228,9 +1228,9 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
           top: containerATop - containerBHeight,  // B的下边 = A的上边
           left: sliderWidth + spacing,
           right: 0,
-          child: Container(
+      child: Container(
             height: containerBHeight,
-            decoration: BoxDecoration(
+        decoration: BoxDecoration(
               color: Color(0xFF25282B),
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(cardRadius),
@@ -1250,7 +1250,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                       color: _isConnected ? AppColors.primary : AppColors.textLight,
                       shape: BoxShape.circle,
                       boxShadow: _isConnected ? [
-                        BoxShadow(
+            BoxShadow(
                           color: AppColors.primary.withOpacity(0.6),
                           blurRadius: 8,
                           spreadRadius: 2,
@@ -1269,7 +1269,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                   ),
                 ],
               ),
-            ),
+      ),
           ),
         ),
       ],
@@ -1346,19 +1346,19 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                               
                               // 中心内容 - 白色文字
                               Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
                                   mainAxisSize: MainAxisSize.min,
-                                  children: [
+        children: [
                                     Icon(
                                       Icons.videocam,
                                       color: Colors.white,
                                       size: progressSize * 0.3,
                                     ),
                                     SizedBox(height: 2),
-                                    Text(
+          Text(
                                       '${(confidence * 100).toStringAsFixed(0)}%',
-                                      style: TextStyle(
+            style: TextStyle(
                                         fontSize: progressSize * 0.22,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.white,
@@ -1378,23 +1378,23 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                           '视频',
                           style: TextStyle(
                             fontSize: 13,
-                            fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w600,
                             color: Colors.white,
-                          ),
-                        ),
+            ),
+          ),
                         
                         SizedBox(height: 2),
                         
                         // 状态 - 白色，左对齐
-                        Text(
+          Text(
                           isActive ? '监测中' : '未监测',
-                          style: TextStyle(
+            style: TextStyle(
                             fontSize: 10,
                             color: Colors.white.withOpacity(0.9),
                             fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+            ),
+          ),
+        ],
                     );
                   },
                 ),
@@ -1489,19 +1489,19 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                               
                               // 中心内容 - 深色文字
                               Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
                                   mainAxisSize: MainAxisSize.min,
-                                  children: [
+        children: [
                                     Icon(
                                       hasKeywords ? Icons.warning_amber : Icons.text_fields,
                                       color: Color(0xFF2D3748),
                                       size: progressSize * 0.3,
                                     ),
                                     SizedBox(height: 2),
-                                    Text(
+          Text(
                                       '${(confidence * 100).toStringAsFixed(0)}%',
-                                      style: TextStyle(
+            style: TextStyle(
                                         fontSize: progressSize * 0.22,
                                         fontWeight: FontWeight.bold,
                                         color: Color(0xFF2D3748),
@@ -1521,19 +1521,19 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                           '文本',
                           style: TextStyle(
                             fontSize: 13,
-                            fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w600,
                             color: Color(0xFF2D3748),
-                          ),
-                        ),
+            ),
+          ),
                         
                         SizedBox(height: 2),
                         
                         // 状态 - 深色，右对齐
-                        Text(
+          Text(
                           hasKeywords 
                               ? '${_textKeywords.length}个关键词' 
                               : (isActive ? '监测中' : '未监测'),
-                          style: TextStyle(
+            style: TextStyle(
                             fontSize: 10,
                             color: Color(0xFF6B7280),
                             fontWeight: FontWeight.w500,
@@ -1545,9 +1545,9 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                       ],
                     );
                   },
-                ),
-              ),
-            ],
+            ),
+          ),
+        ],
           ),
         ),
       ),
@@ -1583,15 +1583,15 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
               // 左侧：线性进度条（30%宽度）
               Expanded(
                 flex: 30,
-                child: Column(
+      child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
+        children: [
                     // 进度条（文本叠加在上方）
                     Container(
                       height: 36,
                       child: Stack(
-                        children: [
+            children: [
                           // 底层：进度条
                           Positioned.fill(
                             child: ClipRRect(
@@ -1629,10 +1629,10 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
+              Text(
                                     '音频',
-                                    style: TextStyle(
-                                      fontSize: 14,
+                style: TextStyle(
+                  fontSize: 14,
                                       color: Color(0xFF2D3748),
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -1641,7 +1641,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                                     '${(confidence * 100).toStringAsFixed(0)}%',
                                     style: TextStyle(
                                       fontSize: 18,
-                                      fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.bold,
                                       color: Color(0xFF10B981),
                                       shadows: [
                                         Shadow(
@@ -1649,17 +1649,17 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                                           blurRadius: 2,
                                         ),
                                       ],
-                                    ),
-                                  ),
-                                ],
-                              ),
+                ),
+              ),
+            ],
+          ),
                             ),
                           ),
                         ],
                       ),
                     ),
                     
-                    SizedBox(height: 8),
+          SizedBox(height: 8),
                     
                     // 状态文字
                     Center(
@@ -1679,7 +1679,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
               SizedBox(width: 16),
               
               // 中间：音频波形（45%宽度）
-              Expanded(
+          Expanded(
                 flex: 45,
                 child: Container(
                   decoration: BoxDecoration(
@@ -1689,14 +1689,14 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
                     child: isActive
-                        ? CustomPaint(
-                            painter: RealWaveformPainter(
-                              waveformData: _realAudioWaveform,
+                ? CustomPaint(
+                    painter: RealWaveformPainter(
+                      waveformData: _realAudioWaveform,
                               color: Color(0xFF059669), // 深绿色
-                            ),
-                            size: Size.infinite,
-                          )
-                        : Center(
+                    ),
+                    size: Size.infinite,
+                  )
+                : Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -1707,26 +1707,26 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                                 ),
                                 SizedBox(height: 8),
                                 Text(
-                                  '未监测',
-                                  style: TextStyle(
-                                    fontSize: 12,
+                      '未监测',
+                      style: TextStyle(
+                        fontSize: 12,
                                     color: Color(0xFF6B7280),
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
                             ),
-                          ),
+                      ),
+                    ),
                   ),
-                ),
               ),
               
               // 右侧：留白（25%宽度）
               Expanded(
                 flex: 25,
                 child: SizedBox(),
-              ),
-            ],
+          ),
+        ],
           ),
         ),
       ),

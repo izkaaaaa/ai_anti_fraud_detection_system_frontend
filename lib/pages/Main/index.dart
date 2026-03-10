@@ -17,16 +17,22 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
-  int _currentIndex = 2; // 默认显示实时监测页面
+  int _currentIndex = 2;
   final PermissionManager _permissionManager = PermissionManager();
   bool _hasRequestedPermissions = false;
+  final GlobalKey<ConvexAppBarState> _barKey = GlobalKey<ConvexAppBarState>();
 
-  final List<Widget> _pages = [
+  void _switchTab(int index) {
+    setState(() => _currentIndex = index);
+    _barKey.currentState?.animateTo(index);
+  }
+
+  List<Widget> get _pages => [
     CallRecordsPage(),
     TestPage(),
     DetectionPage(),
     FamilyPage(),
-    ProfilePage(),
+    ProfilePage(onSwitchTab: _switchTab),
   ];
 
   @override
@@ -58,6 +64,7 @@ class _MainPageState extends State<MainPage> {
     return Scaffold(
       body: _pages[_currentIndex],
       bottomNavigationBar: ConvexAppBar(
+        key: _barKey,
         style: TabStyle.reactCircle,
         items: [
           TabItem(icon: Icons.history, title: '通话记录'),
@@ -73,13 +80,13 @@ class _MainPageState extends State<MainPage> {
             });
           },
         // 墨绿色系配色
-        backgroundColor: Color(0xFF064E3B), // 墨绿色背景
+        backgroundColor: Color(0xFF1B553E),
         activeColor: Colors.white, // 激活时的图标和文字颜色
         color: Color(0xFF6EE7B7).withOpacity(0.6), // 未激活时的图标和文字颜色（浅绿色半透明）
         gradient: LinearGradient(
           colors: [
-            Color(0xFF059669), // 深绿色
-            Color(0xFF047857), // 墨绿色
+            Color(0xFF1B553E),
+            Color(0xFF164A35),
           ],
             ),
         height: 60,

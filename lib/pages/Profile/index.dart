@@ -1,11 +1,59 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/pages/Settings/PermissionSettings.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/api/auth_api.dart';
 
+// 根据用户信息选择头像资源
+String _getAvatarAsset(Map<String, dynamic>? userInfo) {
+  if (userInfo == null) return 'lib/UIimages/头像/未知性别.png';
+  final role = userInfo['role_type'] ?? '';
+  final gender = userInfo['gender'] ?? '';
+  if (role == '老人') {
+    if (gender == '女') return 'lib/UIimages/头像/老人女.png';
+    if (gender == '男') return 'lib/UIimages/头像/老人男.png';
+  } else if (role == '学生') {
+    if (gender == '女') return 'lib/UIimages/头像/学生女.png';
+    if (gender == '男') return 'lib/UIimages/头像/学生男.png';
+  } else if (role == '青壮年') {
+    if (gender == '女') return 'lib/UIimages/头像/青壮年女.png';
+    if (gender == '男') return 'lib/UIimages/头像/青壮年男.png';
+  }
+  if (gender == '女') return 'lib/UIimages/头像/未知年龄女.png';
+  if (gender == '男') return 'lib/UIimages/头像/未知年龄男.png';
+  return 'lib/UIimages/头像/未知性别.png';
+}
+
+AppBar simpleAppBar(BuildContext context, String title) {
+  return AppBar(
+    backgroundColor: AppColors.cardBackground,
+    elevation: 0,
+    leading: IconButton(
+      icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+      onPressed: () => Navigator.pop(context),
+    ),
+    title: Text(
+      title,
+      style: const TextStyle(
+        color: AppColors.textPrimary,
+        fontSize: 17,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+    bottom: PreferredSize(
+      preferredSize: const Size.fromHeight(1),
+      child: Container(color: AppColors.secondary.withOpacity(0.4), height: 1),
+    ),
+  );
+}
+
+// ========================================================
+// ProfilePage
+// ========================================================
+
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final void Function(int)? onSwitchTab;
+  const ProfilePage({super.key, this.onSwitchTab});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -22,697 +70,319 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadUserInfo() async {
-    print('📱 ProfilePage: 开始加载用户信息');
-    print('📱 ProfilePage: 检查登录状态 - ${AuthService().isLoggedIn}');
-    
-    setState(() {
-      _isLoading = true;
-    });
-
-    // 先检查是否已登录
+    setState(() => _isLoading = true);
     if (!AuthService().isLoggedIn) {
-      print('📱 ProfilePage: 未登录，不获取用户信息');
-      setState(() {
-        _userInfo = null;
-        _isLoading = false;
-      });
+      setState(() { _userInfo = null; _isLoading = false; });
       return;
     }
-
     final userInfo = await AuthService().getCurrentUser();
-    
-    print('📱 ProfilePage: 获取到的用户信息: $userInfo');
-    
-    setState(() {
-      _userInfo = userInfo;
-      _isLoading = false;
-    });
-    
-    print('📱 ProfilePage: 页面状态已更新，_userInfo = $_userInfo');
+    setState(() { _userInfo = userInfo; _isLoading = false; });
   }
 
   Future<void> _handleLogout() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.cardBackground,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        ),
-        title: Text(
-          '确认退出',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Text(
-          '确定要退出登录吗？',
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('确认退出', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+        content: Text('确定要退出登录吗？', style: TextStyle(color: AppColors.textLight)),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('取消', style: TextStyle(color: AppColors.textSecondary)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text('确定', style: TextStyle(color: AppColors.error)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('取消', style: TextStyle(color: AppColors.textLight))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('确定', style: TextStyle(color: AppColors.error))),
         ],
       ),
     );
-
     if (confirm == true) {
       await AuthService().logout();
-      
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/login');
-      }
+      if (mounted) Navigator.of(context).pushReplacementNamed('/login');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+    final isLoggedIn = _userInfo != null && _userInfo!.containsKey('username');
+    final screenHeight = MediaQuery.of(context).size.height;
+    // 上半占40%，下半卡片上移2%（轻微叠压）
+    final headerHeight = screenHeight * 0.40;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.cardBackground,
-        elevation: 0,
-        title: Text(
-          '我的',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: AppTheme.fontSizeLarge,
-            fontWeight: FontWeight.bold,
+      backgroundColor: const Color(0xFFF8FAF9),
+      body: Stack(
+        children: [
+          // 上半部分背景
+          Positioned(
+            top: 0, left: 0, right: 0,
+            height: headerHeight,
+            child: _buildHeader(isLoggedIn),
           ),
-        ),
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(1.5),
-          child: Container(
-            color: AppColors.borderMedium,
-            height: 1.5,
-          ),
-        ),
-      ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : SingleChildScrollView(
-              padding: EdgeInsets.all(AppTheme.paddingMedium),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildUserInfoCard(),
-                  SizedBox(height: AppTheme.paddingMedium),
-                  _buildMenuSection(),
-                  SizedBox(height: AppTheme.paddingLarge),
-                  _buildLogoutButton(),
-                ],
+          // 下半部分卡片（轻微上移2%）
+          Positioned(
+            top: headerHeight - screenHeight * 0.02,
+            left: 0, right: 0, bottom: 0,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFFF8FAF9),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
               ),
+              child: _buildBody(isLoggedIn, screenHeight),
             ),
+          ),
+        ],
+      ),
     );
   }
 
-  // 用户信息卡片
-  Widget _buildUserInfoCard() {
-    // 检查用户信息是否有效（不为 null 且包含必要字段）
-    if (_userInfo == null || _userInfo!.isEmpty || !_userInfo!.containsKey('username')) {
-      return Container(
-        decoration: BoxDecoration(
-          color: AppColors.cardBackground,
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-          border: Border.all(color: AppColors.borderDark, width: 2.0),
-          boxShadow: AppTheme.shadowMedium,
-        ),
-        padding: EdgeInsets.all(AppTheme.paddingLarge),
-        child: Column(
-          children: [
-            Icon(Icons.person_outline, size: 64, color: AppColors.textLight),
-            SizedBox(height: AppTheme.paddingMedium),
-            Text(
-              '未登录',
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeXLarge,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            SizedBox(height: AppTheme.paddingMedium),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pushNamed('/login');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.textWhite,
-              ),
-              child: Text('去登录'),
-            ),
-          ],
-        ),
-      );
-    }
+  Widget _buildHeader(bool isLoggedIn) {
+    final avatarAsset = _getAvatarAsset(_userInfo);
+    final username = _userInfo?['username'] ?? '未登录';
+    final phone = _userInfo?['phone'] ?? '未绑定手机号';
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.primary.withOpacity(0.1),
-            AppColors.cardBackground,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: AppColors.borderDark, width: 2.0),
-        boxShadow: AppTheme.shadowMedium,
-      ),
-      padding: EdgeInsets.all(AppTheme.paddingLarge),
-      child: Column(
-        children: [
-          // 用户名
-          Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.primary, width: 2.0),
-                ),
-                child: Icon(
-                  Icons.person,
-                  size: 32,
-                  color: AppColors.primary,
-                ),
-              ),
-              SizedBox(width: AppTheme.paddingMedium),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // 背景图
+        Image.asset('lib/UIimages/个人中心背景.png', fit: BoxFit.cover),
+        // 轻微暗色遮罩
+        Container(color: Colors.black.withOpacity(0.28)),
+        // 内容
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                // 顶栏
+                Row(
                   children: [
-                    Text(
-                      _userInfo!['username'] ?? '未知用户',
+                    const Text(
+                      '我的',
                       style: TextStyle(
-                        fontSize: AppTheme.fontSizeXLarge,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1,
                       ),
                     ),
-                    if (_userInfo!['name'] != null) ...[
-                      SizedBox(height: 4),
-                      Text(
-                        _userInfo!['name'],
-                        style: TextStyle(
-                          fontSize: AppTheme.fontSizeMedium,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
+                    const Spacer(),
+                    if (isLoggedIn) ..._buildHeaderActions(),
                   ],
                 ),
-              ),
-            ],
-          ),
-          
-          SizedBox(height: AppTheme.paddingMedium),
-          
-          // 用户详细信息
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.background.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              border: Border.all(color: AppColors.borderLight, width: 1.0),
-            ),
-            padding: EdgeInsets.all(AppTheme.paddingMedium),
-            child: Column(
-              children: [
-                _buildInfoRow(
-                  icon: Icons.phone,
-                  label: '手机号',
-                  value: _userInfo!['phone'] ?? '未绑定',
+                const SizedBox(height: 100),
+                // 头像左置 + 右侧文字
+                Row(
+                  children: [
+                    Container(
+                      width: 68,
+                      height: 68,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white.withOpacity(0.85), width: 2),
+                      ),
+                      child: ClipOval(
+                        child: isLoggedIn
+                            ? Image.asset(avatarAsset, fit: BoxFit.cover)
+                            : Icon(Icons.person, size: 36, color: Colors.white),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          username,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          phone,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.75),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                if (_userInfo!['role_type'] != null) ...[
-                  Divider(height: 20, color: AppColors.borderLight),
-                  _buildInfoRow(
-                    icon: Icons.person_outline,
-                    label: '角色类型',
-                    value: _userInfo!['role_type'],
-                  ),
-                ],
-                if (_userInfo!['gender'] != null) ...[
-                  Divider(height: 20, color: AppColors.borderLight),
-                  _buildInfoRow(
-                    icon: Icons.wc,
-                    label: '性别',
-                    value: _userInfo!['gender'],
-                  ),
-                ],
-                if (_userInfo!['profession'] != null) ...[
-                  Divider(height: 20, color: AppColors.borderLight),
-                  _buildInfoRow(
-                    icon: Icons.work_outline,
-                    label: '职业',
-                    value: _userInfo!['profession'],
-                  ),
-                ],
-                if (_userInfo!['marital_status'] != null) ...[
-                  Divider(height: 20, color: AppColors.borderLight),
-                  _buildInfoRow(
-                    icon: Icons.favorite_outline,
-                    label: '婚姻状况',
-                    value: _userInfo!['marital_status'],
-                  ),
-                ],
-                if (_userInfo!['family_id'] != null) ...[
-                  Divider(height: 20, color: AppColors.borderLight),
-                  _buildInfoRow(
-                    icon: Icons.family_restroom,
-                    label: '家庭组',
-                    value: '已加入',
-                    valueColor: AppColors.success,
-                  ),
-                ],
-                Divider(height: 20, color: AppColors.borderLight),
-                _buildInfoRow(
-                  icon: Icons.calendar_today,
-                  label: '注册时间',
-                  value: _formatDate(_userInfo!['created_at']),
-                ),
+                const SizedBox(height: 4),
               ],
             ),
           ),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _buildHeaderActions() {
+    return [
+      IconButton(
+        icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 22),
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const PermissionSettingsPage()),
+        ),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        splashRadius: 20,
+      ),
+      const SizedBox(width: 12),
+      IconButton(
+        icon: const Icon(Icons.edit_outlined, color: Colors.white, size: 22),
+        onPressed: () async {
+          if (_userInfo == null) return;
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => EditProfilePage(
+                userInfo: _userInfo!,
+                onProfileUpdated: _loadUserInfo,
+              ),
+            ),
+          );
+        },
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        splashRadius: 20,
+      ),
+    ];
+  }
+
+  Widget _buildBody(bool isLoggedIn, double screenHeight) {
+    const textSub = Color(0xFF6B7280);
+    const divColor = Color(0xFFE5E7EB);
+    const deepGreen = Color(0xFF095943);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+      child: Column(
+        children: [
+          // 菜单卡片
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 2)),
+              ],
+            ),
+            child: Column(
+              children: [
+                _item(icon: Icons.analytics_outlined, label: '安全报告', iconColor: deepGreen,
+                  onTap: () => Navigator.pushNamed(context, '/security-report')),
+                _line(divColor),
+                _item(
+                  icon: Icons.family_restroom, label: '家庭组', iconColor: deepGreen,
+                  trailing: _userInfo?['family_id'] != null
+                      ? _chip('已加入', deepGreen)
+                      : _chip('未加入', textSub),
+                  onTap: () => widget.onSwitchTab?.call(3),
+                ),
+                _line(divColor),
+                _item(icon: Icons.info_outline, label: '关于我们', iconColor: deepGreen,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutPage()))),
+                _line(divColor),
+                _item(
+                  icon: Icons.phone_outlined, label: '通话记录', iconColor: deepGreen,
+                  onTap: () => widget.onSwitchTab?.call(0),
+                ),
+                _line(divColor),
+                _item(icon: Icons.help_outline, label: '帮助中心', iconColor: deepGreen,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpCenterPage()))),
+              ],
+            ),
+          ),
+          const Spacer(),
+          // 退出登录按钮
+          if (isLoggedIn)
+            GestureDetector(
+              onTap: _handleLogout,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                margin: const EdgeInsets.only(bottom: 42),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(40),
+                  border: Border.all(color: const Color(0xFFFF6B6B).withOpacity(0.6), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(color: const Color(0xFFFF6B6B).withOpacity(0.08), blurRadius: 10),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.logout_rounded, color: AppColors.error, size: 19),
+                    const SizedBox(width: 8),
+                    Text('退出登录', style: TextStyle(color: AppColors.error, fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  // 信息行
-  Widget _buildInfoRow({
+  Widget _item({
     required IconData icon,
     required String label,
-    required String value,
-    Color? valueColor,
-  }) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: AppColors.textSecondary),
-        SizedBox(width: 8),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: AppTheme.fontSizeSmall,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        Spacer(),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: AppTheme.fontSizeSmall,
-            fontWeight: FontWeight.w600,
-            color: valueColor ?? AppColors.textPrimary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // 菜单区域
-  Widget _buildMenuSection() {
-    return Column(
-      children: [
-        // 功能菜单
-        _buildMenuGroup(
-          title: '功能',
-          items: [
-            _buildMenuItem(
-              icon: Icons.edit_outlined,
-              title: '完善资料',
-              subtitle: '更新个人画像信息',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => EditProfilePage(
-                      userInfo: _userInfo!,
-                      onProfileUpdated: _loadUserInfo,
-                    ),
-                  ),
-                );
-              },
-              highlight: true,
-            ),
-            _buildMenuItem(
-              icon: Icons.analytics_outlined,
-              title: '安全报告',
-              subtitle: 'AI 生成个性化防骗建议',
-              onTap: () {
-                Navigator.pushNamed(context, '/security-report');
-              },
-            ),
-            _buildMenuItem(
-              icon: Icons.history,
-              title: '通话记录',
-              subtitle: '查看检测历史',
-              onTap: () {
-                // 切换到通话记录 Tab
-                final mainPageState = context.findAncestorStateOfType<State>();
-                if (mainPageState != null && mainPageState.mounted) {
-                  // 通过修改父组件的 _currentIndex 来切换 Tab
-                  (mainPageState as dynamic).setState(() {
-                    (mainPageState as dynamic)._currentIndex = 1;
-                  });
-                }
-              },
-            ),
-            _buildMenuItem(
-              icon: Icons.family_restroom,
-              title: '家庭组',
-              subtitle: _userInfo?['family_id'] != null ? '已加入' : '未加入',
-              onTap: () {
-                // 切换到家庭组 Tab
-                final mainPageState = context.findAncestorStateOfType<State>();
-                if (mainPageState != null && mainPageState.mounted) {
-                  (mainPageState as dynamic).setState(() {
-                    (mainPageState as dynamic)._currentIndex = 2;
-                  });
-                }
-              },
-            ),
-          ],
-        ),
-        
-        SizedBox(height: AppTheme.paddingMedium),
-        
-        // 设置菜单
-        _buildMenuGroup(
-          title: '设置',
-          items: [
-            _buildMenuItem(
-              icon: Icons.security,
-              title: '权限设置',
-              subtitle: '管理应用权限',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => PermissionSettingsPage()),
-                );
-              },
-            ),
-            _buildMenuItem(
-              icon: Icons.settings,
-              title: '设置',
-              subtitle: '账号与安全',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => SettingsPage()),
-                );
-              },
-            ),
-            _buildMenuItem(
-              icon: Icons.help_outline,
-              title: '帮助中心',
-              subtitle: '常见问题',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => HelpCenterPage()),
-                );
-              },
-            ),
-            _buildMenuItem(
-              icon: Icons.info_outline,
-              title: '关于我们',
-              subtitle: '版本信息',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => AboutPage()),
-                );
-              },
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  // 菜单组
-  Widget _buildMenuGroup({
-    required String title,
-    required List<Widget> items,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            title,
-            style: TextStyle(
-              fontSize: AppTheme.fontSizeSmall,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.cardBackground,
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-            border: Border.all(color: AppColors.borderDark, width: 2.0),
-            boxShadow: AppTheme.shadowSmall,
-          ),
-          child: Column(
-            children: items,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // 菜单项
-  Widget _buildMenuItem({
-    required IconData icon,
-    required String title,
-    required String subtitle,
     required VoidCallback onTap,
-    bool highlight = false,
+    required Color iconColor,
+    Widget? trailing,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        child: Container(
-          decoration: highlight
-              ? BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.secondary.withOpacity(0.1),
-                      Colors.transparent,
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                )
-              : null,
-          padding: EdgeInsets.symmetric(
-            horizontal: AppTheme.paddingMedium,
-            vertical: AppTheme.paddingMedium,
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: highlight
-                      ? AppColors.secondary.withOpacity(0.2)
-                      : AppColors.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                ),
-                child: Icon(
-                  icon,
-                  color: highlight ? AppColors.secondary : AppColors.primary,
-                  size: 20,
-                ),
-              ),
-              SizedBox(width: AppTheme.paddingMedium),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: AppTheme.fontSizeMedium,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        if (highlight) ...[
-                          SizedBox(width: 6),
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.secondary,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'NEW',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: AppTheme.fontSizeSmall,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: AppColors.textLight, size: 20),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // 退出登录按钮
-  Widget _buildLogoutButton() {
-    // 检查用户信息是否有效
-    if (_userInfo == null || _userInfo!.isEmpty || !_userInfo!.containsKey('username')) {
-      return SizedBox.shrink();
-    }
-
-    return Container(
-      height: 50,
-      decoration: BoxDecoration(
-        color: AppColors.error,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        border: Border.all(color: AppColors.borderDark, width: 2.0),
-        boxShadow: AppTheme.shadowMedium,
-      ),
-      child: ElevatedButton(
-        onPressed: _handleLogout,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          foregroundColor: AppColors.textWhite,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-          ),
-        ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.logout, size: 20),
-            SizedBox(width: 8),
-            Text(
-              '退出登录',
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeLarge,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            Icon(icon, color: iconColor, size: 22),
+            const SizedBox(width: 14),
+            Text(label, style: const TextStyle(color: Color(0xFF1A1A2E), fontSize: 15, fontWeight: FontWeight.w500)),
+            const Spacer(),
+            if (trailing != null) ...[trailing, const SizedBox(width: 6)],
+            const Icon(Icons.chevron_right, color: Color(0xFFD1D5DB), size: 18),
           ],
         ),
       ),
     );
   }
 
-  // 格式化日期
-  String _formatDate(dynamic date) {
-    if (date == null) return '未知';
-    try {
-      final dateTime = DateTime.parse(date.toString());
-      return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}';
-    } catch (e) {
-      return '未知';
-    }
-  }
-}
+  Widget _line(Color color) => Divider(height: 1, indent: 66, color: color);
 
-// ==================== 设置页面 ====================
-class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.cardBackground,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          '设置',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: AppTheme.fontSizeLarge,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(1.5),
-          child: Container(
-            color: AppColors.borderMedium,
-            height: 1.5,
-          ),
-        ),
+  Widget _chip(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.35), width: 1),
       ),
-      body: Center(
-        child: Padding(
-          padding: EdgeInsets.all(AppTheme.paddingLarge),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.settings, size: 80, color: AppColors.textSecondary),
-              SizedBox(height: AppTheme.paddingLarge),
-              Text(
-                '设置页面',
-                style: TextStyle(
-                  fontSize: AppTheme.fontSizeXLarge,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              SizedBox(height: AppTheme.paddingMedium),
-              Text(
-                '功能开发中...\n\n将包含：\n• 账号安全\n• 通知设置\n• 隐私设置\n• 清除缓存',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: AppTheme.fontSizeMedium,
-                  color: AppColors.textSecondary,
-                  height: 1.5,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      child: Text(text, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
     );
   }
 }
 
-// ==================== 帮助中心页面 ====================
+// ========================================================
+// HelpCenterPage
+// ========================================================
+
 class HelpCenterPage extends StatelessWidget {
   const HelpCenterPage({super.key});
 
@@ -720,54 +390,21 @@ class HelpCenterPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.cardBackground,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          '帮助中心',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: AppTheme.fontSizeLarge,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(1.5),
-          child: Container(
-            color: AppColors.borderMedium,
-            height: 1.5,
-          ),
-        ),
-      ),
+      appBar: simpleAppBar(context, '帮助中心'),
       body: Center(
         child: Padding(
-          padding: EdgeInsets.all(AppTheme.paddingLarge),
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.help_outline, size: 80, color: AppColors.textSecondary),
-              SizedBox(height: AppTheme.paddingLarge),
-              Text(
-                '帮助中心',
-                style: TextStyle(
-                  fontSize: AppTheme.fontSizeXLarge,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              SizedBox(height: AppTheme.paddingMedium),
+              Icon(Icons.help_outline, size: 72, color: AppColors.primary),
+              const SizedBox(height: 20),
+              Text('帮助中心', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+              const SizedBox(height: 12),
               Text(
                 '功能开发中...\n\n将包含：\n• 常见问题\n• 使用教程\n• 联系客服\n• 意见反馈',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: AppTheme.fontSizeMedium,
-                  color: AppColors.textSecondary,
-                  height: 1.5,
-                ),
+                style: TextStyle(fontSize: 14, color: AppColors.textLight, height: 1.7),
               ),
             ],
           ),
@@ -777,7 +414,10 @@ class HelpCenterPage extends StatelessWidget {
   }
 }
 
-// ==================== 关于我们页面 ====================
+// ========================================================
+// AboutPage
+// ========================================================
+
 class AboutPage extends StatelessWidget {
   const AboutPage({super.key});
 
@@ -785,178 +425,77 @@ class AboutPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.cardBackground,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          '关于我们',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: AppTheme.fontSizeLarge,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(1.5),
-          child: Container(
-            color: AppColors.borderMedium,
-            height: 1.5,
-          ),
-        ),
-      ),
+      appBar: simpleAppBar(context, '关于我们'),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(AppTheme.paddingLarge),
+        padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            SizedBox(height: AppTheme.paddingLarge),
-            
-            // Logo
+            const SizedBox(height: 16),
             Container(
-              padding: EdgeInsets.all(20),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
+                color: AppColors.secondary.withOpacity(0.3),
                 shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primary, width: 3.0),
+                border: Border.all(color: AppColors.primary, width: 2.5),
               ),
-              child: Icon(
-                Icons.shield,
-                size: 64,
-                color: AppColors.primary,
-              ),
+              child: Icon(Icons.shield, size: 60, color: AppColors.primary),
             ),
-            
-            SizedBox(height: AppTheme.paddingLarge),
-            
-            // 应用名称
-            Text(
-              'AI 反诈检测系统',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            
-            SizedBox(height: AppTheme.paddingSmall),
-            
-            // 版本号
-            Text(
-              'Version 1.0.0',
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeMedium,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            
-            SizedBox(height: AppTheme.paddingLarge),
-            
-            // 简介
+            const SizedBox(height: 20),
+            Text('AI 反诈检测系统', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+            const SizedBox(height: 6),
+            Text('Version 1.0.0', style: TextStyle(fontSize: 13, color: AppColors.textLight)),
+            const SizedBox(height: 24),
             Container(
+              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 color: AppColors.cardBackground,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                border: Border.all(color: AppColors.borderDark, width: 2.0),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.secondary, width: 1.5),
               ),
-              padding: EdgeInsets.all(AppTheme.paddingLarge),
               child: Text(
                 '基于人工智能技术的反诈骗检测系统，通过视频、音频、文本多维度分析，实时识别诈骗风险，保护您和家人的财产安全。',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: AppTheme.fontSizeMedium,
-                  color: AppColors.textSecondary,
-                  height: 1.6,
-                ),
+                style: TextStyle(fontSize: 14, color: AppColors.textLight, height: 1.6),
               ),
             ),
-            
-            SizedBox(height: AppTheme.paddingLarge),
-            
-            // 功能特点
-            _buildFeatureItem(
-              icon: Icons.videocam,
-              title: '视频检测',
-              description: 'Deepfake 视频识别',
-            ),
-            SizedBox(height: AppTheme.paddingSmall),
-            _buildFeatureItem(
-              icon: Icons.mic,
-              title: '音频检测',
-              description: 'AI 语音伪造识别',
-            ),
-            SizedBox(height: AppTheme.paddingSmall),
-            _buildFeatureItem(
-              icon: Icons.text_fields,
-              title: '文本检测',
-              description: '诈骗话术智能分析',
-            ),
-            
-            SizedBox(height: AppTheme.paddingLarge),
-            
-            // 版权信息
-            Text(
-              '© 2024 AI Anti-Fraud Detection System\nAll Rights Reserved',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeSmall,
-                color: AppColors.textLight,
-                height: 1.5,
-              ),
-            ),
+            const SizedBox(height: 20),
+            _featureRow(Icons.videocam, '视频检测', 'Deepfake 视频识别'),
+            const SizedBox(height: 10),
+            _featureRow(Icons.mic, '音频检测', 'AI 语音伪造识别'),
+            const SizedBox(height: 10),
+            _featureRow(Icons.text_fields, '文本检测', '诈骗话术智能分析'),
+            const SizedBox(height: 28),
+            Text('© 2024 AI Anti-Fraud Detection System\nAll Rights Reserved',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: AppColors.textLight, height: 1.5)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildFeatureItem({
-    required IconData icon,
-    required String title,
-    required String description,
-  }) {
+  Widget _featureRow(IconData icon, String title, String desc) {
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        border: Border.all(color: AppColors.borderMedium, width: 1.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.secondary.withOpacity(0.6), width: 1),
       ),
-      padding: EdgeInsets.all(AppTheme.paddingMedium),
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-            ),
-            child: Icon(icon, color: AppColors.primary, size: 24),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: AppColors.secondary.withOpacity(0.5), borderRadius: BorderRadius.circular(8)),
+            child: Icon(icon, color: AppColors.primary, size: 20),
           ),
-          SizedBox(width: AppTheme.paddingMedium),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: AppTheme.fontSizeMedium,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  description,
-                  style: TextStyle(
-                    fontSize: AppTheme.fontSizeSmall,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
+          const SizedBox(width: 14),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+              Text(desc, style: TextStyle(color: AppColors.textLight, fontSize: 12)),
+            ],
           ),
         ],
       ),
@@ -964,16 +503,15 @@ class AboutPage extends StatelessWidget {
   }
 }
 
-// ==================== 完善资料页面 ====================
+// ========================================================
+// EditProfilePage
+// ========================================================
+
 class EditProfilePage extends StatefulWidget {
   final Map<String, dynamic> userInfo;
   final VoidCallback onProfileUpdated;
 
-  const EditProfilePage({
-    super.key,
-    required this.userInfo,
-    required this.onProfileUpdated,
-  });
+  const EditProfilePage({super.key, required this.userInfo, required this.onProfileUpdated});
 
   @override
   State<EditProfilePage> createState() => _EditProfilePageState();
@@ -989,7 +527,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
   @override
   void initState() {
     super.initState();
-    // 初始化表单数据
     _selectedRoleType = widget.userInfo['role_type'];
     _selectedGender = widget.userInfo['gender'];
     _professionController.text = widget.userInfo['profession'] ?? '';
@@ -1003,57 +540,36 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Future<void> _handleUpdate() async {
-    setState(() {
-      _isLoading = true;
-    });
-
+    setState(() => _isLoading = true);
     try {
-      // 调用更新 API
       await updateUserProfileAPI(
         roleType: _selectedRoleType,
         gender: _selectedGender,
         profession: _professionController.text.trim().isEmpty ? null : _professionController.text.trim(),
         maritalStatus: _selectedMaritalStatus,
       );
-
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('资料更新成功'),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-            ),
-          ),
-        );
-
-        // 刷新用户信息
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('资料更新成功'),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
         widget.onProfileUpdated();
-        
-        // 延迟返回
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future.delayed(const Duration(milliseconds: 400));
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('更新失败: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-            ),
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('更新失败: $e'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -1061,160 +577,64 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.cardBackground,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          '完善资料',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: AppTheme.fontSizeLarge,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(1.5),
-          child: Container(
-            color: AppColors.borderMedium,
-            height: 1.5,
-          ),
-        ),
-      ),
+      appBar: simpleAppBar(context, '修改个人资料'),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(AppTheme.paddingLarge),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 提示信息
             Container(
-              padding: EdgeInsets.all(AppTheme.paddingMedium),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: AppColors.secondary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                border: Border.all(color: AppColors.secondary.withOpacity(0.3), width: 1.5),
+                color: AppColors.secondary.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 1),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: AppColors.secondary, size: 20),
-                  SizedBox(width: AppTheme.paddingSmall),
-                  Expanded(
-                    child: Text(
-                      '完善资料可获得更精准的 AI 防骗建议',
-                      style: TextStyle(
-                        fontSize: AppTheme.fontSizeSmall,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
+                  Icon(Icons.info_outline, color: AppColors.primary, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('完善资料可获得更精准的 AI 防骗建议', style: TextStyle(fontSize: 13, color: AppColors.textLight))),
                 ],
               ),
             ),
-            
-            SizedBox(height: AppTheme.paddingLarge),
-            
-            // 表单
+            const SizedBox(height: 20),
             Container(
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: AppColors.cardBackground,
-                borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                border: Border.all(color: AppColors.borderDark, width: 2.0),
-                boxShadow: AppTheme.shadowMedium,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.secondary, width: 1.5),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 10, offset: const Offset(0, 3))],
               ),
-              padding: EdgeInsets.all(AppTheme.paddingLarge),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildDropdownField(
-                    label: '角色类型',
-                    value: _selectedRoleType,
-                    hint: '请选择角色类型',
-                    items: ['青壮年', '老人', '学生', '其他'],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedRoleType = value;
-                      });
-                    },
-                  ),
-                  SizedBox(height: AppTheme.paddingMedium),
-                  
-                  _buildDropdownField(
-                    label: '性别',
-                    value: _selectedGender,
-                    hint: '请选择性别',
-                    items: ['男', '女', '未知'],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedGender = value;
-                      });
-                    },
-                  ),
-                  SizedBox(height: AppTheme.paddingMedium),
-                  
-                  _buildTextField(
-                    controller: _professionController,
-                    label: '职业',
-                    hint: '如：工程师、教师、学生等',
-                    icon: Icons.work_outline,
-                  ),
-                  SizedBox(height: AppTheme.paddingMedium),
-                  
-                  _buildDropdownField(
-                    label: '婚姻状况',
-                    value: _selectedMaritalStatus,
-                    hint: '请选择婚姻状况',
-                    items: ['单身', '已婚', '离异'],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedMaritalStatus = value;
-                      });
-                    },
-                  ),
+                  _dropdownField(label: '角色类型', value: _selectedRoleType, items: ['青壮年', '老人', '学生', '其他'], onChanged: (v) => setState(() => _selectedRoleType = v)),
+                  const SizedBox(height: 16),
+                  _dropdownField(label: '性别', value: _selectedGender, items: ['男', '女', '未知'], onChanged: (v) => setState(() => _selectedGender = v)),
+                  const SizedBox(height: 16),
+                  _textField(controller: _professionController, label: '职业', hint: '如：工程师、教师、学生等', icon: Icons.work_outline),
+                  const SizedBox(height: 16),
+                  _dropdownField(label: '婚姻状况', value: _selectedMaritalStatus, items: ['单身', '已婚', '离异'], onChanged: (v) => setState(() => _selectedMaritalStatus = v)),
                 ],
               ),
             ),
-            
-            SizedBox(height: AppTheme.paddingLarge),
-            
-            // 保存按钮
-            Container(
-              height: 50,
-              decoration: BoxDecoration(
-                color: _isLoading ? AppColors.borderLight : AppColors.primary,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                border: Border.all(color: AppColors.borderDark, width: 2.0),
-                boxShadow: _isLoading ? [] : AppTheme.shadowMedium,
-              ),
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _handleUpdate,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  foregroundColor: AppColors.textWhite,
-                  shadowColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                  ),
+            const SizedBox(height: 24),
+            GestureDetector(
+              onTap: _isLoading ? null : _handleUpdate,
+              child: Container(
+                height: 50,
+                decoration: BoxDecoration(
+                  color: _isLoading ? AppColors.secondary.withOpacity(0.3) : AppColors.primary,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: _isLoading ? [] : [BoxShadow(color: AppColors.primary.withOpacity(0.35), blurRadius: 14, spreadRadius: 1)],
                 ),
-                child: _isLoading
-                    ? SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.textWhite),
-                        ),
-                      )
-                    : Text(
-                        '保存',
-                        style: TextStyle(
-                          fontSize: AppTheme.fontSizeLarge,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1,
-                        ),
-                      ),
+                child: Center(
+                  child: _isLoading
+                      ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                      : const Text('保存', style: TextStyle(color: AppColors.textDark, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 1)),
+                ),
               ),
             ),
           ],
@@ -1223,105 +643,54 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required IconData icon,
-  }) {
+  Widget _textField({required TextEditingController controller, required String label, required String hint, required IconData icon}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: AppTheme.fontSizeSmall,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        SizedBox(height: AppTheme.paddingSmall),
+        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+        const SizedBox(height: 6),
         TextFormField(
           controller: controller,
           enabled: !_isLoading,
-          style: TextStyle(fontSize: AppTheme.fontSizeMedium),
+          style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: AppColors.textLight, fontSize: AppTheme.fontSizeSmall),
-            prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
+            hintStyle: TextStyle(color: AppColors.textLight, fontSize: 13),
+            prefixIcon: Icon(icon, color: AppColors.primary, size: 18),
             filled: true,
             fillColor: AppColors.inputBackground,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.borderMedium, width: 1.5),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.borderMedium, width: 1.5),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.borderDark, width: 2.0),
-            ),
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: AppTheme.paddingMedium,
-              vertical: AppTheme.paddingMedium,
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.secondary, width: 1.5)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.secondary, width: 1.5)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.primary, width: 2)),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildDropdownField({
-    required String label,
-    required String? value,
-    String? hint,
-    required List<String> items,
-    required Function(String?) onChanged,
-  }) {
+  Widget _dropdownField({required String label, required String? value, required List<String> items, required Function(String?) onChanged}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: AppTheme.fontSizeSmall,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        SizedBox(height: AppTheme.paddingSmall),
+        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+        const SizedBox(height: 6),
         Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
             color: AppColors.inputBackground,
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-            border: Border.all(color: AppColors.borderMedium, width: 1.5),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.secondary, width: 1.5),
           ),
-          padding: EdgeInsets.symmetric(horizontal: AppTheme.paddingMedium),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: value,
-              hint: Text(
-                hint ?? '请选择$label',
-                style: TextStyle(
-                  color: AppColors.textLight,
-                  fontSize: AppTheme.fontSizeSmall,
-                ),
-              ),
+              hint: Text('请选择$label', style: TextStyle(color: AppColors.textLight, fontSize: 13)),
               isExpanded: true,
               icon: Icon(Icons.arrow_drop_down, color: AppColors.primary),
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeMedium,
-                color: AppColors.textPrimary,
-              ),
+              style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
               dropdownColor: AppColors.cardBackground,
-              items: items.map((String item) {
-                return DropdownMenuItem<String>(
-                  value: item,
-                  child: Text(item),
-                );
-              }).toList(),
+              items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
               onChanged: _isLoading ? null : onChanged,
             ),
           ),
@@ -1329,4 +698,4 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ],
     );
   }
-}
+} 

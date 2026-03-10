@@ -94,6 +94,16 @@ flutter:
     - lib/UIimages/音频检测背景.png
     - lib/UIimages/视频检测背景.png
     - lib/UIimages/文本检测背景.png
+    - lib/UIimages/个人中心背景.png
+    - lib/UIimages/头像/学生女.png
+    - lib/UIimages/头像/学生男.png
+    - lib/UIimages/头像/未知年龄女.png
+    - lib/UIimages/头像/未知年龄男.png
+    - lib/UIimages/头像/未知性别.png
+    - lib/UIimages/头像/老人女.png
+    - lib/UIimages/头像/老人男.png
+    - lib/UIimages/头像/青壮年女.png
+    - lib/UIimages/头像/青壮年男.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
