@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:timeline_tile/timeline_tile.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/DioRequest.dart';
 
@@ -726,7 +727,6 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet> {
                     ),
                     child: Column(
                       children: [
-                        _detailRow('来电号码', widget.record['caller_number']?.toString() ?? '—'),
                         _detailRow('通话时长', '${widget.record['duration'] ?? 0} 秒'),
                         _detailRowWidget('检测结果', Container(
                           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
@@ -790,82 +790,157 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const Text('警报时间轴',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F1923))),
+                  Row(
+                    children: [
+                      const Icon(Icons.timeline_rounded, size: 16, color: Color(0xFF0F1923)),
+                      const SizedBox(width: 6),
+                      const Text('警报时间轴',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F1923))),
+                    ],
+                  ),
                   const SizedBox(height: 10),
                   _isLoadingLogs
                       ? const Center(child: CircularProgressIndicator(color: _kAccent))
                       : _errorMessage != null
                           ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Color(0xFFDC2626))))
                           : _auditEvents.isEmpty
-                              ? Center(child: Text('暂无异常记录', style: TextStyle(color: Colors.grey.shade400)))
+                              ? Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 24),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.check_circle_outline_rounded, size: 18, color: Colors.grey.shade300),
+                                      const SizedBox(width: 8),
+                                      Text('暂无异常记录', style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
+                                    ],
+                                  ),
+                                )
                               : Column(
                                   children: List.generate(_auditEvents.length, (i) {
                                     final e = _auditEvents[i];
                                     final isAlert = e.type == 'alert';
+                                    final isFirst = i == 0;
+                                    final isLast = i == _auditEvents.length - 1;
                                     final dotColor = isAlert ? const Color(0xFFDC2626) : _kAccent;
-                                    return Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Column(
-                                          children: [
-                                            Container(width: 10, height: 10,
-                                                decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)),
-                                            if (i != _auditEvents.length - 1)
-                                              Container(width: 2, height: 52, color: const Color(0xFFE5E7EB)),
-                                          ],
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Container(
-                                            margin: const EdgeInsets.only(bottom: 10),
-                                            padding: const EdgeInsets.all(12),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius: BorderRadius.circular(12),
-                                              border: Border.all(
-                                                color: isAlert ? const Color(0xFFFECACA) : const Color(0xFFE5E7EB)),
-                                            ),
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Row(
-                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                  children: [
-                                                    Expanded(
-                                                      child: Text(e.title,
-                                                          style: TextStyle(
-                                                            fontWeight: FontWeight.w600, fontSize: 13,
-                                                            color: isAlert ? const Color(0xFFDC2626) : const Color(0xFF0F1923))),
-                                                    ),
-                                                    Text(e.timeDisplay,
-                                                        style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
-                                                  ],
-                                                ),
-                                                if (e.description.isNotEmpty) ...[
-                                                  const SizedBox(height: 4),
-                                                  Text(e.description,
-                                                      style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
-                                                ],
-                                                if (e.evidenceUrl != null && e.evidenceUrl!.isNotEmpty)
-                                                  Padding(
-                                                    padding: const EdgeInsets.only(top: 8),
-                                                    child: ClipRRect(
-                                                      borderRadius: BorderRadius.circular(8),
-                                                      child: Image.network(e.evidenceUrl!,
-                                                          width: 100, height: 100, fit: BoxFit.cover,
-                                                          errorBuilder: (c, err, s) => Container(
-                                                              width: 100, height: 100,
-                                                              color: const Color(0xFFF3F4F6),
-                                                              child: const Icon(Icons.broken_image_rounded,
-                                                                  color: Color(0xFF9CA3AF)))),
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
+                                    final lineColor = const Color(0xFFE5E7EB);
+                                    return TimelineTile(
+                                      axis: TimelineAxis.vertical,
+                                      alignment: TimelineAlign.start,
+                                      isFirst: isFirst,
+                                      isLast: isLast,
+                                      indicatorStyle: IndicatorStyle(
+                                        width: 36,
+                                        height: 36,
+                                        padding: const EdgeInsets.symmetric(vertical: 6),
+                                        indicator: Container(
+                                          width: 36,
+                                          height: 36,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: dotColor.withOpacity(0.12),
+                                            border: Border.all(color: dotColor, width: 2),
+                                          ),
+                                          child: Icon(
+                                            isAlert ? Icons.warning_amber_rounded : Icons.radar_rounded,
+                                            size: 17,
+                                            color: dotColor,
                                           ),
                                         ),
-                                      ],
+                                      ),
+                                      beforeLineStyle: LineStyle(color: lineColor, thickness: 2),
+                                      afterLineStyle: LineStyle(color: lineColor, thickness: 2),
+                                      endChild: Padding(
+                                        padding: const EdgeInsets.only(left: 12, bottom: 14, top: 2),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(13),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(14),
+                                            border: Border.all(
+                                              color: isAlert
+                                                  ? const Color(0xFFDC2626).withOpacity(0.25)
+                                                  : _kAccent.withOpacity(0.2),
+                                              width: 1.2,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: dotColor.withOpacity(0.08),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      e.title,
+                                                      style: TextStyle(
+                                                        fontWeight: FontWeight.w700,
+                                                        fontSize: 13,
+                                                        color: isAlert
+                                                            ? const Color(0xFFDC2626)
+                                                            : const Color(0xFF0F1923),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                    decoration: BoxDecoration(
+                                                      color: dotColor.withOpacity(0.08),
+                                                      borderRadius: BorderRadius.circular(20),
+                                                    ),
+                                                    child: Text(
+                                                      e.timeDisplay,
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: dotColor,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              if (e.description.isNotEmpty) ...[
+                                                const SizedBox(height: 6),
+                                                Text(
+                                                  e.description,
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    color: Color(0xFF6B7280),
+                                                    height: 1.5,
+                                                  ),
+                                                ),
+                                              ],
+                                              if (e.evidenceUrl != null && e.evidenceUrl!.isNotEmpty)
+                                                Padding(
+                                                  padding: const EdgeInsets.only(top: 10),
+                                                  child: ClipRRect(
+                                                    borderRadius: BorderRadius.circular(10),
+                                                    child: Image.network(
+                                                      e.evidenceUrl!,
+                                                      width: double.infinity,
+                                                      height: 120,
+                                                      fit: BoxFit.cover,
+                                                      errorBuilder: (c, err, s) => Container(
+                                                        height: 60,
+                                                        color: const Color(0xFFF3F4F6),
+                                                        child: const Center(
+                                                          child: Icon(Icons.broken_image_rounded,
+                                                              color: Color(0xFF9CA3AF)),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
                                     );
                                   }),
                                 ),
