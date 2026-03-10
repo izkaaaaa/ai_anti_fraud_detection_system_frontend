@@ -1,5 +1,6 @@
-import 'package:ai_anti_fraud_detection_system_frontend/utils/DioRequest.dart';
+import 'package:dio/dio.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/contants/index.dart';
 
 /// 安全报告服务
 /// 
@@ -26,10 +27,25 @@ class SecurityReportService {
   Future<Map<String, dynamic>?> generateSecurityReport(int userId) async {
     try {
       print('📊 生成安全报告: 用户ID=$userId');
-      
-      final response = await dioRequest.get(
-        '/api/users/$userId/security-report',
-      );
+
+      // 单独为报告生成接口设置 3 分钟超时（大模型生成较慢）
+      final dio = Dio();
+      dio.options.baseUrl = GlobalConstants.BASE_URL;
+      dio.options.connectTimeout = const Duration(seconds: 30);
+      dio.options.receiveTimeout = const Duration(minutes: 3);
+      dio.options.sendTimeout = const Duration(seconds: 30);
+      dio.options.headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      };
+      final token = AuthService().getToken();
+      if (token.isNotEmpty) {
+        final tokenType = AuthService().getTokenType();
+        dio.options.headers['Authorization'] = '$tokenType $token';
+      }
+
+      final res = await dio.get('/api/users/$userId/security-report');
+      final response = res.data;
 
       if (response != null) {
         print('✅ 安全报告生成成功');

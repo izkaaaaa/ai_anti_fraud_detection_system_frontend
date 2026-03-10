@@ -68,10 +68,10 @@ class _MainPageState extends State<MainPage> {
         ],
         initialActiveIndex: _currentIndex,
         onTap: (int index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+            setState(() {
+              _currentIndex = index;
+            });
+          },
         // 墨绿色系配色
         backgroundColor: Color(0xFF064E3B), // 墨绿色背景
         activeColor: Colors.white, // 激活时的图标和文字颜色
@@ -81,7 +81,7 @@ class _MainPageState extends State<MainPage> {
             Color(0xFF059669), // 深绿色
             Color(0xFF047857), // 墨绿色
           ],
-        ),
+            ),
         height: 60,
         top: -20,
         curveSize: 80,
