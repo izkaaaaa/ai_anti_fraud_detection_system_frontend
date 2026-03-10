@@ -103,8 +103,10 @@ class LocalNotificationService {
       'low_risk_alert',
       '低风险提示',
       description: '检测到轻微风险时的提示通知',
-      importance: Importance.defaultImportance,
+      importance: Importance.high,  // 改为 high 以显示弹窗
       playSound: true,
+      enableVibration: true,
+      showBadge: true,
     );
 
     await _notifications
@@ -273,14 +275,18 @@ class LocalNotificationService {
       'low_risk_alert',
       '低风险提示',
       channelDescription: '检测到轻微风险时的提示通知',
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
+      importance: Importance.high,  // 改为 high 以显示弹窗
+      priority: Priority.high,      // 改为 high 以显示弹窗
       playSound: true,
+      enableVibration: true,        // 添加震动
       color: const Color(0xFFFFD700),
       styleInformation: BigTextStyleInformation(
         message,
         contentTitle: title,
       ),
+      // 添加全屏意图以确保弹窗显示
+      fullScreenIntent: true,
+      category: AndroidNotificationCategory.alarm,
     );
 
     const iosDetails = DarwinNotificationDetails(
