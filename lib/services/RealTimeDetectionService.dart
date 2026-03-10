@@ -840,7 +840,7 @@ class RealTimeDetectionService {
   // ✅ 定时通知功能
   // ============================================================
   
-  /// 启动定时通知（每5秒弹一次）
+  /// 启动定时通知（每10秒弹一次，仅Level 1）
   void _startPeriodicNotifications() {
     _notificationTimer?.cancel();
     _notificationCount = 0;
@@ -848,49 +848,33 @@ class RealTimeDetectionService {
     // 立即发送第一次通知
     _sendPeriodicNotification();
     
-    // 每5秒发送一次通知
-    _notificationTimer = Timer.periodic(Duration(seconds: 5), (timer) {
+    // 每10秒发送一次通知
+    _notificationTimer = Timer.periodic(Duration(seconds: 10), (timer) {
       _sendPeriodicNotification();
     });
     
-    print('🔔 定时通知已启动（每5秒一次）');
+    print('🔔 定时通知已启动（每10秒一次，仅Level 1）');
   }
   
-  /// 发送定时通知
+  /// 发送定时通知（仅在Level 1时发送）
   void _sendPeriodicNotification() {
     _notificationCount++;
     
     print('🔔 [定时通知] 第 $_notificationCount 次，当前防御等级: Level $_currentDefenseLevel');
     
-    // 根据当前防御等级发送不同级别的通知
-    switch (_currentDefenseLevel) {
-      case 1:
-        print('🔔 [定时通知] 发送低风险通知...');
-        _notificationService.showLowRiskAlert(
-          title: '🛡️ 实时监测中',
-          message: '正在保护您的通话安全（第 $_notificationCount 次检测）',
-          payload: 'periodic_level_1',
-        );
-        break;
-      case 2:
-        print('🔔 [定时通知] 发送中风险通知...');
-        _notificationService.showMediumRiskAlert(
-          title: '⚠️ 警惕模式',
-          message: '检测到可疑行为，请提高警惕！（第 $_notificationCount 次检测）',
-          payload: 'periodic_level_2',
-        );
-        break;
-      case 3:
-        print('🔔 [定时通知] 发送高风险通知...');
-        _notificationService.showHighRiskAlert(
-          title: '🚨 危险警告',
-          message: '检测到高风险诈骗行为，强烈建议立即挂断！（第 $_notificationCount 次检测）',
-          payload: 'periodic_level_3',
-        );
-        break;
+    // ✅ 只在 Level 1 时发送定时通知
+    // Level 2 和 Level 3 只在检测到风险时才发送通知
+    if (_currentDefenseLevel == 1) {
+      print('🔔 [定时通知] 发送正在检测通知...');
+      _notificationService.showLowRiskAlert(
+        title: '🛡️ 实时监测中',
+        message: '正在保护您的通话安全（第 $_notificationCount 次检测）',
+        payload: 'periodic_level_1',
+      );
+      print('🔔 [定时通知] 已发送第 $_notificationCount 次定时通知');
+    } else {
+      print('🔔 [定时通知] Level $_currentDefenseLevel - 跳过定时通知（仅在检测到风险时提示）');
     }
-    
-    print('🔔 [定时通知] 已发送第 $_notificationCount 次定时通知（Level $_currentDefenseLevel）');
   }
   
   /// 停止定时通知
