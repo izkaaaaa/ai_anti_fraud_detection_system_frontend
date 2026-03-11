@@ -394,9 +394,9 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                       preferredSize: Size.fromHeight(50),
                       child: TabBar(
                         controller: _tabController,
-                        labelColor: Color(0xFF00F5A0),
-                        unselectedLabelColor: Colors.white.withOpacity(0.6),
-                        indicatorColor: Color(0xFF00F5A0),
+                        labelColor: Color(0xFF2D4A3E),
+                        unselectedLabelColor: Color(0xFF2D4A3E).withOpacity(0.45),
+                        indicatorColor: Color(0xFF58A183),
                         indicatorWeight: 3,
                         labelStyle: TextStyle(
                           fontSize: AppTheme.fontSizeMedium,
@@ -471,23 +471,23 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 80, color: Colors.white.withOpacity(0.7)),
+            const Icon(Icons.error_outline, size: 80, color: Color(0xFF58A183)),
             SizedBox(height: AppTheme.paddingLarge),
             Text(
               _errorMessage!,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeLarge,
-                color: Colors.white,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Color(0xFF0F1923),
               ),
             ),
             SizedBox(height: AppTheme.paddingLarge),
             ElevatedButton.icon(
               onPressed: _loadData,
-              icon: Icon(Icons.refresh),
-              label: Text('重试'),
+              icon: const Icon(Icons.refresh),
+              label: const Text('重试'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white.withOpacity(0.2),
+                backgroundColor: const Color(0xFF58A183),
                 foregroundColor: Colors.white,
                 padding: EdgeInsets.symmetric(
                   horizontal: AppTheme.paddingLarge,
@@ -638,17 +638,24 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
   Widget _buildFamilyInfoCard() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-          width: 2,
+          color: const Color(0xFF58A183).withOpacity(0.3),
+          width: 1.5,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
           child: Container(
             padding: EdgeInsets.all(AppTheme.paddingLarge * 1.5),
       child: Column(
@@ -659,17 +666,17 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
               Container(
                       padding: EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                        color: Color(0xFF00F5A0).withOpacity(0.2),
+                        color: const Color(0xFF58A183).withOpacity(0.12),
                   shape: BoxShape.circle,
                         border: Border.all(
-                          color: Color(0xFF00F5A0).withOpacity(0.5),
+                          color: const Color(0xFF58A183).withOpacity(0.4),
                           width: 2,
                         ),
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.family_restroom,
                         size: 36,
-                        color: Color(0xFF00F5A0),
+                        color: Color(0xFF2D4A3E),
                 ),
               ),
                     SizedBox(width: 16),
@@ -679,18 +686,19 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                   children: [
                     Text(
                             '家庭组 ${_userInfo!['family_id']}',
-                      style: TextStyle(
+                      style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.w900,
-                              color: Colors.white,
+                              color: Color(0xFF0F1923),
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                             _isAdmin ? '管理员' : '成员',
-                      style: TextStyle(
-                        fontSize: AppTheme.fontSizeMedium,
-                              color: Colors.white.withOpacity(0.7),
+                      style: const TextStyle(
+                        fontSize: 14,
+                              color: Color(0xFF58A183),
+                              fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -704,22 +712,23 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
           Container(
                   padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: const Color(0xFF58A183).withOpacity(0.08),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.2),
+                      color: const Color(0xFF58A183).withOpacity(0.25),
                       width: 1,
             ),
                   ),
             child: Row(
               children: [
-                      Icon(Icons.vpn_key, size: 20, color: Colors.white.withOpacity(0.7)),
-                      SizedBox(width: 12),
-                Text(
+                      const Icon(Icons.vpn_key, size: 20, color: Color(0xFF58A183)),
+                      const SizedBox(width: 12),
+                const Text(
                         '家庭组ID',
                   style: TextStyle(
-                          fontSize: AppTheme.fontSizeMedium,
-                          color: Colors.white.withOpacity(0.7),
+                          fontSize: 14,
+                          color: Color(0xFF2D4A3E),
+                          fontWeight: FontWeight.w600,
                   ),
                 ),
                 Spacer(),
@@ -756,12 +765,12 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
               icon: Icon(Icons.exit_to_app, size: 20),
               label: Text('退出家庭组', style: TextStyle(fontWeight: FontWeight.w700)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.withOpacity(0.2),
-                foregroundColor: Colors.red[300],
-                padding: EdgeInsets.symmetric(vertical: 14),
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: Colors.red.withOpacity(0.5), width: 1.5),
                 ),
               ),
             ),
