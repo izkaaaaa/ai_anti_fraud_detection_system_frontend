@@ -180,7 +180,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 const SizedBox(height: 100),
                 // 头像左置 + 右侧文字
-                Row(
+                GestureDetector(
+                  onTap: isLoggedIn ? null : () => Navigator.of(context).pushNamed('/login'),
+                  child: Row(
                   children: [
                     Container(
                       width: 68,
@@ -218,6 +220,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ],
                     ),
                   ],
+                  ),
                 ),
                 const SizedBox(height: 4),
               ],

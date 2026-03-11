@@ -90,6 +90,7 @@ flutter:
     - lib/assets/test_video2.mp4
     - lib/assets/test_audio.mp3
     - lib/UIimages/登录页背景.jpg
+    - lib/UIimages/家庭组背景.png
     - lib/UIimages/检测页背景.png
     - lib/UIimages/检测状态-安全.png
     - lib/UIimages/检测状态-可疑.png

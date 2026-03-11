@@ -85,60 +85,68 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.cardBackground,
+        backgroundColor: const Color(0xFFA9BCBD),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          borderRadius: BorderRadius.circular(20),
         ),
-        title: Text(
+        titlePadding: const EdgeInsets.fromLTRB(24, 28, 24, 8),
+        contentPadding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        title: const Text(
           '创建家庭组',
           style: TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.bold,
+            color: Color(0xFF0F1923),
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
           ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '输入家庭组名称',
+            const Text(
+              '家庭组名称',
               style: TextStyle(
-                fontSize: AppTheme.fontSizeSmall,
-                color: AppColors.textSecondary,
+                fontSize: 12,
+                color: Color(0xFF2D4A3E),
+                fontWeight: FontWeight.w600,
               ),
             ),
-            SizedBox(height: AppTheme.paddingSmall),
+            const SizedBox(height: 8),
             TextField(
               controller: nameController,
               autofocus: true,
+              style: const TextStyle(color: Color(0xFF0F1923), fontSize: 15),
               decoration: InputDecoration(
                 hintText: '例如：我的家庭',
-                hintStyle: TextStyle(color: AppColors.textLight),
+                hintStyle: const TextStyle(color: Color(0xFF7A9A9B), fontSize: 14),
                 filled: true,
-                fillColor: AppColors.inputBackground,
+                fillColor: const Color(0xFFBFCFD0),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                  borderSide: BorderSide(color: AppColors.borderMedium),
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                  borderSide: BorderSide(color: AppColors.primary, width: 2.0),
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFF58A183), width: 1.5),
                 ),
               ),
-              style: TextStyle(color: AppColors.textPrimary),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, null),
-            child: Text('取消', style: TextStyle(color: AppColors.textSecondary)),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFF2D4A3E)),
+            child: const Text('取消', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () async {
               if (nameController.text.trim().isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
+                  const SnackBar(
                     content: Text('请输入家庭组名称'),
                     backgroundColor: AppColors.error,
                   ),
@@ -164,7 +172,14 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                 );
               }
             },
-            child: Text('创建', style: TextStyle(color: AppColors.primary)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF58A183),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
+            child: const Text('创建', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -192,67 +207,74 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.cardBackground,
+        backgroundColor: const Color(0xFFA9BCBD),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          borderRadius: BorderRadius.circular(20),
         ),
-        title: Text(
+        titlePadding: const EdgeInsets.fromLTRB(24, 28, 24, 8),
+        contentPadding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        title: const Text(
           '加入家庭组',
           style: TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.bold,
+            color: Color(0xFF0F1923),
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
           ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '输入家庭组ID',
+            const Text(
+              '家庭组ID',
               style: TextStyle(
-                fontSize: AppTheme.fontSizeSmall,
-                color: AppColors.textSecondary,
+                fontSize: 12,
+                color: Color(0xFF2D4A3E),
+                fontWeight: FontWeight.w600,
               ),
             ),
-            SizedBox(height: AppTheme.paddingSmall),
+            const SizedBox(height: 8),
             TextField(
               controller: idController,
               autofocus: true,
               keyboardType: TextInputType.number,
+              style: const TextStyle(color: Color(0xFF0F1923), fontSize: 15),
               decoration: InputDecoration(
                 hintText: '例如：1',
-                hintStyle: TextStyle(color: AppColors.textLight),
+                hintStyle: const TextStyle(color: Color(0xFF7A9A9B), fontSize: 14),
                 filled: true,
-                fillColor: AppColors.inputBackground,
+                fillColor: const Color(0xFFBFCFD0),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                  borderSide: BorderSide(color: AppColors.borderMedium),
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                  borderSide: BorderSide(color: AppColors.primary, width: 2.0),
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFF58A183), width: 1.5),
                 ),
               ),
-              style: TextStyle(color: AppColors.textPrimary),
             ),
-            SizedBox(height: AppTheme.paddingSmall),
+            const SizedBox(height: 10),
             Container(
-              padding: EdgeInsets.all(AppTheme.paddingSmall),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.orange[50],
-                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                border: Border.all(color: Colors.orange[200]!),
+                color: const Color(0xFF58A183).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF58A183).withOpacity(0.4), width: 1),
               ),
-              child: Row(
+              child: const Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.orange[700], size: 16),
+                  Icon(Icons.info_outline, color: Color(0xFF2D4A3E), size: 15),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       '申请后需等待管理员审批',
                       style: TextStyle(
-                        fontSize: AppTheme.fontSizeSmall,
-                        color: Colors.orange[900],
+                        fontSize: 12,
+                        color: Color(0xFF2D4A3E),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -265,24 +287,23 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('取消', style: TextStyle(color: AppColors.textSecondary)),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFF2D4A3E)),
+            child: const Text('取消', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () async {
               if (idController.text.trim().isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
+                  const SnackBar(
                     content: Text('请输入家庭组ID'),
                     backgroundColor: AppColors.error,
                   ),
                 );
                 return;
               }
-              
               try {
                 final familyId = int.parse(idController.text.trim());
                 final success = await _familyService.applyToJoin(familyId);
-                
                 if (success) {
                   Navigator.pop(context, true);
                 }
@@ -295,7 +316,14 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                 );
               }
             },
-            child: Text('申请', style: TextStyle(color: AppColors.primary)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF58A183),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
+            child: const Text('申请', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -344,20 +372,20 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
       backgroundColor: Colors.transparent,
       appBar: _userInfo?['family_id'] != null
           ? AppBar(
-              backgroundColor: Colors.transparent,
+              backgroundColor: const Color(0xFFF8FAF9),
               elevation: 0,
-              title: Text(
+              title: const Text(
                 '家庭组',
                 style: TextStyle(
-                  color: Colors.white,
-                  fontSize: AppTheme.fontSizeLarge,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
+                  color: Color(0xFF0F1923),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1,
                 ),
               ),
               actions: [
                 IconButton(
-                  icon: Icon(Icons.refresh, color: Colors.white),
+                  icon: const Icon(Icons.refresh, color: Color(0xFF0F1923)),
                   onPressed: _loadData,
                 ),
               ],
@@ -385,43 +413,39 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
           : AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
-              title: Text(
+              title: const Text(
                 '家庭组',
                 style: TextStyle(
-                  color: Colors.white,
-                  fontSize: AppTheme.fontSizeLarge,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
+                  color: Color(0xFF0F1923),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1,
                 ),
               ),
               actions: [
                 IconButton(
-                  icon: Icon(Icons.refresh, color: Colors.white),
+                  icon: const Icon(Icons.refresh, color: Color(0xFF0F1923)),
                   onPressed: _loadData,
                 ),
               ],
             ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF1A237E),
-              Color(0xFF283593),
-              Color(0xFF3949AB),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: _isLoading
-              ? Center(child: CircularProgressIndicator(color: Colors.white))
-              : _errorMessage != null
-                  ? _buildErrorView()
-                  : _userInfo?['family_id'] == null
-                      ? _buildNoFamilyView()
-                      : _isAdmin
-                          ? TabBarView(
+      body: _isLoading
+          ? Container(
+              color: const Color(0xFFF8FAF9),
+              child: const Center(child: CircularProgressIndicator(color: Color(0xFF58A183))),
+            )
+          : _errorMessage != null
+              ? Container(
+                  color: const Color(0xFFF8FAF9),
+                  child: SafeArea(child: _buildErrorView()),
+                )
+              : _userInfo?['family_id'] == null
+                  ? _buildNoFamilyView()
+                  : Container(
+                      color: const Color(0xFFF8FAF9),
+                      child: SafeArea(
+                        child: _isAdmin
+                            ? TabBarView(
                               controller: _tabController,
                               children: [
                                 ApplicationsTab(
@@ -435,8 +459,8 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                               ],
                             )
                           : _buildMemberView(), // 普通成员也显示成员列表
-        ),
-      ),
+                      ),
+                    ),
     );
   }
 
@@ -478,132 +502,116 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
   }
 
   Widget _buildNoFamilyView() {
-    return Center(
-      child: SingleChildScrollView(
-        padding: EdgeInsets.all(AppTheme.paddingLarge),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: EdgeInsets.all(40),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withOpacity(0.3), width: 3),
-              ),
-              child: Icon(
-                Icons.family_restroom,
-                size: 80,
-                color: Colors.white,
-              ),
-            ),
-            SizedBox(height: AppTheme.paddingXLarge),
-            Text(
-              '还没有加入家庭组',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-              ),
-            ),
-            SizedBox(height: AppTheme.paddingMedium),
-            Text(
-              '创建或加入家庭组\n与家人共享防诈骗保护',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeMedium,
-                color: Colors.white.withOpacity(0.8),
-                height: 1.5,
-              ),
-            ),
-            SizedBox(height: AppTheme.paddingXLarge),
-            
-            // 创建家庭组按钮
-            Container(
-              width: double.infinity,
-              height: 64,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(32),
-                gradient: LinearGradient(
-                  colors: [Color(0xFF00F5A0), Color(0xFF00D9F5)],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Color(0xFF00F5A0).withOpacity(0.4),
-                    blurRadius: 20,
-                    spreadRadius: 0,
-                    offset: Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: _createFamily,
-                  borderRadius: BorderRadius.circular(32),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 24),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.add_circle_outline, size: 28, color: Colors.white),
-                        SizedBox(width: 12),
-                        Text(
-                          '创建家庭组',
-                  style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            
-            SizedBox(height: AppTheme.paddingMedium),
-            
-            // 加入家庭组按钮
-            Container(
-              width: double.infinity,
-              height: 64,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(32),
-                border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: _joinFamily,
-                  borderRadius: BorderRadius.circular(32),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 24),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.group_add, size: 28, color: Colors.white),
-                        SizedBox(width: 12),
-                        Text(
-                          '加入家庭组',
-                style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+    final screenHeight = MediaQuery.of(context).size.height;
+    return Stack(
+      children: [
+        // 背景图铺满
+        Positioned.fill(
+          child: Image.asset(
+            'lib/UIimages/家庭组背景.png',
+            fit: BoxFit.cover,
+          ),
         ),
-      ),
+
+        // 内容区域：限定在画面上 35%（上移15%）
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: screenHeight * 0.35,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(28, 0, 28, 24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 主标题
+                const Text(
+                  '家庭守护',
+                  style: TextStyle(
+                    fontSize: 38,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF0F1923),
+                    letterSpacing: 3,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  '创建或加入家庭组，与家人共享防诈骗保护',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF2D4A3E),
+                    height: 1.6,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // 两个按钮并列
+                Row(
+                  children: [
+                    // 创建家庭组按钮（#58A183）
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _createFamily,
+                        child: Container(
+                          height: 50,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF58A183),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFF095943),
+                              width: 1.0,
+                            ),
+                          ),
+                          child: const Text(
+                            '创建家庭组',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // 加入家庭组按钮（#d2e4d6）
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _joinFamily,
+                        child: Container(
+                          height: 50,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD2E4D6),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFF095943),
+                              width: 1.0,
+                            ),
+                          ),
+                          child: const Text(
+                            '加入家庭组',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1C3A2F),
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -771,29 +779,43 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.cardBackground,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        ),
-        title: Text(
+        backgroundColor: const Color(0xFFA9BCBD),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        titlePadding: const EdgeInsets.fromLTRB(24, 28, 24, 8),
+        contentPadding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        title: const Text(
           '退出家庭组',
           style: TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.bold,
+            color: Color(0xFF0F1923),
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
           ),
         ),
-        content: Text(
-          '确定要退出当前家庭组吗？退出后将无法查看家庭成员的通话记录。',
-          style: TextStyle(color: AppColors.textSecondary),
+        content: const Text(
+          '退出后将无法查看家庭成员的通话记录。',
+          style: TextStyle(
+            color: Color(0xFF2D4A3E),
+            fontSize: 14,
+            height: 1.5,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('取消', style: TextStyle(color: AppColors.textSecondary)),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFF2D4A3E)),
+            child: const Text('取消', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('退出', style: TextStyle(color: AppColors.error)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
+            child: const Text('退出', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -913,7 +935,7 @@ class _ApplicationsTabState extends State<ApplicationsTab> with AutomaticKeepAli
     super.build(context);
 
     if (_isLoading) {
-      return Center(child: CircularProgressIndicator(color: Colors.white));
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF58A183)));
     }
 
     if (_errorMessage != null) {
@@ -921,13 +943,19 @@ class _ApplicationsTabState extends State<ApplicationsTab> with AutomaticKeepAli
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 60, color: Colors.white.withOpacity(0.7)),
-            SizedBox(height: 16),
-            Text(_errorMessage!, style: TextStyle(color: Colors.white)),
-            SizedBox(height: 16),
+            const Icon(Icons.error_outline, size: 48, color: Color(0xFF9CA3AF)),
+            const SizedBox(height: 12),
+            Text(_errorMessage!, style: const TextStyle(color: Color(0xFF6B7280))),
+            const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loadApplications,
-              child: Text('重试'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF58A183),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('重试'),
             ),
           ],
         ),
@@ -935,18 +963,15 @@ class _ApplicationsTabState extends State<ApplicationsTab> with AutomaticKeepAli
     }
 
     if (_applications.isEmpty) {
-      return Center(
+      return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.inbox, size: 80, color: Colors.white.withOpacity(0.5)),
-            SizedBox(height: 16),
+            Icon(Icons.inbox_rounded, size: 56, color: Color(0xFFCBD5E1)),
+            SizedBox(height: 12),
             Text(
               '暂无待审批申请',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.white.withOpacity(0.7),
-              ),
+              style: TextStyle(fontSize: 15, color: Color(0xFF9CA3AF)),
             ),
           ],
         ),
@@ -955,95 +980,90 @@ class _ApplicationsTabState extends State<ApplicationsTab> with AutomaticKeepAli
 
     return RefreshIndicator(
       onRefresh: _loadApplications,
-      color: Color(0xFF00F5A0),
+      color: const Color(0xFF58A183),
       child: ListView.builder(
-        padding: EdgeInsets.all(AppTheme.paddingMedium),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         itemCount: _applications.length,
         itemBuilder: (context, index) {
           final app = _applications[index];
           return Container(
-            margin: EdgeInsets.only(bottom: 12),
-            padding: EdgeInsets.all(16),
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.2),
-                width: 1,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(Icons.person, color: Colors.white, size: 20),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            app['phone'] ?? '未知用户',
-                            style: TextStyle(
-                              fontSize: AppTheme.fontSizeMedium,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            app['apply_time'] ?? '',
-                            style: TextStyle(
-                              fontSize: AppTheme.fontSizeSmall,
-                              color: Colors.white.withOpacity(0.6),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.07),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
-                SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => _reviewApplication(app['application_id'], false),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white.withOpacity(0.2),
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // 头像占位
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE8F0EE),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.person_rounded, color: Color(0xFF58A183), size: 22),
+                ),
+                const SizedBox(width: 12),
+                // 用户信息
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        app['phone'] ?? '未知用户',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0F1923),
                         ),
-                        child: Text('拒绝', style: TextStyle(fontWeight: FontWeight.w700)),
                       ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => _reviewApplication(app['application_id'], true),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFF00F5A0),
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text('同意', style: TextStyle(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 2),
+                      Text(
+                        app['apply_time'] ?? '',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
                       ),
+                    ],
+                  ),
+                ),
+                // 操作按钮
+                GestureDetector(
+                  onTap: () => _reviewApplication(app['application_id'], false),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEE2E2),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                  ],
+                    child: const Text('拒绝',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFFDC2626))),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () => _reviewApplication(app['application_id'], true),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F0EE),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text('同意',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF58A183))),
+                  ),
                 ),
               ],
             ),
@@ -1120,75 +1140,28 @@ class _MembersTabState extends State<MembersTab> with AutomaticKeepAliveClientMi
     super.build(context);
 
     if (_isLoading) {
-      return Center(child: CircularProgressIndicator(color: Colors.white));
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF58A183)));
     }
 
     if (_errorMessage != null) {
       return Center(
-        child: Padding(
-          padding: EdgeInsets.all(AppTheme.paddingLarge),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 60, color: Colors.white.withOpacity(0.7)),
-              SizedBox(height: 16),
-              Text(
-                '加载成员列表失败',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: AppTheme.fontSizeLarge,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              SizedBox(height: 8),
-              Text(
-                _errorMessage!,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.7),
-                  fontSize: AppTheme.fontSizeSmall,
-                ),
-              ),
-              SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: _loadMembers,
-                icon: Icon(Icons.refresh),
-                label: Text('重试'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF00F5A0),
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: AppTheme.paddingLarge,
-                    vertical: AppTheme.paddingMedium,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (_members.isEmpty) {
-      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.people_outline, size: 80, color: Colors.white.withOpacity(0.5)),
-            SizedBox(height: 16),
-            Text(
-              '暂无成员',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.white.withOpacity(0.7),
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              '邀请家人加入家庭组',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.white.withOpacity(0.5),
+            const Icon(Icons.error_outline, size: 48, color: Color(0xFF9CA3AF)),
+            const SizedBox(height: 12),
+            Text(_errorMessage!, textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _loadMembers,
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('重试'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF58A183),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
           ],
@@ -1196,98 +1169,111 @@ class _MembersTabState extends State<MembersTab> with AutomaticKeepAliveClientMi
       );
     }
 
+    if (_members.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.people_outline_rounded, size: 56, color: Color(0xFFCBD5E1)),
+            SizedBox(height: 12),
+            Text('暂无成员', style: TextStyle(fontSize: 15, color: Color(0xFF9CA3AF))),
+            SizedBox(height: 4),
+            Text('邀请家人加入家庭组', style: TextStyle(fontSize: 13, color: Color(0xFFCBD5E1))),
+          ],
+        ),
+      );
+    }
+
     return RefreshIndicator(
       onRefresh: _loadMembers,
-      color: Color(0xFF00F5A0),
+      color: const Color(0xFF58A183),
       child: ListView.builder(
-        padding: EdgeInsets.all(AppTheme.paddingMedium),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         itemCount: _members.length,
         itemBuilder: (context, index) {
           final member = _members[index];
           final isAdmin = member['is_admin'] == true;
-          
-          return Container(
-            margin: EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isAdmin ? Color(0xFF00F5A0).withOpacity(0.5) : Colors.white.withOpacity(0.2),
-                width: isAdmin ? 2 : 1,
+          return GestureDetector(
+            onTap: () => _viewMemberRecords(member),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.07),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
               ),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => _viewMemberRecords(member),
-                borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isAdmin ? Color(0xFF00F5A0).withOpacity(0.2) : Colors.white.withOpacity(0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isAdmin ? Icons.admin_panel_settings : Icons.person,
-                          color: isAdmin ? Color(0xFF00F5A0) : Colors.white,
-                          size: 24,
-                        ),
-                      ),
-                      SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: isAdmin ? const Color(0xFFE8F0EE) : const Color(0xFFF3F4F6),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isAdmin ? Icons.shield_rounded : Icons.person_rounded,
+                      color: isAdmin ? const Color(0xFF58A183) : const Color(0xFF9CA3AF),
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            Row(
-                              children: [
-                                Text(
-                                  member['name'] ?? member['phone'] ?? '未知',
-                                  style: TextStyle(
-                                    fontSize: AppTheme.fontSizeMedium,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                if (isAdmin) ...[
-                                  SizedBox(width: 8),
-                                  Container(
-                                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Color(0xFF00F5A0).withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: Color(0xFF00F5A0)),
-                                    ),
-                                    child: Text(
-                                      '管理员',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: Color(0xFF00F5A0),
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                            SizedBox(height: 4),
                             Text(
-                              member['phone'] ?? '',
-                              style: TextStyle(
-                                fontSize: AppTheme.fontSizeSmall,
-                                color: Colors.white.withOpacity(0.6),
+                              member['name'] ?? member['phone'] ?? '未知',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF0F1923),
                               ),
                             ),
+                            if (isAdmin) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE8F0EE),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  '管理员',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Color(0xFF58A183),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
-                      ),
-                      Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.5)),
-                    ],
+                        const SizedBox(height: 2),
+                        Text(
+                          member['phone'] ?? '',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                  const Icon(Icons.chevron_right_rounded, color: Color(0xFFCBD5E1), size: 20),
+                ],
               ),
             ),
           );
@@ -1551,5 +1537,6 @@ class _MemberRecordsPageState extends State<MemberRecordsPage> {
     );
   }
 }
+
 
 
