@@ -31,7 +31,7 @@ class RealTimeDetectionService {
   
   // 音频缓冲区（用于积攒数据后发送）
   final List<int> _audioBuffer = [];
-  static const int AUDIO_BATCH_SIZE = 16000; // 1秒的音频数据（16000Hz * 2bytes）
+  static const int AUDIO_BATCH_SIZE = 32000; // 1秒的音频数据（16000Hz × 2bytes/sample × 1channel）
   Timer? _audioSendTimer;
   
   // 屏幕截图控制
@@ -547,16 +547,29 @@ class RealTimeDetectionService {
           final audioData = Uint8List.fromList(_audioBuffer.sublist(0, sendSize));
           _audioBuffer.removeRange(0, sendSize);
           
-          // Base64 编码
-          final base64Audio = base64Encode(audioData);
+          // ✅ 构建 WAV 文件头（44 字节）
+          final wavHeader = _buildWavHeader(audioData.length, 16000, 1);
           
-          // 发送音频数据
+          // ✅ 拼接 WAV 头 + PCM 数据
+          final BytesBuilder builder = BytesBuilder();
+          builder.add(wavHeader);
+          builder.add(audioData);
+          final wavBytes = builder.toBytes();
+          
+          // Base64 编码
+          final base64Audio = base64Encode(wavBytes);
+          
+          // 发送音频数据（附带格式元数据，方便后端解码）
           _channel!.sink.add(json.encode({
             'type': 'audio',
             'data': base64Audio,
+            'sample_rate': 16000,
+            'channels': 1,
+            'encoding': 'wav',
+            'duration_ms': (audioData.length / 32.0).round(), // 每32字节=1ms
           }));
           
-          print('🎵 发送音频数据: ${audioData.length} bytes');
+          print('🎵 发送音频数据: ${wavBytes.length} bytes (含 WAV 头)');
         } catch (e) {
           print('❌ 发送音频数据失败: $e');
         }
@@ -1127,6 +1140,43 @@ class RealTimeDetectionService {
     }
   }
 }
+
+  /// ✅ 构建 44 字节的标准 WAV 文件头
+  /// 
+  /// 参数：
+  /// - dataLength: PCM 数据长度（字节）
+  /// - sampleRate: 采样率（Hz）
+  /// - channels: 声道数（1=单声道，2=立体声）
+  Uint8List _buildWavHeader(int dataLength, int sampleRate, int channels) {
+    int byteRate = sampleRate * channels * 2; // 16-bit = 2 bytes per sample
+    int blockAlign = channels * 2;
+    
+    var header = ByteData(44);
+    
+    // RIFF 头
+    header.setUint32(0, 0x52494646, Endian.big);      // "RIFF"
+    header.setUint32(4, 36 + dataLength, Endian.little); // 文件大小 - 8
+    
+    // WAVE 头
+    header.setUint32(8, 0x57415645, Endian.big);      // "WAVE"
+    
+    // fmt 子块
+    header.setUint32(12, 0x666D7420, Endian.big);     // "fmt "
+    header.setUint32(16, 16, Endian.little);          // Subchunk1Size (16 for PCM)
+    header.setUint16(20, 1, Endian.little);           // AudioFormat (1 = PCM)
+    header.setUint16(22, channels, Endian.little);    // NumChannels
+    header.setUint32(24, sampleRate, Endian.little);  // SampleRate
+    header.setUint32(28, byteRate, Endian.little);    // ByteRate
+    header.setUint16(32, blockAlign, Endian.little);  // BlockAlign
+    header.setUint16(34, 16, Endian.little);          // BitsPerSample
+    
+    // data 子块
+    header.setUint32(36, 0x64617461, Endian.big);     // "data"
+    header.setUint32(40, dataLength, Endian.little);  // Subchunk2Size
+    
+    return header.buffer.asUint8List();
+  }
+
 
 // ============================================================
 // ✅ 前台服务回调函数（必须是顶层函数）
