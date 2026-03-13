@@ -1056,7 +1056,9 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
   
   // 主卡片（ActionSlider + 两个矩形重新布局）
   Widget _buildMainCardWithToggle() {
-    final isMonitoring = _currentState == DetectionState.monitoring;
+    // ✅ warning 状态也属于「正在检测中」，开关应显示「滑动停止检测」
+    final isMonitoring = _currentState == DetectionState.monitoring ||
+                         _currentState == DetectionState.warning;
     final isProcessing = _currentState == DetectionState.preparing ||
                         _currentState == DetectionState.connecting ||
                         _currentState == DetectionState.stopping;
@@ -1287,7 +1289,8 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
   // 左侧卡片C（视频检测 - 带背景图片和环形进度条）
   Widget _buildLeftCard() {
     final confidence = _videoConfidence;
-    final isActive = _currentState == DetectionState.monitoring;
+    final isActive = _currentState == DetectionState.monitoring ||
+                     _currentState == DetectionState.warning;
     
     return Container(
       decoration: BoxDecoration(
@@ -1423,7 +1426,8 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
   // 右侧卡片D（文本检测 - 带背景图片和环形进度条）
   Widget _buildRightCard() {
     final confidence = _textConfidence;
-    final isActive = _currentState == DetectionState.monitoring;
+    final isActive = _currentState == DetectionState.monitoring ||
+                     _currentState == DetectionState.warning;
     final hasKeywords = _textKeywords.isNotEmpty;
     
     return Container(
@@ -1564,7 +1568,8 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
   
   // 底部卡片E（音频检测 - 带背景图片和线性进度条）
   Widget _buildBottomCard() {
-    final isActive = _currentState == DetectionState.monitoring;
+    final isActive = _currentState == DetectionState.monitoring ||
+                     _currentState == DetectionState.warning;
     final confidence = _audioConfidence;
     
     return Container(
@@ -2612,7 +2617,9 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
   
   // 控制按钮
   Widget _buildControlButtons() {
-    final isMonitoring = _currentState == DetectionState.monitoring;
+    // ✅ warning 状态也属于「正在检测中」，按钮应显示「停止监测」
+    final isMonitoring = _currentState == DetectionState.monitoring ||
+                         _currentState == DetectionState.warning;
     final isProcessing = _currentState == DetectionState.preparing ||
                         _currentState == DetectionState.connecting ||
                         _currentState == DetectionState.stopping;
