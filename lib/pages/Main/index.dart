@@ -62,7 +62,12 @@ class _MainPageState extends State<MainPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _pages[_currentIndex],
+      // ✅ 使用 IndexedStack 保持所有页面存活，切换 tab 时不销毁 Widget
+      // 这样 DetectionPage 切换到其他 tab 时不会被 dispose，检测服务不会中断
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _pages,
+      ),
       bottomNavigationBar: ConvexAppBar(
         key: _barKey,
         style: TabStyle.reactCircle,

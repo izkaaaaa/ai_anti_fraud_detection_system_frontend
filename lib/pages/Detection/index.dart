@@ -122,8 +122,10 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
   void dispose() {
     _pulseController.dispose();
     _waveController.dispose();
-    _detectionService.dispose();
-    // ✅ 移除前台服务监听
+    // ✅ 不在 dispose 里停止检测服务：
+    // 使用 IndexedStack 后 dispose 基本不会被调用（除非整个 MainPage 被销毁）
+    // 即使被调用，检测服务应由用户主动滑动开关来停止，不应随页面生命周期自动停止
+    // _detectionService.dispose() 已移除
     FlutterForegroundTask.removeTaskDataCallback(_onReceiveTaskData);
     super.dispose();
   }

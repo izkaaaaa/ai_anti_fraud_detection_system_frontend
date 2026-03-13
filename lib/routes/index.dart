@@ -16,7 +16,8 @@ Widget getRootWidget(){
   
   return MaterialApp(
     // 命名路由
-    initialRoute: "/audio-test",  // 临时改为测试页面
+    initialRoute: isLoggedIn ? "/" : "/login",  // 已登录显示主页，未登录显示登录页
+ //   initialRoute: "/audio-test",  // 临时改为测试页面
     routes: getRootRoutes(),
   );
 }
