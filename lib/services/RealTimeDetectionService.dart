@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,6 +15,7 @@ import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.da
 import 'package:ai_anti_fraud_detection_system_frontend/services/baidu_speech_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/foreground_task_handler.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/local_notification_service.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/services/AudioRecordingService.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/DioRequest.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/index.dart';
 
@@ -23,13 +25,14 @@ class RealTimeDetectionService {
   WebSocketChannel? _channel;
   StreamSubscription? _channelSubscription;
   
-  // 音频录制器
-  final FlutterSoundRecorder _audioRecorder = FlutterSoundRecorder();
-  bool _isRecording = false;
-  bool _isRecorderInitialized = false;
-  Timer? _audioStreamTimer;
-  String? _currentAudioPath;
-  StreamSubscription? _audioLevelSubscription;
+  // ✅ 新的音频录制服务（使用 VOICE_COMMUNICATION 源）
+  final AudioRecordingServiceDart _audioRecordingService = AudioRecordingServiceDart();
+  bool _isAudioRecordingActive = false;
+  
+  // 音频缓冲区（用于积攒数据后发送）
+  final List<int> _audioBuffer = [];
+  static const int AUDIO_BATCH_SIZE = 16000; // 1秒的音频数据（16000Hz * 2bytes）
+  Timer? _audioSendTimer;
   
   // 屏幕截图控制
   static const platform = MethodChannel('com.example.ai_anti_fraud_detection_system_frontend/screen_capture');
@@ -49,6 +52,7 @@ class RealTimeDetectionService {
   
   // 连接状态
   bool _isConnected = false;
+  bool _isDisconnecting = false;  // ✅ 主动断开标志：主动断开时不触发 onDisconnected
   String? _callRecordId;
   
   // ✅ 三级防御机制
@@ -238,14 +242,21 @@ class RealTimeDetectionService {
         },
         onError: (error) {
           print('❌ WebSocket 错误: $error');
-          onError?.call('连接错误: $error');
           _isConnected = false;
-          onDisconnected?.call();
+          if (!_isDisconnecting) {
+            // ✅ 只在非主动断开时（如网络抖动、前后台切换）才通知外部
+            onError?.call('连接错误: $error');
+            onDisconnected?.call();
+          }
         },
         onDone: () {
           print('🔌 WebSocket 连接关闭');
           _isConnected = false;
-          onDisconnected?.call();
+          if (!_isDisconnecting) {
+            // ✅ 只在非主动断开时才触发 onDisconnected
+            // 前后台切换导致的断开不应改变 UI 检测状态
+            onDisconnected?.call();
+          }
         },
       );
       
@@ -265,13 +276,18 @@ class RealTimeDetectionService {
     }
   }
   
-  /// 断开 WebSocket
+  /// 断开 WebSocket（主动断开，不触发 onDisconnected）
   Future<void> _disconnectWebSocket() async {
+    _isDisconnecting = true;  // ✅ 标记为主动断开
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+    // 先取消订阅，再关闭 sink，避免 onDone 触发 onDisconnected
     await _channelSubscription?.cancel();
+    _channelSubscription = null;
     await _channel?.sink.close();
     _channel = null;
-    _channelSubscription = null;
     _isConnected = false;
+    _isDisconnecting = false;  // ✅ 重置标志
   }
   
   /// 处理 WebSocket 消息（按照接口文档格式）
@@ -427,9 +443,11 @@ class RealTimeDetectionService {
     });
   }
   
-  /// 开始录音（带实时音量监测）
+  /// 开始音频录制（使用 VOICE_COMMUNICATION 源）
   Future<bool> _startAudioRecording() async {
     try {
+      print('🎤 启动音频录制（VOICE_COMMUNICATION 源）...');
+      
       // 检查权限
       final status = await Permission.microphone.status;
       if (!status.isGranted) {
@@ -437,182 +455,149 @@ class RealTimeDetectionService {
         return false;
       }
       
-      // 初始化录音器
-      if (!_isRecorderInitialized) {
-        await _audioRecorder.openRecorder();
-        _isRecorderInitialized = true;
+      // 设置音频数据回调
+      _audioRecordingService.onAudioDataReceived = (audioBytes) {
+        _onAudioDataReceived(audioBytes);
+      };
+      
+      // 设置状态变化回调
+      _audioRecordingService.onStatusChanged = (status) {
+        print('📊 音频状态: $status');
+        onStatusChange?.call('音频: $status');
+      };
+      
+      // 设置错误回调
+      _audioRecordingService.onError = (error) {
+        print('❌ 音频错误: $error');
+        onError?.call('音频错误: $error');
+      };
+      
+      // 启动音频录制
+      final started = await _audioRecordingService.startRecording();
+      if (!started) {
+        print('❌ 启动音频录制失败');
+        return false;
       }
       
-      // 获取临时目录
-      final tempDir = await getTemporaryDirectory();
-      _currentAudioPath = '${tempDir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.wav';
+      _isAudioRecordingActive = true;
       
-      // 开始录音（启用音量监测）
-      await _audioRecorder.startRecorder(
-        toFile: _currentAudioPath,
-        codec: Codec.pcm16WAV,
-        sampleRate: 16000,
-      );
+      // 获取当前使用的音频源
+      final audioSource = await _audioRecordingService.getCurrentAudioSource();
+      print('✅ 音频录制已启动，使用音频源: $audioSource');
       
-      _isRecording = true;
+      // 启动音频发送定时器
+      _startAudioSendTimer();
       
-      // 设置订阅间隔（必须在 startRecorder 之后调用）
-      await _audioRecorder.setSubscriptionDuration(Duration(milliseconds: 100));
-      
-      // 监听音频音量（用于波形显示）
-      await _startAudioLevelMonitoring();
-      
-      // 定期发送音频数据
-      _startAudioStreaming();
-      
-      print('🎤 录音已启动 (WAV format, 16kHz)');
       return true;
     } catch (e) {
-      print('❌ 开始录音失败: $e');
+      print('❌ 启动音频录制失败: $e');
       return false;
     }
   }
   
-  /// 监听音频音量（用于实时波形）
-  Future<void> _startAudioLevelMonitoring() async {
-    _audioLevelSubscription?.cancel();
+  /// 处理接收到的音频数据
+  void _onAudioDataReceived(List<int> audioBytes) {
+    // 将音频数据添加到缓冲区
+    _audioBuffer.addAll(audioBytes);
     
-    // ✅ 重新设置订阅间隔（关键！）
-    try {
-      await _audioRecorder.setSubscriptionDuration(Duration(milliseconds: 100));
-    } catch (e) {
-      print('⚠️ 设置订阅间隔失败: $e');
-    }
-    
-    _audioLevelSubscription = _audioRecorder.onProgress!.listen((event) {
-      if (event.decibels != null) {
-        print('🎤 分贝值: ${event.decibels}');
-        
-        // ✅ 修复：flutter_sound 返回的分贝值范围是 0-120
-        // 将其归一化到 0-1 范围
-        final normalizedLevel = (event.decibels!.clamp(0.0, 120.0)) / 120.0;
-        
-        // 更新波形数据（移除第一个，添加新的到最后）
-        _audioWaveformData.removeAt(0);
-        _audioWaveformData.add(normalizedLevel);
-        
-        // 通知 UI 更新
-        onAudioWaveformUpdate?.call(List.from(_audioWaveformData));
-      }
-    });
-  }
-  
-  /// 停止录音
-  Future<void> _stopAudioRecording() async {
-    try {
-      // ✅ 先取消定时器，防止在停止过程中重启录音
-      _audioStreamTimer?.cancel();
-      _audioStreamTimer = null;
-      
-      _audioLevelSubscription?.cancel();
-      _audioLevelSubscription = null;
-      
-      if (_isRecording) {
-        try {
-          // ✅ 增加容错：如果录音时间太短，stopRecorder 可能失败
-          await _audioRecorder.stopRecorder();
-          print('✅ 录音器正常停止');
-        } catch (stopError) {
-          print('⚠️ stopRecorder 失败 (可能录音时间太短): $stopError');
-          // 即使停止失败，也继续清理流程
+    // 更新波形数据（用于 UI 显示）
+    if (audioBytes.isNotEmpty) {
+      // 计算音量（简单的 RMS 计算）
+      double sum = 0;
+      for (int i = 0; i < audioBytes.length; i += 2) {
+        if (i + 1 < audioBytes.length) {
+          int sample = (audioBytes[i] & 0xFF) | ((audioBytes[i + 1] & 0xFF) << 8);
+          if (sample > 32767) sample -= 65536;
+          sum += sample * sample;
         }
-        _isRecording = false;
       }
+      double rms = sqrt(sum / (audioBytes.length / 2));
+      double normalizedLevel = (rms / 32768).clamp(0.0, 1.0);
       
-      // 关闭录音器
-      if (_isRecorderInitialized) {
-        try {
-          await _audioRecorder.closeRecorder();
-          print('✅ 录音器已关闭');
-        } catch (closeError) {
-          print('⚠️ closeRecorder 失败: $closeError');
-          // 继续清理流程
-        }
-        _isRecorderInitialized = false;
-      }
+      // 计算分贝值（dB）
+      double decibels = 20 * log((rms / 32768) + 0.00001) / log(10); // 使用换底公式计算 log10
+      print('🎤 分贝值: ${decibels.toStringAsFixed(1)} dB, 音量: ${(normalizedLevel * 100).toStringAsFixed(1)}%');
       
-      // 删除临时文件
-      if (_currentAudioPath != null) {
-        try {
-          final file = File(_currentAudioPath!);
-          if (await file.exists()) {
-            await file.delete();
-          }
-        } catch (deleteError) {
-          print('⚠️ 删除临时文件失败: $deleteError');
-        }
-        _currentAudioPath = null;
-      }
-      
-      print('🎤 录音已停止');
-    } catch (e) {
-      print('❌ 停止录音失败: $e');
-      // 确保状态被重置
-      _isRecording = false;
-      _isRecorderInitialized = false;
+      // 更新波形数据
+      _audioWaveformData.removeAt(0);
+      _audioWaveformData.add(normalizedLevel);
+      onAudioWaveformUpdate?.call(List.from(_audioWaveformData));
     }
   }
   
-  /// 开始音频流传输
-  void _startAudioStreaming() {
-    _audioStreamTimer?.cancel();
+  /// 启动音频发送定时器
+  void _startAudioSendTimer() {
+    _audioSendTimer?.cancel();
     
-    // 每3秒发送一次音频数据
-    _audioStreamTimer = Timer.periodic(Duration(seconds: 3), (timer) async {
-      if (!_isRecording || !_isConnected || _channel == null) {
+    // 每 1 秒发送一次音频数据
+    _audioSendTimer = Timer.periodic(Duration(seconds: 1), (timer) async {
+      if (!_isAudioRecordingActive || !_isConnected || _channel == null) {
         timer.cancel();
         return;
       }
       
-      try {
-        // ✅ 增加容错：停止录音可能失败（录音时间太短）
+      // 如果缓冲区有数据，发送
+      if (_audioBuffer.isNotEmpty) {
         try {
-          await _audioRecorder.stopRecorder();
-        } catch (stopError) {
-          print('⚠️ 定时器中 stopRecorder 失败: $stopError');
-          // 如果停止失败，跳过本次发送，继续下一轮
-          return;
+          // 取出缓冲区中的数据（最多 1 秒）
+          final sendSize = _audioBuffer.length > AUDIO_BATCH_SIZE 
+              ? AUDIO_BATCH_SIZE 
+              : _audioBuffer.length;
+          
+          final audioData = Uint8List.fromList(_audioBuffer.sublist(0, sendSize));
+          _audioBuffer.removeRange(0, sendSize);
+          
+          // Base64 编码
+          final base64Audio = base64Encode(audioData);
+          
+          // 发送音频数据
+          _channel!.sink.add(json.encode({
+            'type': 'audio',
+            'data': base64Audio,
+          }));
+          
+          print('🎵 发送音频数据: ${audioData.length} bytes');
+        } catch (e) {
+          print('❌ 发送音频数据失败: $e');
         }
-        
-        if (_currentAudioPath != null) {
-          final file = File(_currentAudioPath!);
-          if (await file.exists()) {
-            final bytes = await file.readAsBytes();
-            final base64Audio = base64Encode(bytes);
+      }
+    });
+  }
+  
+  /// 停止音频录制
+  Future<void> _stopAudioRecording() async {
+    try {
+      // 先取消定时器
+      _audioSendTimer?.cancel();
+      _audioSendTimer = null;
+      
+      if (_isAudioRecordingActive) {
+        // 发送缓冲区中剩余的数据
+        if (_audioBuffer.isNotEmpty) {
+          try {
+            final audioData = Uint8List.fromList(_audioBuffer);
+            _audioBuffer.clear();
             
-            // 发送音频数据
-            _channel!.sink.add(json.encode({
+            final base64Audio = base64Encode(audioData);
+            _channel?.sink.add(json.encode({
               'type': 'audio',
               'data': base64Audio,
             }));
             
-            print('🎵 发送音频数据: ${bytes.length} bytes');
-            
-            // 删除临时文件
-            await file.delete();
+            print('🎵 发送剩余音频数据: ${audioData.length} bytes');
+          } catch (e) {
+            print('⚠️ 发送剩余音频数据失败: $e');
           }
         }
         
-        // 重新开始录音
-        final tempDir = await getTemporaryDirectory();
-        _currentAudioPath = '${tempDir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.wav';
-        await _audioRecorder.startRecorder(
-          toFile: _currentAudioPath,
-          codec: Codec.pcm16WAV,
-          sampleRate: 16000,
-        );
-        
-        // ✅ 重新启动音频音量监听（关键修复！）
-        await _startAudioLevelMonitoring();
-      } catch (e) {
-        print('❌ 发送音频数据失败: $e');
+        // 停止音频录制
+        await _audioRecordingService.stopRecording();
+        _isAudioRecordingActive = false;
+        print('🎤 音频录制已停止');
       }
-    });
+    } catch (e) {
+      print('❌ 停止音频录制失败: $e');
+    }
   }
   
   /// 开始屏幕截图
@@ -888,9 +873,8 @@ class RealTimeDetectionService {
   /// 清理资源
   Future<void> dispose() async {
     _heartbeatTimer?.cancel();
-    _audioStreamTimer?.cancel();
+    _audioSendTimer?.cancel();  // ✅ 清理音频发送定时器
     _videoFrameTimer?.cancel();
-    _audioLevelSubscription?.cancel();
     _notificationTimer?.cancel();  // ✅ 清理定时通知
     await _stopAudioRecording();
     await _stopScreenCapture();  // ✅ 停止屏幕截图
@@ -994,8 +978,8 @@ class RealTimeDetectionService {
   /// 获取连接状态
   bool get isConnected => _isConnected;
   
-  /// 获取录音状态
-  bool get isRecording => _isRecording;
+  /// 获取音频录制状态
+  bool get isRecording => _isAudioRecordingActive;
   
   /// 获取屏幕截图状态
   bool get isScreenCaptureActive => _isScreenCaptureActive;

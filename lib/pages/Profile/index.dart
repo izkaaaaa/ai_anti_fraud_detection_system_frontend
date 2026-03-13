@@ -102,8 +102,8 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
+    return Scaffold(
+      backgroundColor: AppColors.background,
         body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
       );
     }
@@ -121,12 +121,12 @@ class _ProfilePageState extends State<ProfilePage> {
             top: 0, left: 0, right: 0,
             height: headerHeight,
             child: _buildHeader(isLoggedIn),
-          ),
+        ),
           // 下半部分卡片（轻微上移2%）
           Positioned(
             top: headerHeight - screenHeight * 0.02,
             left: 0, right: 0, bottom: 0,
-            child: Container(
+          child: Container(
               decoration: const BoxDecoration(
                 color: Color(0xFFF8FAF9),
                 borderRadius: BorderRadius.only(
@@ -136,9 +136,9 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               child: _buildBody(isLoggedIn, screenHeight),
             ),
-          ),
+              ),
         ],
-      ),
+            ),
     );
   }
 
@@ -158,69 +158,69 @@ class _ProfilePageState extends State<ProfilePage> {
         SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
+        child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          children: [
                 const SizedBox(height: 4),
                 // 顶栏
                 Row(
                   children: [
                     const Text(
                       '我的',
-                      style: TextStyle(
+              style: TextStyle(
                         color: Colors.white,
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1,
-                      ),
-                    ),
+              ),
+            ),
                     const Spacer(),
                     if (isLoggedIn) ..._buildHeaderActions(),
-                  ],
-                ),
+          ],
+        ),
                 const SizedBox(height: 100),
                 // 头像左置 + 右侧文字
                 GestureDetector(
                   onTap: isLoggedIn ? null : () => Navigator.of(context).pushNamed('/login'),
                   child: Row(
-                  children: [
-                    Container(
+            children: [
+              Container(
                       width: 68,
                       height: 68,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
                         border: Border.all(color: Colors.white.withOpacity(0.85), width: 2),
-                      ),
+                ),
                       child: ClipOval(
                         child: isLoggedIn
                             ? Image.asset(avatarAsset, fit: BoxFit.cover)
                             : Icon(Icons.person, size: 36, color: Colors.white),
-                      ),
-                    ),
+                ),
+              ),
                     const SizedBox(width: 14),
                     Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
                           username,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                         const SizedBox(height: 4),
-                        Text(
+                      Text(
                           phone,
-                          style: TextStyle(
+                        style: TextStyle(
                             color: Colors.white.withOpacity(0.75),
                             fontSize: 13,
-                          ),
                         ),
-                      ],
-                    ),
+                      ),
                   ],
-                  ),
+              ),
+            ],
+          ),
                 ),
                 const SizedBox(height: 4),
               ],
@@ -249,21 +249,21 @@ class _ProfilePageState extends State<ProfilePage> {
         onPressed: () async {
           if (_userInfo == null) return;
           await Navigator.push(
-            context,
-            MaterialPageRoute(
+                  context,
+                  MaterialPageRoute(
               builder: (_) => EditProfilePage(
-                userInfo: _userInfo!,
-                onProfileUpdated: _loadUserInfo,
-              ),
-            ),
-          );
-        },
+                      userInfo: _userInfo!,
+                      onProfileUpdated: _loadUserInfo,
+                    ),
+                  ),
+                );
+              },
         padding: EdgeInsets.zero,
         constraints: const BoxConstraints(),
         splashRadius: 20,
       ),
     ];
-  }
+                }
 
   Widget _buildBody(bool isLoggedIn, double screenHeight) {
     const textSub = Color(0xFF6B7280);
@@ -273,17 +273,17 @@ class _ProfilePageState extends State<ProfilePage> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
       child: Column(
-        children: [
+      children: [
           // 菜单卡片
-          Container(
-            decoration: BoxDecoration(
+        Container(
+          decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 2)),
               ],
-            ),
-            child: Column(
+          ),
+          child: Column(
               children: [
                 _item(icon: Icons.analytics_outlined, label: '安全报告', iconColor: deepGreen,
                   onTap: () => Navigator.pushNamed(context, '/security-report')),
@@ -306,8 +306,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 _line(divColor),
                 _item(icon: Icons.help_outline, label: '帮助中心', iconColor: deepGreen,
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpCenterPage()))),
-              ],
-            ),
+                    ],
+                  ),
           ),
           const Spacer(),
           // 退出登录按钮
@@ -319,7 +319,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 margin: const EdgeInsets.only(bottom: 42),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                                color: Colors.white,
                   borderRadius: BorderRadius.circular(40),
                   border: Border.all(color: const Color(0xFFFF6B6B).withOpacity(0.6), width: 1.5),
                   boxShadow: [
@@ -334,9 +334,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     Text('退出登录', style: TextStyle(color: AppColors.error, fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
                   ],
                 ),
-              ),
-            ),
-        ],
+                      ),
+                    ),
+                  ],
       ),
     );
   }
@@ -376,7 +376,7 @@ class _ProfilePageState extends State<ProfilePage> {
         color: color.withOpacity(0.10),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color.withOpacity(0.35), width: 1),
-      ),
+              ),
       child: Text(text, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
     );
   }
@@ -469,7 +469,7 @@ class AboutPage extends StatelessWidget {
             _featureRow(Icons.text_fields, '文本检测', '诈骗话术智能分析'),
             const SizedBox(height: 28),
             Text('© 2024 AI Anti-Fraud Detection System\nAll Rights Reserved',
-                textAlign: TextAlign.center,
+              textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: AppColors.textLight, height: 1.5)),
           ],
         ),
@@ -494,11 +494,11 @@ class AboutPage extends StatelessWidget {
           ),
           const SizedBox(width: 14),
           Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               Text(title, style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
               Text(desc, style: TextStyle(color: AppColors.textLight, fontSize: 12)),
-            ],
+              ],
           ),
         ],
       ),
@@ -554,8 +554,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: const Text('资料更新成功'),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ));
         widget.onProfileUpdated();
@@ -566,8 +566,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('更新失败: $e'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ));
       }
@@ -627,17 +627,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
             GestureDetector(
               onTap: _isLoading ? null : _handleUpdate,
               child: Container(
-                height: 50,
-                decoration: BoxDecoration(
+              height: 50,
+              decoration: BoxDecoration(
                   color: _isLoading ? AppColors.secondary.withOpacity(0.3) : AppColors.primary,
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: _isLoading ? [] : [BoxShadow(color: AppColors.primary.withOpacity(0.35), blurRadius: 14, spreadRadius: 1)],
-                ),
+                  ),
                 child: Center(
-                  child: _isLoading
+                child: _isLoading
                       ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
                       : const Text('保存', style: TextStyle(color: AppColors.textDark, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 1)),
-                ),
+                      ),
               ),
             ),
           ],
@@ -701,4 +701,4 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ],
     );
   }
-} 
+}

@@ -21,7 +21,7 @@ _RiskConfig _riskConfig(String result) {
     case 'suspicious':return const _RiskConfig('可疑',  Icons.warning_amber_rounded,  Color(0xFFD97706));
     case 'fake':      return const _RiskConfig('危险',  Icons.gpp_bad_rounded,        Color(0xFFDC2626));
     default:          return const _RiskConfig('未检测',Icons.help_outline_rounded,   Color(0xFF9CA3AF));
-  }
+}
 }
 
 // ==================== 主页面 ====================
@@ -29,7 +29,7 @@ class CallRecordsPage extends StatefulWidget {
   const CallRecordsPage({super.key});
   @override
   State<CallRecordsPage> createState() => _CallRecordsPageState();
-}
+  }
 
 class _CallRecordsPageState extends State<CallRecordsPage> {
   @override
@@ -53,7 +53,7 @@ class _CallRecordsListState extends State<CallRecordsList>
     with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
-
+  
   bool _isLoading = true;
   List<dynamic> _records = [];
   String? _errorMessage;
@@ -61,7 +61,7 @@ class _CallRecordsListState extends State<CallRecordsList>
   int _totalPages = 1;
   String? _resultFilter;   // null / 'safe' / 'suspicious' / 'fake'
   DateTime? _dateFilter;   // 选定日期
-
+  
   final ScrollController _scrollController = ScrollController();
 
   static const _riskFilters = [
@@ -77,13 +77,13 @@ class _CallRecordsListState extends State<CallRecordsList>
     _loadRecords();
     _scrollController.addListener(_onScroll);
   }
-
+  
   @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
   }
-
+  
   void _onScroll() {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
@@ -95,7 +95,7 @@ class _CallRecordsListState extends State<CallRecordsList>
     if (refresh) setState(() { _currentPage = 1; _records = []; });
     setState(() { _isLoading = true; _errorMessage = null; });
     try {
-      final endpoint = widget.isFamily
+      final endpoint = widget.isFamily 
           ? '/api/call-records/family-records'
           : '/api/call-records/my-records';
       final params = <String, dynamic>{
@@ -119,12 +119,12 @@ class _CallRecordsListState extends State<CallRecordsList>
       setState(() { _errorMessage = '加载失败，请稍后重试'; _isLoading = false; });
     }
   }
-
+  
   Future<void> _loadMore() async {
     setState(() => _currentPage++);
     await _loadRecords();
   }
-
+  
   Future<void> _deleteRecord(int callId) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -150,7 +150,7 @@ class _CallRecordsListState extends State<CallRecordsList>
       }
     }
   }
-
+  
   void _snack(String msg, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
@@ -169,12 +169,12 @@ class _CallRecordsListState extends State<CallRecordsList>
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+        ),
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setModal) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+          mainAxisSize: MainAxisSize.min,
+          children: [
               Container(
                 margin: const EdgeInsets.only(top: 10, bottom: 4),
                 width: 36, height: 4,
@@ -198,8 +198,8 @@ class _CallRecordsListState extends State<CallRecordsList>
                   formatButtonVisible: false,
                   titleCentered: true,
                   titleTextStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                ),
-              ),
+        ),
+      ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
                 child: Row(
@@ -209,16 +209,16 @@ class _CallRecordsListState extends State<CallRecordsList>
                         onPressed: () {
                           setState(() => _dateFilter = null);
                           Navigator.pop(ctx);
-                          _loadRecords(refresh: true);
-                        },
+        _loadRecords(refresh: true);
+      },
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFF6B7280),
                           side: const BorderSide(color: Color(0xFFE5E7EB)),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         child: const Text('清除'),
-                      ),
-                    ),
+        ),
+      ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
@@ -234,14 +234,14 @@ class _CallRecordsListState extends State<CallRecordsList>
                           elevation: 0,
                         ),
                         child: const Text('确定'),
-                      ),
+        ),
                     ),
                   ],
                 ),
               ),
             ],
-          ),
-        );
+      ),
+    );
       },
     );
   }
@@ -276,8 +276,8 @@ class _CallRecordsListState extends State<CallRecordsList>
         ),
       ),
     );
-  }
-
+    }
+    
   // 筛选区：两行，第一行风险类型，第二行日期
   Widget _buildFilterRow() {
     final hasDate = _dateFilter != null;
@@ -289,7 +289,7 @@ class _CallRecordsListState extends State<CallRecordsList>
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      children: [
           // 第一行：风险类型胶囊
           Row(
             children: _riskFilters.map((f) {
@@ -324,11 +324,11 @@ class _CallRecordsListState extends State<CallRecordsList>
                           fontWeight: FontWeight.w600,
                           color: selected ? Colors.white : const Color(0xFF6B7280),
                         ),
-                      ),
-                    ),
-                  ),
+            ),
+          ),
+        ),
                 ),
-              );
+    );
             }).toList(),
           ),
           const SizedBox(height: 8),
@@ -339,31 +339,31 @@ class _CallRecordsListState extends State<CallRecordsList>
               duration: const Duration(milliseconds: 180),
               height: 32,
               padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
+      decoration: BoxDecoration(
                 color: hasDate ? _kAccent : Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: hasDate ? _kAccent : const Color(0xFFE5E7EB),
                   width: 1.5,
-                ),
+        ),
                 boxShadow: hasDate
                     ? [BoxShadow(color: _kAccent.withOpacity(0.22), blurRadius: 6, offset: const Offset(0, 2))]
                     : [],
-              ),
-              child: Row(
+      ),
+      child: Row(
                 mainAxisSize: MainAxisSize.min,
-                children: [
+        children: [
                   Icon(Icons.calendar_today_rounded, size: 13,
                       color: hasDate ? Colors.white : const Color(0xFF6B7280)),
                   const SizedBox(width: 6),
-                  Text(
+          Text(
                     dateLabel,
-                    style: TextStyle(
+            style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: hasDate ? Colors.white : const Color(0xFF6B7280),
-                    ),
-                  ),
+            ),
+          ),
                   if (hasDate) ...[
                     const SizedBox(width: 6),
                     GestureDetector(
@@ -409,7 +409,7 @@ class _CallRecordsListState extends State<CallRecordsList>
       ),
     );
   }
-
+  
   Widget _buildRecordCard(Map<String, dynamic> record) {
     final callId = record['call_id'];
     final startTime = record['start_time'] ?? '';
@@ -428,13 +428,13 @@ class _CallRecordsListState extends State<CallRecordsList>
       child: Center(
         child: FractionallySizedBox(
           widthFactor: 0.9,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
               onTap: () => _showRecordDetail(record),
               borderRadius: BorderRadius.circular(16),
               child: Ink(
-                decoration: BoxDecoration(
+                      decoration: BoxDecoration(
                   color: const Color(0xFF58A183),
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
@@ -453,18 +453,18 @@ class _CallRecordsListState extends State<CallRecordsList>
                       Icon(cfg.icon, color: Colors.white.withOpacity(0.92), size: 24),
                       const SizedBox(width: 12),
                       // 通话类型 + 时间（不显示号码）
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
                               callTypeLabel,
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,
-                              ),
                             ),
+                          ),
                             const SizedBox(height: 3),
                             Row(
                               children: [
@@ -478,17 +478,17 @@ class _CallRecordsListState extends State<CallRecordsList>
                                 Text(_formatDuration(duration),
                                     style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.8))),
                               ],
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
+                    ),
                       // 右侧：删除
                       GestureDetector(
                         onTap: () => _deleteRecord(callId),
                         child: Icon(Icons.delete_outline_rounded, size: 18, color: Colors.white.withOpacity(0.6)),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
                 ),
               ),
             ),
@@ -499,9 +499,9 @@ class _CallRecordsListState extends State<CallRecordsList>
   }
   Widget _buildEmptyView() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
           Container(
             width: 72, height: 72,
             decoration: BoxDecoration(
@@ -516,32 +516,32 @@ class _CallRecordsListState extends State<CallRecordsList>
           const SizedBox(height: 6),
           Text('您的通话记录会显示在这里',
               style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
-        ],
+          ],
       ),
     );
   }
-
+  
   Widget _buildErrorView() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
           const Icon(Icons.error_outline_rounded, size: 52, color: Color(0xFFDC2626)),
           const SizedBox(height: 14),
           Text(_errorMessage!,
               style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280))),
           const SizedBox(height: 18),
           TextButton.icon(
-            onPressed: () => _loadRecords(refresh: true),
+              onPressed: () => _loadRecords(refresh: true),
             icon: const Icon(Icons.refresh_rounded),
             label: const Text('重试'),
             style: TextButton.styleFrom(foregroundColor: _kAccent),
-          ),
-        ],
+            ),
+          ],
       ),
     );
   }
-
+  
   void _showRecordDetail(Map<String, dynamic> record) {
     showModalBottomSheet(
       context: context,
@@ -550,7 +550,7 @@ class _CallRecordsListState extends State<CallRecordsList>
       builder: (_) => CallRecordDetailSheet(record: record, isFamily: widget.isFamily),
     );
   }
-
+  
   String _formatDateTime(String dateTime) {
     try {
       final dt = DateTime.parse(dateTime);
@@ -562,7 +562,7 @@ class _CallRecordsListState extends State<CallRecordsList>
       return '${dt.month}/${dt.day} $hm';
     } catch (_) { return dateTime; }
   }
-
+  
   String _formatDuration(int seconds) {
     final m = seconds ~/ 60;
     final s = seconds % 60;
@@ -678,7 +678,7 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet> {
         color: Color(0xFFF8FAF9),
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(24), topRight: Radius.circular(24)),
-      ),
+        ),
       child: Column(
         children: [
           Center(
@@ -691,7 +691,7 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
-              children: [
+            children: [
                 const Text('通话详情',
                     style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: Color(0xFF0F1923))),
                 const Spacer(),
@@ -702,13 +702,13 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet> {
                     label: const Text('提交审查', style: TextStyle(fontSize: 12)),
                     style: TextButton.styleFrom(foregroundColor: const Color(0xFFDC2626)),
                   ),
-                IconButton(
+              IconButton(
                   icon: const Icon(Icons.close_rounded, color: Color(0xFF6B7280)),
-                  onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(context),
                   padding: EdgeInsets.zero, constraints: const BoxConstraints(),
-                ),
-              ],
-            ),
+              ),
+            ],
+          ),
           ),
           const SizedBox(height: 8),
           Expanded(
@@ -718,15 +718,15 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 基本信息
-                  Container(
+          Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
+            decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 3))],
-                    ),
-                    child: Column(
-                      children: [
+            ),
+            child: Column(
+              children: [
                         _detailRow('通话时长', '${widget.record['duration'] ?? 0} 秒'),
                         _detailRowWidget('检测结果', Container(
                           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
@@ -738,21 +738,21 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet> {
                           child: Text(cfg.label,
                               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: cfg.color)),
                         )),
-                      ],
-                    ),
-                  ),
+              ],
+            ),
+          ),
                   const SizedBox(height: 12),
                   // 智能评价
-                  Container(
+          Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
+            decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 3))],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                         Row(children: [
                           const Icon(Icons.smart_toy_rounded, color: _kAccent, size: 17),
                           const SizedBox(width: 6),
@@ -760,15 +760,15 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet> {
                               style: TextStyle(fontWeight: FontWeight.w700, color: _kAccent, fontSize: 14)),
                         ]),
                         const SizedBox(height: 8),
-                        Text(
-                          widget.record['analysis']?.toString().isNotEmpty == true
+                Text(
+                  widget.record['analysis']?.toString().isNotEmpty == true
                               ? widget.record['analysis'] : '暂无智能评价',
                           style: TextStyle(fontSize: 13, height: 1.6,
-                            color: widget.record['analysis']?.toString().isNotEmpty == true
+                    color: widget.record['analysis']?.toString().isNotEmpty == true
                                 ? const Color(0xFF374151) : const Color(0xFF9CA3AF),
-                            fontStyle: widget.record['analysis']?.toString().isNotEmpty == true
+                    fontStyle: widget.record['analysis']?.toString().isNotEmpty == true
                                 ? FontStyle.normal : FontStyle.italic),
-                        ),
+                ),
                         const SizedBox(height: 12),
                         Row(children: [
                           const Icon(Icons.shield_rounded, color: Color(0xFF059669), size: 17),
@@ -777,38 +777,38 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet> {
                               style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF059669), fontSize: 14)),
                         ]),
                         const SizedBox(height: 8),
-                        Text(
-                          widget.record['advice']?.toString().isNotEmpty == true
+                Text(
+                  widget.record['advice']?.toString().isNotEmpty == true
                               ? widget.record['advice'] : '暂无防骗建议',
                           style: TextStyle(fontSize: 13, height: 1.6,
-                            color: widget.record['advice']?.toString().isNotEmpty == true
+                    color: widget.record['advice']?.toString().isNotEmpty == true
                                 ? const Color(0xFF374151) : const Color(0xFF9CA3AF),
-                            fontStyle: widget.record['advice']?.toString().isNotEmpty == true
+                    fontStyle: widget.record['advice']?.toString().isNotEmpty == true
                                 ? FontStyle.normal : FontStyle.italic),
-                        ),
-                      ],
-                    ),
-                  ),
+                ),
+              ],
+            ),
+          ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
+          Row(
+            children: [
                       const Icon(Icons.timeline_rounded, size: 16, color: Color(0xFF0F1923)),
                       const SizedBox(width: 6),
                       const Text('警报时间轴',
                           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F1923))),
-                    ],
-                  ),
+            ],
+          ),
                   const SizedBox(height: 10),
                   _isLoadingLogs
                       ? const Center(child: CircularProgressIndicator(color: _kAccent))
-                      : _errorMessage != null
+              : _errorMessage != null
                           ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Color(0xFFDC2626))))
-                          : _auditEvents.isEmpty
+                : _auditEvents.isEmpty
                               ? Container(
                                   padding: const EdgeInsets.symmetric(vertical: 24),
-                                  child: Row(
+                          child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
+                            children: [
                                       Icon(Icons.check_circle_outline_rounded, size: 18, color: Colors.grey.shade300),
                                       const SizedBox(width: 8),
                                       Text('暂无异常记录', style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
@@ -835,8 +835,8 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet> {
                                         indicator: Container(
                                           width: 36,
                                           height: 36,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
                                             color: dotColor.withOpacity(0.12),
                                             border: Border.all(color: dotColor, width: 2),
                                           ),
@@ -846,17 +846,17 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet> {
                                             color: dotColor,
                                           ),
                                         ),
-                                      ),
+                              ),
                                       beforeLineStyle: LineStyle(color: lineColor, thickness: 2),
                                       afterLineStyle: LineStyle(color: lineColor, thickness: 2),
                                       endChild: Padding(
                                         padding: const EdgeInsets.only(left: 12, bottom: 14, top: 2),
-                                        child: Container(
+                                child: Container(
                                           padding: const EdgeInsets.all(13),
-                                          decoration: BoxDecoration(
+                                  decoration: BoxDecoration(
                                             color: Colors.white,
                                             borderRadius: BorderRadius.circular(14),
-                                            border: Border.all(
+                                    border: Border.all(
                                               color: isAlert
                                                   ? const Color(0xFFDC2626).withOpacity(0.25)
                                                   : _kAccent.withOpacity(0.2),
@@ -867,15 +867,15 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet> {
                                                 color: dotColor.withOpacity(0.08),
                                                 blurRadius: 8,
                                                 offset: const Offset(0, 2),
-                                              ),
+                                    ),
                                             ],
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
-                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                children: [
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
                                                   Expanded(
                                                     child: Text(
                                                       e.title,
@@ -903,8 +903,8 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet> {
                                                       ),
                                                     ),
                                                   ),
-                                                ],
-                                              ),
+                                        ],
+                                      ),
                                               if (e.description.isNotEmpty) ...[
                                                 const SizedBox(height: 6),
                                                 Text(
@@ -917,36 +917,36 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet> {
                                                 ),
                                               ],
                                               if (e.evidenceUrl != null && e.evidenceUrl!.isNotEmpty)
-                                                Padding(
+                                        Padding(
                                                   padding: const EdgeInsets.only(top: 10),
-                                                  child: ClipRRect(
+                                          child: ClipRRect(
                                                     borderRadius: BorderRadius.circular(10),
-                                                    child: Image.network(
+                                            child: Image.network(
                                                       e.evidenceUrl!,
                                                       width: double.infinity,
                                                       height: 120,
-                                                      fit: BoxFit.cover,
+                                              fit: BoxFit.cover,
                                                       errorBuilder: (c, err, s) => Container(
                                                         height: 60,
                                                         color: const Color(0xFFF3F4F6),
                                                         child: const Center(
                                                           child: Icon(Icons.broken_image_rounded,
                                                               color: Color(0xFF9CA3AF)),
-                                                        ),
-                                                      ),
+                                            ),
+                                          ),
                                                     ),
                                                   ),
                                                 ),
-                                            ],
-                                          ),
-                                        ),
+                                    ],
+                                  ),
+                                ),
                                       ),
                                     );
                                   }),
                                 ),
-                ],
-              ),
-            ),
+                            ],
+                          ),
+                    ),
           ),
         ],
       ),
@@ -979,8 +979,7 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet> {
         ],
       ),
     );
+    }
   }
-}
 
-                              
                               

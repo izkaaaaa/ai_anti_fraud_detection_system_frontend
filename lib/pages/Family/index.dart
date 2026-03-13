@@ -434,18 +434,18 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
               color: const Color(0xFFF8FAF9),
               child: const Center(child: CircularProgressIndicator(color: Color(0xFF58A183))),
             )
-          : _errorMessage != null
+              : _errorMessage != null
               ? Container(
                   color: const Color(0xFFF8FAF9),
                   child: SafeArea(child: _buildErrorView()),
                 )
-              : _userInfo?['family_id'] == null
-                  ? _buildNoFamilyView()
+                  : _userInfo?['family_id'] == null
+                      ? _buildNoFamilyView()
                   : Container(
                       color: const Color(0xFFF8FAF9),
                       child: SafeArea(
                         child: _isAdmin
-                            ? TabBarView(
+                          ? TabBarView(
                               controller: _tabController,
                               children: [
                                 ApplicationsTab(
@@ -459,8 +459,8 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                               ],
                             )
                           : _buildMemberView(), // 普通成员也显示成员列表
-                      ),
-                    ),
+        ),
+      ),
     );
   }
 
@@ -504,7 +504,7 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
   Widget _buildNoFamilyView() {
     final screenHeight = MediaQuery.of(context).size.height;
     return Stack(
-      children: [
+          children: [
         // 背景图铺满
         Positioned.fill(
           child: Image.asset(
@@ -528,24 +528,24 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                 // 主标题
                 const Text(
                   '家庭守护',
-                  style: TextStyle(
+              style: TextStyle(
                     fontSize: 38,
-                    fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w900,
                     color: Color(0xFF0F1923),
                     letterSpacing: 3,
                     height: 1.1,
-                  ),
-                ),
+              ),
+            ),
                 const SizedBox(height: 6),
                 const Text(
                   '创建或加入家庭组，与家人共享防诈骗保护',
-                  style: TextStyle(
+              style: TextStyle(
                     fontSize: 13,
                     color: Color(0xFF2D4A3E),
                     height: 1.6,
                     letterSpacing: 0.4,
-                  ),
-                ),
+              ),
+            ),
                 const SizedBox(height: 24),
                 // 两个按钮并列
                 Row(
@@ -557,7 +557,7 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                         child: Container(
                           height: 50,
                           alignment: Alignment.center,
-                          decoration: BoxDecoration(
+              decoration: BoxDecoration(
                             color: const Color(0xFF58A183),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
@@ -566,23 +566,23 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                             ),
                           ),
                           child: const Text(
-                            '创建家庭组',
-                            style: TextStyle(
+                          '创建家庭组',
+                  style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              letterSpacing: 1,
-                            ),
+                            color: Colors.white,
+                            letterSpacing: 1,
                           ),
                         ),
-                      ),
                     ),
+                  ),
+                ),
                     const SizedBox(width: 12),
                     // 加入家庭组按钮（#d2e4d6）
                     Expanded(
                       child: GestureDetector(
-                        onTap: _joinFamily,
-                        child: Container(
+                  onTap: _joinFamily,
+                  child: Container(
                           height: 50,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
@@ -594,22 +594,22 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                             ),
                           ),
                           child: const Text(
-                            '加入家庭组',
-                            style: TextStyle(
+                          '加入家庭组',
+                style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
                               color: Color(0xFF1C3A2F),
-                              letterSpacing: 1,
-                            ),
+                            letterSpacing: 1,
                           ),
                         ),
-                      ),
                     ),
-                  ],
+                  ),
                 ),
-              ],
+                  ],
             ),
-          ),
+          ],
+        ),
+      ),
         ),
       ],
     );
@@ -649,7 +649,7 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
             color: Colors.black.withOpacity(0.06),
             blurRadius: 16,
             offset: const Offset(0, 4),
-          ),
+        ),
         ],
       ),
       child: ClipRRect(
@@ -1006,7 +1006,7 @@ class _ApplicationsTabState extends State<ApplicationsTab> with AutomaticKeepAli
                   color: Colors.black.withOpacity(0.07),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
-                ),
+            ),
                 BoxShadow(
                   color: Colors.black.withOpacity(0.04),
                   blurRadius: 4,
@@ -1017,37 +1017,37 @@ class _ApplicationsTabState extends State<ApplicationsTab> with AutomaticKeepAli
             child: Row(
               children: [
                 // 头像占位
-                Container(
+                    Container(
                   width: 40,
                   height: 40,
                   decoration: const BoxDecoration(
                     color: Color(0xFFE8F0EE),
-                    shape: BoxShape.circle,
-                  ),
+                        shape: BoxShape.circle,
+                      ),
                   child: const Icon(Icons.person_rounded, color: Color(0xFF58A183), size: 22),
-                ),
+                    ),
                 const SizedBox(width: 12),
                 // 用户信息
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        app['phone'] ?? '未知用户',
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            app['phone'] ?? '未知用户',
                         style: const TextStyle(
                           fontSize: 14,
-                          fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w700,
                           color: Color(0xFF0F1923),
-                        ),
-                      ),
+                            ),
+                          ),
                       const SizedBox(height: 2),
-                      Text(
-                        app['apply_time'] ?? '',
+                          Text(
+                            app['apply_time'] ?? '',
                         style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
+                    ),
                 // 操作按钮
                 GestureDetector(
                   onTap: () => _reviewApplication(app['application_id'], false),
@@ -1056,11 +1056,11 @@ class _ApplicationsTabState extends State<ApplicationsTab> with AutomaticKeepAli
                     decoration: BoxDecoration(
                       color: const Color(0xFFFEE2E2),
                       borderRadius: BorderRadius.circular(8),
-                    ),
+                        ),
                     child: const Text('拒绝',
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFFDC2626))),
-                  ),
-                ),
+                      ),
+                    ),
                 const SizedBox(width: 8),
                 GestureDetector(
                   onTap: () => _reviewApplication(app['application_id'], true),
@@ -1069,10 +1069,10 @@ class _ApplicationsTabState extends State<ApplicationsTab> with AutomaticKeepAli
                     decoration: BoxDecoration(
                       color: const Color(0xFFE8F0EE),
                       borderRadius: BorderRadius.circular(8),
-                    ),
+                        ),
                     child: const Text('同意',
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF58A183))),
-                  ),
+                    ),
                 ),
               ],
             ),
@@ -1154,26 +1154,26 @@ class _MembersTabState extends State<MembersTab> with AutomaticKeepAliveClientMi
 
     if (_errorMessage != null) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
             const Icon(Icons.error_outline, size: 48, color: Color(0xFF9CA3AF)),
             const SizedBox(height: 12),
             Text(_errorMessage!, textAlign: TextAlign.center,
                 style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
             const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _loadMembers,
+              ElevatedButton.icon(
+                onPressed: _loadMembers,
               icon: const Icon(Icons.refresh, size: 16),
               label: const Text('重试'),
-              style: ElevatedButton.styleFrom(
+                style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF58A183),
-                foregroundColor: Colors.white,
+                  foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
               ),
-            ),
-          ],
+            ],
         ),
       );
     }
@@ -1207,7 +1207,7 @@ class _MembersTabState extends State<MembersTab> with AutomaticKeepAliveClientMi
             child: Container(
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
+            decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
@@ -1215,7 +1215,7 @@ class _MembersTabState extends State<MembersTab> with AutomaticKeepAliveClientMi
                     color: Colors.black.withOpacity(0.07),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
-                  ),
+            ),
                   BoxShadow(
                     color: Colors.black.withOpacity(0.04),
                     blurRadius: 4,
@@ -1223,66 +1223,66 @@ class _MembersTabState extends State<MembersTab> with AutomaticKeepAliveClientMi
                   ),
                 ],
               ),
-              child: Row(
-                children: [
-                  Container(
+                  child: Row(
+                    children: [
+                      Container(
                     width: 40,
                     height: 40,
-                    decoration: BoxDecoration(
+                        decoration: BoxDecoration(
                       color: isAdmin ? const Color(0xFFE8F0EE) : const Color(0xFFF3F4F6),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
                       isAdmin ? Icons.shield_rounded : Icons.person_rounded,
                       color: isAdmin ? const Color(0xFF58A183) : const Color(0xFF9CA3AF),
                       size: 22,
-                    ),
-                  ),
+                        ),
+                      ),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              member['name'] ?? member['phone'] ?? '未知',
+                            Row(
+                              children: [
+                                Text(
+                                  member['name'] ?? member['phone'] ?? '未知',
                               style: const TextStyle(
                                 fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF0F1923),
-                              ),
-                            ),
-                            if (isAdmin) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFE8F0EE),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Text(
-                                  '管理员',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: Color(0xFF58A183),
                                     fontWeight: FontWeight.w700,
+                                color: Color(0xFF0F1923),
                                   ),
                                 ),
-                              ),
-                            ],
+                                if (isAdmin) ...[
+                              const SizedBox(width: 6),
+                                  Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                    decoration: BoxDecoration(
+                                  color: const Color(0xFFE8F0EE),
+                                  borderRadius: BorderRadius.circular(6),
+                                    ),
+                                child: const Text(
+                                      '管理员',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                    color: Color(0xFF58A183),
+                                    fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                        const SizedBox(height: 2),
+                            Text(
+                              member['phone'] ?? '',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          member['phone'] ?? '',
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
-                        ),
-                      ],
-                    ),
-                  ),
+                      ),
                   const Icon(Icons.chevron_right_rounded, color: Color(0xFFCBD5E1), size: 20),
-                ],
+                    ],
               ),
             ),
           );

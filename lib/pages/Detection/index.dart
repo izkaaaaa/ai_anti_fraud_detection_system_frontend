@@ -58,6 +58,9 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
   bool _isConnected = false;
   String _statusMessage = '点击开始按钮启动实时监测';
   
+  // ✅ 用户意图标志：只有用户主动滑动开关才能改变检测状态
+  bool _isUserStopping = false;  // 正在执行用户主动停止流程
+  
   // 实时检测服务
   final RealTimeDetectionService _detectionService = RealTimeDetectionService();
   
@@ -277,15 +280,13 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     
     _detectionService.onError = (error) {
       if (mounted) {
-        setState(() {
-          _currentState = DetectionState.error;
-          _statusMessage = error;
-        });
-        
+        // ✅ 不改变 _currentState：后台错误（如网络抖动、录音中断）
+        // 只是弹出提示，不把 UI 强制切回"未检测"状态。
+        // 只有 startDetection 返回 false 时才设置 error 状态。
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('错误: $error'),
-            backgroundColor: Colors.red,
+            content: Text('⚠️ $error'),
+            backgroundColor: Colors.orange[700],
             duration: Duration(seconds: 3),
           ),
         );
@@ -304,10 +305,9 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
       if (mounted) {
         setState(() {
           _isConnected = false;
-          if (_currentState == DetectionState.monitoring) {
-            _currentState = DetectionState.error;
-            _statusMessage = '连接已断开';
-          }
+          // ✅ 不自动改变 _currentState：
+          // 前后台切换会导致 WebSocket 短暂断开，但服务仍在运行。
+          // 只有用户主动滑动开关（_stopMonitoring）才能把状态改为 idle。
         });
       }
     };
@@ -380,18 +380,24 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     }
   }
   
-  // 停止监测
+  // 停止监测（仅由用户主动触发）
   Future<void> _stopMonitoring() async {
+    // ✅ 防止重复触发（如 warning 弹窗「立即挂断」和通知栏按钮同时触发）
+    if (_isUserStopping) return;
+    _isUserStopping = true;
+
     setState(() {
       _currentState = DetectionState.stopping;
       _statusMessage = '正在停止...';
     });
-    
+
     // ✅ 获取最近的截图
     final screenshots = await _detectionService.getRecentScreenshots();
-    
+
     await _detectionService.stopDetection();
-    
+
+    _isUserStopping = false; // ✅ 停止流程结束，重置标志
+
     if (mounted) {
       setState(() {
         _currentState = DetectionState.idle;
@@ -402,17 +408,17 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
         _audioIsFake = false;
         _videoIsDeepfake = false;
         _textRiskLevel = 'safe';
-        _textConfidence = 0.0;  // ✅ 重置文本置信度
+        _textConfidence = 0.0;
         _textKeywords = [];
         _overallRisk = RiskLevel.safe;
+        _currentDefenseLevel = 1; // ✅ 重置防御等级
       });
-      
+
       // ✅ 展示截图
       if (screenshots.isNotEmpty) {
         _showScreenshotsDialog(screenshots);
       }
-      
-      // ✅ 使用 ScaffoldMessenger 替代 Get.snackbar
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('实时监测已停止'),

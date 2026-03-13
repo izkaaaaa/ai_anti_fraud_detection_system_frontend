@@ -5,6 +5,7 @@ import 'package:ai_anti_fraud_detection_system_frontend/pages/Register/index.dar
 import 'package:ai_anti_fraud_detection_system_frontend/pages/Settings/PermissionSettings.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/pages/SecurityReport/index.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/pages/UserAgreement/index.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/pages/AudioRecordingTestPage.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
 import 'package:flutter/material.dart';
 
@@ -15,7 +16,7 @@ Widget getRootWidget(){
   
   return MaterialApp(
     // 命名路由
-    initialRoute: isLoggedIn ? "/" : "/login",  // 已登录显示主页，未登录显示登录页
+    initialRoute: "/audio-test",  // 临时改为测试页面
     routes: getRootRoutes(),
   );
 }
@@ -28,5 +29,6 @@ Map<String, Widget Function(BuildContext)> getRootRoutes(){
     "/permission-settings": (context) => PermissionSettingsPage(), // 权限设置路由
     "/security-report": (context) => SecurityReportPage(), // 安全报告路由
     "/user-agreement": (context) => UserAgreementPage(), // 用户协议路由
+    "/audio-test": (context) => AudioRecordingTestPage(), // 音频录制 POC 测试路由
   };
 }

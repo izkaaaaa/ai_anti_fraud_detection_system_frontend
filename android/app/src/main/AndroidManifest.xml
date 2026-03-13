@@ -71,6 +71,12 @@
             android:name=".ScreenCaptureService"
             android:foregroundServiceType="mediaProjection"
             android:exported="false" />
+        
+        <!-- 音频录制前台服务（使用 VOICE_COMMUNICATION 源） -->
+        <service
+            android:name=".AudioRecordingService"
+            android:foregroundServiceType="microphone"
+            android:exported="false" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
