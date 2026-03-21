@@ -4,7 +4,9 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
+import android.provider.Settings
 import android.util.Base64
+import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -12,10 +14,12 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private val SCREEN_CAPTURE_CHANNEL = "com.example.ai_anti_fraud_detection_system_frontend/screen_capture"
     private val AUDIO_RECORDING_CHANNEL = "com.example.ai_anti_fraud_detection_system_frontend/audio_recording"
+    private val CALL_DETECTION_CHANNEL = "com.example.ai_anti_fraud_detection_system_frontend/call_detection"
     private val REQUEST_MEDIA_PROJECTION = 1001
     
     private var pendingResult: MethodChannel.Result? = null
     private var audioRecordingMethodChannel: MethodChannel? = null
+    private var callDetectionMethodChannel: MethodChannel? = null
     
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -64,8 +68,34 @@ class MainActivity : FlutterActivity() {
             }
         }
         
+        // 通话检测 Channel
+        callDetectionMethodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CALL_DETECTION_CHANNEL)
+        callDetectionMethodChannel?.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "startAccessibilityService" -> {
+                    startAccessibilityService(result)
+                }
+                "stopAccessibilityService" -> {
+                    stopAccessibilityService(result)
+                }
+                "isAccessibilityServiceEnabled" -> {
+                    result.success(isAccessibilityServiceEnabled())
+                }
+                "openAccessibilitySettings" -> {
+                    openAccessibilitySettings()
+                    result.success(true)
+                }
+                else -> {
+                    result.notImplemented()
+                }
+            }
+        }
+        
         // 设置音频录制回调
         setupAudioRecordingCallbacks()
+        
+        // 设置通话检测回调
+        setupCallDetectionCallbacks()
     }
     
     private fun startMediaProjection(result: MethodChannel.Result) {
@@ -150,7 +180,7 @@ class MainActivity : FlutterActivity() {
                     ))
                 }
             } catch (e: Exception) {
-                android.util.Log.e("MainActivity", "Error sending audio data: ${e.message}")
+                Log.e("MainActivity", "Error sending audio data: ${e.message}")
             }
         }
         
@@ -171,6 +201,80 @@ class MainActivity : FlutterActivity() {
                 ))
             }
         }
+    }
+    
+    private fun setupCallDetectionCallbacks() {
+        // 通话检测回调
+        CallDetectionService.onCallDetected = { appName, callerName ->
+            runOnUiThread {
+                callDetectionMethodChannel?.invokeMethod("onCallDetected", mapOf(
+                    "app" to appName,
+                    "caller" to callerName
+                ))
+            }
+        }
+        
+        // 通话结束回调
+        CallDetectionService.onCallEnded = {
+            runOnUiThread {
+                callDetectionMethodChannel?.invokeMethod("onCallEnded", null)
+            }
+        }
+        
+        // 状态变化回调
+        CallDetectionService.onStatusChanged = { status ->
+            runOnUiThread {
+                callDetectionMethodChannel?.invokeMethod("onStatusChanged", mapOf(
+                    "status" to status
+                ))
+            }
+        }
+    }
+    
+    private fun startAccessibilityService(result: MethodChannel.Result) {
+        try {
+            openAccessibilitySettings()
+            result.success(true)
+        } catch (e: Exception) {
+            result.error("ERROR", "Failed to open accessibility settings: ${e.message}", null)
+        }
+    }
+    
+    private fun stopAccessibilityService(result: MethodChannel.Result) {
+        // 用户需要手动在系统设置中关闭无障碍服务
+        result.success(true)
+    }
+    
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        return try {
+            val enabledServices = Settings.Secure.getString(
+                contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            ) ?: ""
+            
+            Log.d("MainActivity", "Enabled services: $enabledServices")
+            
+            // 检查多种可能的格式
+            val packageName = "com.example.ai_anti_fraud_detection_system_frontend"
+            val serviceNames = listOf(
+                "$packageName/.CallDetectionService",
+                "$packageName/com.example.ai_anti_fraud_detection_system_frontend.CallDetectionService",
+                "com.example.ai_anti_fraud_detection_system_frontend.CallDetectionService"
+            )
+            
+            val isEnabled = serviceNames.any { enabledServices.contains(it) }
+            Log.d("MainActivity", "Accessibility service enabled: $isEnabled")
+            
+            isEnabled
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error checking accessibility service: ${e.message}")
+            false
+        }
+    }
+    
+    private fun openAccessibilitySettings() {
+        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+        startActivity(intent)
     }
     
     override fun onDestroy() {

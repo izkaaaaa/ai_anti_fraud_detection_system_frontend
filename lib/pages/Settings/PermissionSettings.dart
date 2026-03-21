@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../utils/PermissionManager.dart';
+import '../../services/CallDetectionService.dart';
 
 /// 权限设置页面
 class PermissionSettingsPage extends StatefulWidget {
@@ -12,10 +13,12 @@ class PermissionSettingsPage extends StatefulWidget {
 
 class _PermissionSettingsPageState extends State<PermissionSettingsPage> {
   final PermissionManager _permissionManager = PermissionManager();
+  late CallDetectionService _callDetectionService;
 
   @override
   void initState() {
     super.initState();
+    _callDetectionService = Get.find<CallDetectionService>();
     _checkPermissions();
   }
 
@@ -77,7 +80,7 @@ class _PermissionSettingsPageState extends State<PermissionSettingsPage> {
             ),
             const SizedBox(height: 24),
 
-            // 权限列表
+            // 必需权限
             const Text(
               '必需权限',
               style: TextStyle(
@@ -118,6 +121,29 @@ class _PermissionSettingsPageState extends State<PermissionSettingsPage> {
               description: '保持监测服务持续运行',
               isGranted: _permissionManager.hasForegroundServicePermission.value,
               onTap: () => _showForegroundServiceInfo(),
+            )),
+
+            const SizedBox(height: 24),
+
+            // 高级权限
+            const Text(
+              '高级权限（可选但推荐）',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // 无障碍服务权限
+            Obx(() => _buildPermissionCard(
+              icon: Icons.accessibility,
+              iconColor: Colors.purple,
+              title: '无障碍服务',
+              description: '自动检测通话并启动诈骗识别',
+              isGranted: _callDetectionService.isAccessibilityEnabled.value,
+              onTap: () => _requestAccessibilityService(),
             )),
 
             const SizedBox(height: 32),
@@ -312,6 +338,41 @@ class _PermissionSettingsPageState extends State<PermissionSettingsPage> {
       );
     }
     setState(() {});
+  }
+
+  /// 请求无障碍服务
+  Future<void> _requestAccessibilityService() async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('启用无障碍服务'),
+        content: const Text(
+          '无障碍服务将帮助应用自动检测通话并启动诈骗识别。\n\n'
+          '点击"前往设置"后，请在列表中找到本应用并启用无障碍服务。\n\n'
+          '启用后返回应用，权限状态会自动更新。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              _callDetectionService.openAccessibilitySettings();
+              
+              // 用户返回应用时刷新状态
+              // 监听应用生命周期
+              Future.delayed(const Duration(seconds: 1), () async {
+                await _callDetectionService.refreshAccessibilityServiceStatus();
+                setState(() {});
+              });
+            },
+            child: const Text('前往设置'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// 请求所有权限

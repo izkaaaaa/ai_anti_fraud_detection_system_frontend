@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AI诈骗识别</string>
+    <string name="accessibility_service_description">用于检测通话并进行AI诈骗识别分析。需要访问应用窗口信息以识别通话应用。</string>
+</resources>
+

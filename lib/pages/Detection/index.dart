@@ -392,14 +392,14 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
       _currentState = DetectionState.stopping;
       _statusMessage = '正在停止...';
     });
-
+    
     // ✅ 获取最近的截图
     final screenshots = await _detectionService.getRecentScreenshots();
-
+    
     await _detectionService.stopDetection();
 
     _isUserStopping = false; // ✅ 停止流程结束，重置标志
-
+    
     if (mounted) {
       setState(() {
         _currentState = DetectionState.idle;
@@ -415,12 +415,12 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
         _overallRisk = RiskLevel.safe;
         _currentDefenseLevel = 1; // ✅ 重置防御等级
       });
-
+      
       // ✅ 展示截图
       if (screenshots.isNotEmpty) {
         _showScreenshotsDialog(screenshots);
       }
-
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('实时监测已停止'),
