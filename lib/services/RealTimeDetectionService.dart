@@ -84,6 +84,17 @@ class RealTimeDetectionService {
   /// 开始实时监测
   Future<bool> startDetection() async {
     try {
+      // ✅ 0. 检查 CallDetectionService 是否启用
+      print('🔍 检查 CallDetectionService 状态...');
+      final isCallDetectionEnabled = await _checkCallDetectionService();
+      if (!isCallDetectionEnabled) {
+        print('⚠️ 警告: CallDetectionService 未启用！');
+        print('   这会导致无法自动检测通话，麦克风可能无法获取声音');
+        onError?.call('⚠️ 无障碍服务未启用\n\n请在权限设置中启用"无障碍服务"，否则无法获取通话音频！');
+        return false;
+      }
+      print('✅ CallDetectionService 已启用');
+      
       // ✅ 0. 初始化本地通知服务
       await _notificationService.initialize();
       
@@ -172,6 +183,35 @@ class RealTimeDetectionService {
       onStatusChange?.call('监测已停止');
     } catch (e) {
       onError?.call('停止失败: $e');
+    }
+  }
+  
+  /// 检查 CallDetectionService 是否启用
+  Future<bool> _checkCallDetectionService() async {
+    try {
+      // 使用 CallDetectionService 中的方法检查无障碍服务状态
+      const platform = MethodChannel('com.example.ai_anti_fraud_detection_system_frontend/call_detection');
+      final result = await platform.invokeMethod<bool>('isAccessibilityServiceEnabled');
+      
+      final isEnabled = result ?? false;
+      print('📱 CallDetectionService 状态检查结果: $isEnabled');
+      
+      if (!isEnabled) {
+        print('❌ CallDetectionService 未启用');
+        print('   原因: 无障碍服务未在系统设置中启用');
+        print('   影响: 无法自动检测通话，麦克风无法获取声音');
+        print('   解决: 请在权限设置中启用"无障碍服务"');
+      } else {
+        print('✅ CallDetectionService 已启用');
+        print('   可以自动检测通话');
+        print('   麦克风可以获取通话声音');
+      }
+      
+      return isEnabled;
+    } catch (e) {
+      print('❌ 检查 CallDetectionService 失败: $e');
+      print('   这可能表示无障碍服务配置有问题');
+      return false;
     }
   }
   
