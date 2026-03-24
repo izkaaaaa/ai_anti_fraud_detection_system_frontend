@@ -52,7 +52,9 @@ class GlobalConstants {
   static const String LOCALHOST = "localhost";           // 本机地址
   static const String EMULATOR_HOST = "10.0.2.2";       // 模拟器专用
  // static const String WIFI_IP = "192.168.31.155";       // 电脑 WiFi IP（真机用）
-  static const String WIFI_IP = "10.83.55.163";       // 校园网
+//  static const String WIFI_IP = "10.83.55.163";       // 校园网
+ // static const String WIFI_IP = "172.20.10.2";       // 手机热点
+  static const String WIFI_IP = "10.77.116.75";       // isp
   static const String WSL_IP = "172.20.16.1";           // WSL 虚拟网卡 IP
   static const int PORT = 8000;                          // 后端端口
   
