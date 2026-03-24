@@ -537,9 +537,14 @@ class RealTimeDetectionService {
   
   /// 处理接收到的音频数据
   void _onAudioDataReceived(List<int> audioBytes) {
-    // 将音频数据添加到缓冲区
+    // 将音频数据添加到缓冲区（用于发送给后端）
     _audioBuffer.addAll(audioBytes);
-    
+
+    // ✅ 同时喂给百度语音识别服务（复用同一路录音，避免抢占麦克风）
+    if (_isSpeechRecognitionActive) {
+      _speechService.feedAudioData(Uint8List.fromList(audioBytes));
+    }
+
     // 更新波形数据（用于 UI 显示）
     if (audioBytes.isNotEmpty) {
       // 计算音量（简单的 RMS 计算）
@@ -553,11 +558,11 @@ class RealTimeDetectionService {
       }
       double rms = sqrt(sum / (audioBytes.length / 2));
       double normalizedLevel = (rms / 32768).clamp(0.0, 1.0);
-      
+
       // 计算分贝值（dB）
-      double decibels = 20 * log((rms / 32768) + 0.00001) / log(10); // 使用换底公式计算 log10
+      double decibels = 20 * log((rms / 32768) + 0.00001) / log(10);
       print('🎤 分贝值: ${decibels.toStringAsFixed(1)} dB, 音量: ${(normalizedLevel * 100).toStringAsFixed(1)}%');
-      
+
       // 更新波形数据
       _audioWaveformData.removeAt(0);
       _audioWaveformData.add(normalizedLevel);
@@ -801,40 +806,39 @@ class RealTimeDetectionService {
   
   /// 设置语音识别回调
   void _setupSpeechRecognitionCallbacks() {
-    // 临时识别结果（实时显示，不发送给后端）
+    // 临时识别结果（实时显示）
     _speechService.onPartialResult = (text) {
-      print('🎤 临时识别: $text');
-      // 可以在这里更新 UI 显示实时识别结果
+      print('📝 [文字流-实时] $text');
     };
-    
+
     // ✅ 最终识别结果（发送给后端进行文本检测）
     _speechService.onFinalResult = (text, startTime, endTime) {
-      print('✅ 最终识别: $text (${startTime}ms - ${endTime}ms)');
-      
+      print('✅ [文字流-最终] $text');
+      print('   ⏱️ 时间段: ${startTime}ms - ${endTime}ms');
+
       // 将识别的文本发送给后端进行检测
       if (text.isNotEmpty && _isConnected && _channel != null) {
         sendText(text);
       }
     };
-    
+
     // 状态变化
     _speechService.onStatusChange = (status) {
-      print('🎤 语音识别状态: $status');
+      print('🎤 [语音识别] 状态: $status');
     };
-    
+
     // 错误处理
     _speechService.onError = (error) {
-      print('❌ 语音识别错误: $error');
-      // 不影响主流程，继续监测
+      print('❌ [语音识别] 错误: $error');
     };
-    
+
     // 连接状态
     _speechService.onConnected = () {
-      print('✅ 语音识别已连接');
+      print('✅ [语音识别] 已连接百度语音服务');
     };
-    
+
     _speechService.onDisconnected = () {
-      print('🔌 语音识别已断开');
+      print('🔌 [语音识别] 已断开百度语音服务');
     };
   }
   
