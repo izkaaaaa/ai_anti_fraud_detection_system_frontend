@@ -33,18 +33,22 @@ class AudioRecordingService : Service() {
         private const val CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
         private const val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
         
-        // 音频源优先级（降级策略）
+        // 音频源优先级
+        // VOICE_RECOGNITION（6）在荣耀/华为设备 QQ 视频通话（AVActivity）期间可以正常录音
+        // VOICE_COMMUNICATION（7）在 AVActivity 接通后会被系统静音（全 0 数据），即使重建也无效
         private val AUDIO_SOURCES = listOf(
-            MediaRecorder.AudioSource.VOICE_COMMUNICATION,  // 优先：与微信等通话应用共享
-            MediaRecorder.AudioSource.MIC,                   // 降级：普通麦克风
-            MediaRecorder.AudioSource.VOICE_RECOGNITION      // 最后：语音识别源
+            MediaRecorder.AudioSource.VOICE_RECOGNITION,     // 优先：语音识别源，通话期间可录音
+            MediaRecorder.AudioSource.VOICE_COMMUNICATION,  // 备用：与通话应用共享
+            MediaRecorder.AudioSource.MIC                    // 最后：普通麦克风
         )
         
         // 状态管理
-        private var audioRecord: AudioRecord? = null
+        @Volatile private var audioRecord: AudioRecord? = null
         private var isRecording = AtomicBoolean(false)
-        private var recordingThread: Thread? = null
+        @Volatile private var recordingThread: Thread? = null
         private var currentAudioSource = -1
+        // audioRecord 操作锁，防止并发 stop/release 与 read
+        private val audioRecordLock = Any()
         
         // 回调接口
         var onAudioDataReceived: ((ByteArray) -> Unit)? = null
@@ -65,7 +69,51 @@ class AudioRecordingService : Service() {
         }
         
         fun isRecordingActive(): Boolean = isRecording.get()
-        
+
+        /**
+         * 重建 AudioRecord（不停止 Service，Flutter 端无感知）
+         * 用于荣耀设备通话接通时系统撤销权限后重新获取麦克风
+         */
+        // 防抖标志：restart 期间忽略重复调用
+        private var isRestarting = AtomicBoolean(false)
+
+        fun restartAudioRecord() {
+            // 防止重复调用（包含冷却期）
+            if (!isRestarting.compareAndSet(false, true)) {
+                Log.w("AudioRecording", "[restartAudioRecord] 已在重建中或冷却期，跳过")
+                return
+            }
+            // 必须在子线程执行：join() 和 sleep() 不能在主线程调用
+            Thread {
+                try {
+                    Log.i("AudioRecording", "[restartAudioRecord] 重建 AudioRecord...")
+                    // 停止旧的读取循环
+                    isRecording.set(false)
+                    recordingThread?.join(2000)
+                    recordingThread = null
+                    // 加锁保护 audioRecord 的 stop/release，避免与读取线程并发
+                    synchronized(audioRecordLock) {
+                        try { audioRecord?.stop() } catch (_: Exception) {}
+                        try { audioRecord?.release() } catch (_: Exception) {}
+                        audioRecord = null
+                    }
+                    Thread.sleep(500)
+                    // 重新初始化
+                    isRecording.set(true)
+                    instanceRef?.startAudioRecordingInternal()
+                    // 冷却期：重建完成后再等 2 秒才允许下一次 restart
+                    Thread.sleep(2000)
+                } catch (e: Exception) {
+                    Log.e("AudioRecording", "restartAudioRecord failed: ${e.message}")
+                } finally {
+                    isRestarting.set(false)
+                }
+            }.start()
+        }
+
+        // Service 实例引用，供 restartAudioRecord 调用
+        var instanceRef: AudioRecordingService? = null
+
         fun getCurrentAudioSource(): String {
             return when (currentAudioSource) {
                 MediaRecorder.AudioSource.VOICE_COMMUNICATION -> "VOICE_COMMUNICATION"
@@ -78,6 +126,7 @@ class AudioRecordingService : Service() {
     
     override fun onCreate() {
         super.onCreate()
+        instanceRef = this
         createNotificationChannel()
         Log.d("AudioRecording", "Service created")
     }
@@ -92,6 +141,29 @@ class AudioRecordingService : Service() {
         return START_STICKY
     }
     
+    /**
+     * 供 restartAudioRecord 调用的内部重启方法（不检查 isRecording 标志）
+     */
+    fun startAudioRecordingInternal() {
+        for (source in AUDIO_SOURCES) {
+            if (tryStartRecording(source)) {
+                currentAudioSource = source
+                val sourceName = when (source) {
+                    MediaRecorder.AudioSource.VOICE_COMMUNICATION -> "VOICE_COMMUNICATION"
+                    MediaRecorder.AudioSource.MIC -> "MIC"
+                    MediaRecorder.AudioSource.VOICE_RECOGNITION -> "VOICE_RECOGNITION"
+                    else -> "UNKNOWN"
+                }
+                Log.i("AudioRecording", "✅ [restart] Recording restarted with source: $sourceName")
+                onStatusChanged?.invoke("Recording restarted: $sourceName")
+                startAudioReadingThread()
+                return
+            }
+        }
+        Log.e("AudioRecording", "❌ [restart] Failed to restart recording")
+        onError?.invoke("Failed to restart recording")
+    }
+
     /**
      * 启动音频录制
      * 
@@ -147,30 +219,15 @@ class AudioRecordingService : Service() {
             val bufferSize = minBufferSize * 2  // 双倍缓冲区减少卡顿
             
             // 构建 AudioRecord
-            audioRecord = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                // Android 11+：支持 setPrivacySensitive
-                val audioFormat = AudioFormat.Builder()
-                    .setSampleRate(SAMPLE_RATE)
-                    .setChannelMask(CHANNEL_CONFIG)
-                    .setEncoding(AUDIO_FORMAT)
-                    .build()
-                
-                AudioRecord.Builder()
-                    .setAudioSource(audioSource)
-                    .setAudioFormat(audioFormat)
-                    .setBufferSizeInBytes(bufferSize)
-                    .setPrivacySensitive(audioSource == MediaRecorder.AudioSource.VOICE_COMMUNICATION)
-                    .build()
-            } else {
-                // Android 10 及以下
-                AudioRecord(
-                    audioSource,
-                    SAMPLE_RATE,
-                    CHANNEL_CONFIG,
-                    AUDIO_FORMAT,
-                    bufferSize
-                )
-            }
+            // 所有 Android 版本统一使用基础构造方式，不设置 setPrivacySensitive
+            // 原因：setPrivacySensitive(true) 会触发系统隐私静音保护，导致录到静音数据
+            audioRecord = AudioRecord(
+                audioSource,
+                SAMPLE_RATE,
+                CHANNEL_CONFIG,
+                AUDIO_FORMAT,
+                bufferSize
+            )
             
             // 检查初始化状态
             if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
@@ -207,7 +264,15 @@ class AudioRecordingService : Service() {
                 
                 while (isRecording.get() && audioRecord != null) {
                     try {
-                        val readSize = audioRecord!!.read(buffer, 0, buffer.size)
+                        val readSize: Int
+                        synchronized(audioRecordLock) {
+                            val ar = audioRecord
+                            readSize = if (ar != null && isRecording.get()) {
+                                ar.read(buffer, 0, buffer.size)
+                            } else {
+                                -1
+                            }
+                        }
                         
                         if (readSize > 0) {
                             // 发送音频数据
@@ -220,6 +285,9 @@ class AudioRecordingService : Service() {
                             break
                         } else if (readSize == AudioRecord.ERROR_BAD_VALUE) {
                             Log.e("AudioRecording", "AudioRecord error: BAD_VALUE")
+                            break
+                        } else if (readSize == -1) {
+                            // audioRecord 已被释放，退出循环
                             break
                         }
                     } catch (e: Exception) {
@@ -251,10 +319,12 @@ class AudioRecordingService : Service() {
             recordingThread?.join(2000)
             recordingThread = null
             
-            // 停止并释放 AudioRecord
-            audioRecord?.stop()
-            audioRecord?.release()
-            audioRecord = null
+            // 停止并释放 AudioRecord（加锁防止与读取线程并发）
+            synchronized(audioRecordLock) {
+                try { audioRecord?.stop() } catch (_: Exception) {}
+                try { audioRecord?.release() } catch (_: Exception) {}
+                audioRecord = null
+            }
             
             Log.i("AudioRecording", "✅ Recording stopped")
             onStatusChanged?.invoke("Recording stopped")
@@ -290,6 +360,7 @@ class AudioRecordingService : Service() {
     
     override fun onDestroy() {
         super.onDestroy()
+        instanceRef = null
         stopAudioRecording()
         // ✅ Service 销毁时清空静态状态，避免下次 startService 时 isRecording 残留为 true
         audioRecord = null

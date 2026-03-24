@@ -63,7 +63,9 @@
             android:name=".OnePXActivity"
             android:exported="false"
             android:launchMode="singleInstance"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+            android:taskAffinity="com.example.ai_anti_fraud_detection_system_frontend.keepalive"
+            android:excludeFromRecents="true"
+            android:theme="@style/OnePxActivityStyle" />
         
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

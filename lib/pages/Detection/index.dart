@@ -1120,15 +1120,17 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
                         ? Color(0xFFFF6B6B)
                         : AppColors.primary,
                     action: (controller) async {
-                      controller.loading();
+                      try { controller.loading(); } catch (_) {}
                       if (isMonitoring) {
                         await _stopMonitoring();
                       } else {
                         await _startMonitoring();
                       }
-                      controller.success();
+                      if (!mounted) return;
+                      try { controller.success(); } catch (_) {}
                       await Future.delayed(Duration(milliseconds: 500));
-                      controller.reset();
+                      if (!mounted) return;
+                      try { controller.reset(); } catch (_) {}
                     },
                     child: Text(
                       isMonitoring ? '滑动停止检测' : '滑动开始检测',

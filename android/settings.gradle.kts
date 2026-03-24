@@ -31,4 +31,21 @@ plugins {
     id("org.jetbrains.kotlin.android") version "2.2.0" apply false
 }
 
+// 全局覆盖所有子项目（包括 Flutter 插件）的仓库配置，解决 dl.google.com 国内无法访问的问题
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    repositories {
+        // Flutter Engine 国内镜像（替代 storage.googleapis.com/download.flutter.io）
+        maven { url = uri("https://storage.flutter-io.cn/download.flutter.io") }
+        // Android 依赖国内镜像（替代 dl.google.com/dl/android/maven2）
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
+        maven { url = uri("https://maven.aliyun.com/repository/central") }
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
+        maven { url = uri("https://jitpack.io") }
+        google()
+        mavenCentral()
+    }
+}
+
 include(":app")

@@ -99,31 +99,35 @@ class KeepAliveService : Service() {
     
     /**
      * 确保录音已启动
+     * 
+     * 荣耀/华为设备必须走完整时序：先1像素Activity保活，再延迟启动录音。
+     * 直接调用 startService 会被系统识别为后台录音并静音。
+     * 非荣耀设备直接启动录音即可。
      */
     private fun ensureRecordingStarted() {
         if (!AudioRecordingService.isRecordingActive()) {
-            Log.d(TAG, "Recording not active, starting...")
-            AudioRecordingService.startService(this)
+            Log.d(TAG, "Recording not active, starting via CallDetectionService timing...")
+            val brand = Build.BRAND.lowercase()
+            if (brand == "huawei" || brand == "honor") {
+                // 荣耀/华为：委托给 CallDetectionService 的 startRecordingWithDelay 走完整时序
+                // 此处只做保活，录音由 CallDetectionService 负责
+                Log.d(TAG, "Honor/Huawei: skipping direct start, recording managed by CallDetectionService")
+            } else {
+                AudioRecordingService.startService(this)
+            }
         }
     }
     
     /**
      * 华为系统特殊处理
      * 
-     * 华为系统对后台应用的限制更严格，需要启动1像素Activity来保活
+     * 仅在正在录音时才启动1像素Activity，避免非通话时无意义启动。
      */
     private fun handleHuaweiDevice() {
         val brand = Build.BRAND.lowercase()
         if (brand == "huawei" || brand == "honor") {
-            Log.d(TAG, "Huawei/Honor device detected, starting 1px activity")
-            
-            try {
-                val intent = Intent(this, OnePXActivity::class.java)
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                startActivity(intent)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error starting 1px activity: ${e.message}")
-            }
+            Log.d(TAG, "Huawei/Honor device detected")
+            // 不在此处主动启动1像素Activity，由 CallDetectionService 负责保活时序
         }
     }
     

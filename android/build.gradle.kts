@@ -1,9 +1,12 @@
 allprojects {
     repositories {
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
+        maven { url = uri("https://maven.aliyun.com/repository/central") }
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
+        maven { url = uri("https://jitpack.io") }
         google()
         mavenCentral()
-        // 添加 JitPack 仓库（flutter_screen_recording 需要）
-        maven { url = uri("https://jitpack.io") }
     }
 }
 
