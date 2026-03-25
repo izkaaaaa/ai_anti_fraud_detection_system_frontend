@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/PermissionManager.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/RealTimeDetectionService.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/services/floating_window_service.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:get/get.dart';
 import 'package:action_slider/action_slider.dart';
@@ -35,7 +36,7 @@ enum RiskLevel {
   critical,  // 严重风险
 }
 
-class _DetectionPageState extends State<DetectionPage> with TickerProviderStateMixin {
+class _DetectionPageState extends State<DetectionPage> with TickerProviderStateMixin, WidgetsBindingObserver {
   // 当前状态
   DetectionState _currentState = DetectionState.idle;
   
@@ -75,6 +76,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     
     // 初始化脉冲动画（用于监测中的指示器）
     _pulseController = AnimationController(
@@ -127,9 +129,26 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     // 即使被调用，检测服务应由用户主动滑动开关来停止，不应随页面生命周期自动停止
     // _detectionService.dispose() 已移除
     FlutterForegroundTask.removeTaskDataCallback(_onReceiveTaskData);
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
   
+  /// App 前后台切换 → 控制悬浮窗显隐
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    final isDetecting = _currentState == DetectionState.monitoring ||
+        _currentState == DetectionState.warning;
+    if (!isDetecting) return;
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden) {
+      FloatingWindowService.instance.show();
+    } else if (state == AppLifecycleState.resumed) {
+      FloatingWindowService.instance.hide();
+    }
+  }
+
   /// 设置检测服务回调
   void _setupDetectionServiceCallbacks() {
     // 检测结果回调（按照接口文档格式）

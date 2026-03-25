@@ -16,6 +16,7 @@ import 'package:ai_anti_fraud_detection_system_frontend/services/baidu_speech_se
 import 'package:ai_anti_fraud_detection_system_frontend/services/foreground_task_handler.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/local_notification_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/AudioRecordingService.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/services/floating_window_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/DioRequest.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/index.dart';
 
@@ -147,7 +148,10 @@ class RealTimeDetectionService {
       
       // ✅ 7. 启动定时通知（每5秒弹一次）
       _startPeriodicNotifications();
-      
+
+      // 8. 显示悬浮窗（后台时展示风险等级）
+      _startFloatingWindow();
+
       onStatusChange?.call('监测已启动');
       return true;
     } catch (e) {
@@ -179,10 +183,23 @@ class RealTimeDetectionService {
       
       // ✅ 6. 取消所有通知
       await _notificationService.cancelAll();
-      
+
+      // 7. 隐藏悬浮窗
+      await FloatingWindowService.instance.hide();
+
       onStatusChange?.call('监测已停止');
     } catch (e) {
       onError?.call('停止失败: $e');
+    }
+  }
+
+  /// 启动悬浮窗
+  Future<void> _startFloatingWindow() async {
+    try {
+      final shown = await FloatingWindowService.instance.show();
+      if (!shown) print('⚠️ [FloatingWindow] 悬浮窗未能显示（可能缺少权限）');
+    } catch (e) {
+      print('❌ [FloatingWindow] 启动失败: $e');
     }
   }
   
@@ -384,6 +401,10 @@ class RealTimeDetectionService {
             'message': message,
             'timestamp': timestamp,
           });
+
+          // 更新悬浮窗
+          final wLevel = isRisk ? (confidence > 0.7 ? 'danger' : 'suspicious') : 'safe';
+          FloatingWindowService.instance.updateRiskLevel(wLevel, confidence);
           break;
           
         case 'control':
@@ -445,6 +466,9 @@ class RealTimeDetectionService {
             'message': infoMessage,
             'timestamp': timestamp,
           });
+
+          // 更新悬浮窗（info 消息直接使用后端返回的 risk_level）
+          FloatingWindowService.instance.updateRiskLevel(riskLevel, confidence);
           break;
           
         case 'error':

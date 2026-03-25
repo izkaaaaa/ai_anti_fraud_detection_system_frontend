@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
+import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import android.util.Base64
 import android.util.Log
@@ -15,6 +17,7 @@ class MainActivity : FlutterActivity() {
     private val SCREEN_CAPTURE_CHANNEL = "com.example.ai_anti_fraud_detection_system_frontend/screen_capture"
     private val AUDIO_RECORDING_CHANNEL = "com.example.ai_anti_fraud_detection_system_frontend/audio_recording"
     private val CALL_DETECTION_CHANNEL = "com.example.ai_anti_fraud_detection_system_frontend/call_detection"
+    private val FLOATING_WINDOW_CHANNEL = "com.example.ai_anti_fraud_detection_system_frontend/floating_window"
     private val REQUEST_MEDIA_PROJECTION = 1001
     
     private var pendingResult: MethodChannel.Result? = null
@@ -96,6 +99,56 @@ class MainActivity : FlutterActivity() {
         
         // 设置通话检测回调
         setupCallDetectionCallbacks()
+
+        // 悬浮窗 Channel（完全独立，不影响录音逻辑）
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, FLOATING_WINDOW_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "hasPermission" -> {
+                        val ok = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+                            Settings.canDrawOverlays(this) else true
+                        result.success(ok)
+                    }
+                    "requestPermission" -> {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            startActivity(
+                                Intent(
+                                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                    Uri.parse("package:$packageName")
+                                )
+                            )
+                        }
+                        result.success(null)
+                    }
+                    "show" -> {
+                        try {
+                            FloatingWindowService.start(this)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("SHOW_FAILED", e.message, null)
+                        }
+                    }
+                    "hide" -> {
+                        try {
+                            FloatingWindowService.stop(this)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("HIDE_FAILED", e.message, null)
+                        }
+                    }
+                    "updateRiskLevel" -> {
+                        try {
+                            val level = call.argument<String>("risk_level") ?: "safe"
+                            val conf  = call.argument<Double>("confidence") ?: 0.0
+                            FloatingWindowService.updateRiskLevel(level, conf)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("UPDATE_FAILED", e.message, null)
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
     }
     
     private fun startMediaProjection(result: MethodChannel.Result) {
