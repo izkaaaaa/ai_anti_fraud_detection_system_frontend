@@ -1686,19 +1686,66 @@ class _MemberRecordsPageState extends State<MemberRecordsPage> {
     }
   }
 
+  static const Color _accent = Color(0xFF58A183);
+  static const Color _bg = Color(0xFFF8FAF9);
+
+  Map<String, dynamic> _riskMeta(String result) {
+    switch (result) {
+      case 'safe':
+        return {
+          'label': '安全',
+          'icon': Icons.verified_rounded,
+          'color': const Color(0xFF059669),
+          'title': '安全通话',
+        };
+      case 'suspicious':
+        return {
+          'label': '可疑',
+          'icon': Icons.warning_amber_rounded,
+          'color': const Color(0xFFD97706),
+          'title': '可疑通话',
+        };
+      case 'fake':
+        return {
+          'label': '危险',
+          'icon': Icons.gpp_bad_rounded,
+          'color': const Color(0xFFDC2626),
+          'title': '危险通话',
+        };
+      default:
+        return {
+          'label': '未检测',
+          'icon': Icons.help_outline_rounded,
+          'color': const Color(0xFF9CA3AF),
+          'title': '未知通话',
+        };
+    }
+  }
+
+  String _formatDuration(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return m > 0 ? '$m分$s秒' : '$s秒';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final memberName = widget.member['name'] ?? widget.member['phone'] ?? '成员';
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: AppColors.cardBackground,
+        backgroundColor: _bg,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        titleSpacing: 0,
         title: Text(
-          '${widget.member['name'] ?? widget.member['phone']}的通话记录',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: AppTheme.fontSizeLarge,
-            fontWeight: FontWeight.bold,
+          '$memberName 的通话记录',
+          style: const TextStyle(
+            color: Color(0xFF0F1923),
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.8,
           ),
         ),
         actions: [
@@ -1711,188 +1758,200 @@ class _MemberRecordsPageState extends State<MemberRecordsPage> {
           IconButton(
             onPressed: _loadRecords,
             tooltip: '刷新',
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF0F1923)),
           ),
         ],
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(child: CircularProgressIndicator(color: _accent))
           : _errorMessage != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline, size: 60, color: AppColors.error),
-                      SizedBox(height: 16),
-                      Text(_errorMessage!, style: TextStyle(color: AppColors.textSecondary)),
-                      SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadRecords,
-                        child: Text('重试'),
-                      ),
-                    ],
-                  ),
-                )
+              ? _buildErrorView()
               : _records.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                  ? _buildEmptyView()
+                  : RefreshIndicator(
+                      onRefresh: _loadRecords,
+                      color: _accent,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
+                        itemCount: _records.length,
+                        itemBuilder: (context, index) => _buildRecordCard(_records[index]),
+                      ),
+                    ),
+    );
+  }
+
+  Widget _buildRecordCard(Map<String, dynamic> record) {
+    final result = record['detected_result'] ?? 'unknown';
+    final risk = _riskMeta(result);
+    final color = risk['color'] as Color;
+    final icon = risk['icon'] as IconData;
+    final title = risk['title'] as String;
+    final label = risk['label'] as String;
+    final startTime = record['start_time']?.toString() ?? '';
+    final duration = _toInt(record['duration']) ?? 0;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Center(
+        child: FractionallySizedBox(
+          widthFactor: 0.9,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _showRecordDetail(record),
+              borderRadius: BorderRadius.circular(16),
+              child: Ink(
+                decoration: BoxDecoration(
+                  color: _accent,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _accent.withOpacity(0.22),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                  child: Row(
+                    children: [
+                      Icon(icon, color: Colors.white.withOpacity(0.92), size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Row(
+                              children: [
+                                Icon(Icons.schedule_rounded, size: 11, color: Colors.white.withOpacity(0.7)),
+                                const SizedBox(width: 3),
+                                Text(
+                                  _formatDateTime(startTime),
+                                  style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.8)),
+                                ),
+                                const SizedBox(width: 8),
+                                Icon(Icons.timer_outlined, size: 11, color: Colors.white.withOpacity(0.7)),
+                                const SizedBox(width: 3),
+                                Text(
+                                  _formatDuration(duration),
+                                  style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.8)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Icon(Icons.phone_disabled, size: 80, color: AppColors.textSecondary),
-                          SizedBox(height: 16),
-                          Text(
-                            '暂无通话记录',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: AppColors.textSecondary,
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.white.withOpacity(0.35)),
+                            ),
+                            child: Text(
+                              label,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: color,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          GestureDetector(
+                            onTap: () => _sendSosForRecord(record),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEE2E2),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFFCA5A5)),
+                              ),
+                              child: const Text(
+                                'SOS求助',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFFB91C1C),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _loadRecords,
-                      color: AppColors.primary,
-                      child: ListView.builder(
-                        padding: EdgeInsets.all(AppTheme.paddingMedium),
-                        itemCount: _records.length,
-                        itemBuilder: (context, index) {
-                          final record = _records[index];
-                          final result = record['detected_result'] ?? 'unknown';
-                          
-                          Color resultColor;
-                          IconData resultIcon;
-                          String resultText;
-                          
-                          switch (result) {
-                            case 'safe':
-                              resultColor = AppColors.success;
-                              resultIcon = Icons.check_circle;
-                              resultText = '安全';
-                              break;
-                            case 'suspicious':
-                              resultColor = AppColors.warning;
-                              resultIcon = Icons.warning;
-                              resultText = '可疑';
-                              break;
-                            case 'fake':
-                              resultColor = AppColors.error;
-                              resultIcon = Icons.dangerous;
-                              resultText = '危险';
-                              break;
-                            default:
-                              resultColor = AppColors.textSecondary;
-                              resultIcon = Icons.help_outline;
-                              resultText = '未检测';
-                          }
-                          
-                          return Container(
-                            margin: EdgeInsets.only(bottom: 12),
-                            decoration: BoxDecoration(
-                              color: AppColors.cardBackground,
-                              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                              border: Border.all(color: AppColors.borderDark, width: 2),
-                              boxShadow: AppTheme.shadowSmall,
-                            ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: () => _showRecordDetail(record),
-                                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                                child: Padding(
-                                  padding: EdgeInsets.all(AppTheme.paddingMedium),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        padding: EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: resultColor.withOpacity(0.1),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Icon(resultIcon, color: resultColor, size: 20),
-                                      ),
-                                      SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              record['caller_number'] ?? '未知号码',
-                                              style: TextStyle(
-                                                fontSize: AppTheme.fontSizeMedium,
-                                                fontWeight: FontWeight.bold,
-                                                color: AppColors.textPrimary,
-                                              ),
-                                            ),
-                                            SizedBox(height: 4),
-                                            Text(
-                                              _formatDateTime(record['start_time']?.toString() ?? ''),
-                                              style: TextStyle(
-                                                fontSize: AppTheme.fontSizeSmall,
-                                                color: AppColors.textSecondary,
-                                              ),
-                                            ),
-                                            SizedBox(height: 2),
-                                            Text(
-                                              '时长: ${record['duration'] ?? 0}秒',
-                                              style: TextStyle(
-                                                fontSize: AppTheme.fontSizeSmall,
-                                                color: AppColors.textSecondary,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
-                                        children: [
-                                          Container(
-                                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: resultColor.withOpacity(0.1),
-                                              borderRadius: BorderRadius.circular(8),
-                                              border: Border.all(color: resultColor),
-                                            ),
-                                            child: Text(
-                                              resultText,
-                                              style: TextStyle(
-                                                fontSize: AppTheme.fontSizeSmall,
-                                                color: resultColor,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          GestureDetector(
-                                            onTap: () => _sendSosForRecord(record),
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFFFEE2E2),
-                                                borderRadius: BorderRadius.circular(8),
-                                                border: Border.all(color: const Color(0xFFFCA5A5)),
-                                              ),
-                                              child: const Text(
-                                                'SOS求助',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: Color(0xFFB91C1C),
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: _accent.withOpacity(0.08),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.phone_disabled_rounded, size: 32, color: _accent),
+          ),
+          const SizedBox(height: 18),
+          const Text(
+            '暂无通话记录',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F1923)),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '该成员的通话记录会显示在这里',
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline_rounded, size: 52, color: Color(0xFFDC2626)),
+          const SizedBox(height: 14),
+          Text(
+            _errorMessage!,
+            style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 18),
+          TextButton.icon(
+            onPressed: _loadRecords,
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('重试'),
+            style: TextButton.styleFrom(foregroundColor: _accent),
+          ),
+        ],
+      ),
     );
   }
 }
