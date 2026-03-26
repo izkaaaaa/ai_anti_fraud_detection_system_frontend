@@ -56,9 +56,9 @@ class RealTimeDetectionService {
   bool _isDisconnecting = false;  // ✅ 主动断开标志：主动断开时不触发 onDisconnected
   String? _callRecordId;
   
-  // ✅ 三级防御机制
-  int _currentDefenseLevel = 1;  // 当前防御等级（1/2/3）
-  double _currentVideoFPS = 1.0;  // 当前视频帧率
+  // ✅ 三级防御机制（Level 0=安全/5fps, 1=警戒/15fps, 2=高危/30fps）
+  int _currentDefenseLevel = 0;  // 当前防御等级（初始为 0，安全模式）
+  double _currentVideoFPS = 5.0;  // 当前视频帧率（Level 0 默认 5fps）
   bool _isRecordingCall = false;  // 是否正在录音
   
   // ✅ 定时通知
@@ -175,16 +175,19 @@ class RealTimeDetectionService {
       // ✅ 3. 停止语音识别
       await _stopSpeechRecognition();
       
-      // 4. 断开 WebSocket（根据文档，关闭连接即可，无需调用结束接口）
+      // 4. 调用结束通话接口（触发后端 AI 总结生成）
+      await _endCallRecord();
+
+      // 5. 断开 WebSocket
       await _disconnectWebSocket();
       
-      // ✅ 5. 停止前台服务
+      // ✅ 6. 停止前台服务
       await _stopForegroundService();
       
-      // ✅ 6. 取消所有通知
+      // ✅ 7. 取消所有通知
       await _notificationService.cancelAll();
 
-      // 7. 隐藏悬浮窗
+      // 8. 隐藏悬浮窗
       await FloatingWindowService.instance.hide();
 
       onStatusChange?.call('监测已停止');
@@ -233,26 +236,32 @@ class RealTimeDetectionService {
   }
   
   /// 创建通话记录
-  Future<String?> _createCallRecord() async {
+  ///
+  /// [platform]：通话平台，必须是 PHONE / WECHAT / QQ / OTHER
+  /// [targetIdentifier]：对方号码或名称，可选
+  Future<String?> _createCallRecord({
+    String platform = 'OTHER',
+    String targetIdentifier = 'realtime_detection',
+  }) async {
     try {
       final token = AuthService().getToken();
       if (token.isEmpty) {
         print('❌ 创建通话记录失败: 未登录');
         return null;
       }
-      
-      print('📞 创建通话记录...');
-      
-      // 使用 POST 请求，参数作为 query parameters
+
+      print('📞 创建通话记录 (platform=$platform, target=$targetIdentifier)...');
+
+      // POST /api/call-records/start?platform=xxx&target_identifier=xxx
       final response = await dioRequest.post(
         '/api/call-records/start',
         params: {
-          'platform': 'android',
-          'target_identifier': 'realtime_detection',
+          'platform': platform,
+          'target_identifier': targetIdentifier,
         },
       );
-      
-      // 后端返回的是 call_id，不是 id
+
+      // 后端返回 { "call_id": 3, "status": "started" }
       if (response != null && response['call_id'] != null) {
         print('✅ 通话记录创建成功: call_id=${response['call_id']}');
         return response['call_id'].toString();
@@ -333,6 +342,25 @@ class RealTimeDetectionService {
     }
   }
   
+  /// 结束通话记录（触发后端 AI 总结生成）
+  ///
+  /// POST /api/call-records/{call_id}/end
+  /// 调用后后端异步生成 analysis 和 advice 字段
+  Future<void> _endCallRecord() async {
+    if (_callRecordId == null) {
+      print('⚠️ _endCallRecord: 无 call_id，跳过');
+      return;
+    }
+    try {
+      print('📞 结束通话记录: call_id=$_callRecordId');
+      await dioRequest.post('/api/call-records/$_callRecordId/end');
+      print('✅ 通话记录已结束，AI 总结生成中...');
+    } catch (e) {
+      // 结束接口失败不阻断主流程
+      print('⚠️ 结束通话记录失败（不影响主流程）: $e');
+    }
+  }
+
   /// 断开 WebSocket（主动断开，不触发 onDisconnected）
   Future<void> _disconnectWebSocket() async {
     _isDisconnecting = true;  // ✅ 标记为主动断开
@@ -377,34 +405,50 @@ class RealTimeDetectionService {
           // 心跳响应
           print('💓 心跳响应');
           break;
-          
+
         case 'detection_result':
-          // 检测结果消息（按照文档格式）
-          final detectionType = data['detection_type'] ?? '未知';
-          final isRisk = data['is_risk'] ?? false;
-          final confidence = data['confidence'] ?? 0.0;
-          final message = data['message'] ?? '';
-          final timestamp = data['timestamp'] ?? '';
-          
+          // ✅ 新格式：消息体在 data 字段内
+          // { type, data: { overall_score, voice_confidence, video_confidence,
+          //                 text_confidence, is_fraud, advice, keywords } }
+          final detectionData = (data['data'] as Map<String, dynamic>?) ?? {};
+          final overallScore      = (detectionData['overall_score']      ?? 0).toDouble();
+          final voiceConfidence   = (detectionData['voice_confidence']   ?? 0.0).toDouble();
+          final videoConfidence   = (detectionData['video_confidence']   ?? 0.0).toDouble();
+          final textConfidence    = (detectionData['text_confidence']    ?? 0.0).toDouble();
+          final isFraud           = detectionData['is_fraud']            ?? false;
+          final advice            = detectionData['advice']              ?? '';
+          final keywords          = detectionData['keywords']            ?? [];
+
           print('🔍 检测结果:');
-          print('   类型: $detectionType');
-          print('   风险: ${isRisk ? "是" : "否"}');
-          print('   置信度: ${(confidence * 100).toStringAsFixed(1)}%');
-          print('   消息: $message');
-          print('   时间: $timestamp');
-          
-          // 回调给 UI
+          print('   综合评分: $overallScore');
+          print('   语音置信度: ${(voiceConfidence * 100).toStringAsFixed(1)}%');
+          print('   视频置信度: ${(videoConfidence * 100).toStringAsFixed(1)}%');
+          print('   文本置信度: ${(textConfidence * 100).toStringAsFixed(1)}%');
+          print('   是否诈骗: $isFraud');
+          print('   建议: $advice');
+          print('   关键词: $keywords');
+
+          // 回调给 UI（传递完整字段，UI 自行决定展示哪些模态）
           onDetectionResult?.call({
-            'detection_type': detectionType,
-            'is_risk': isRisk,
-            'confidence': confidence,
-            'message': message,
-            'timestamp': timestamp,
+            'overall_score':    overallScore,
+            'voice_confidence': voiceConfidence,
+            'video_confidence': videoConfidence,
+            'text_confidence':  textConfidence,
+            'is_fraud':         isFraud,
+            'advice':           advice,
+            'keywords':         keywords,
           });
 
-          // 更新悬浮窗
-          final wLevel = isRisk ? (confidence > 0.7 ? 'danger' : 'suspicious') : 'safe';
-          FloatingWindowService.instance.updateRiskLevel(wLevel, confidence);
+          // 更新悬浮窗风险等级
+          String wLevel;
+          if (!isFraud) {
+            wLevel = 'safe';
+          } else if (overallScore >= 80) {
+            wLevel = 'danger';
+          } else {
+            wLevel = 'suspicious';
+          }
+          FloatingWindowService.instance.updateRiskLevel(wLevel, overallScore / 100.0);
           break;
           
         case 'control':
@@ -436,41 +480,18 @@ class RealTimeDetectionService {
           }
           break;
           
-        case 'info':
-          // 后端实际返回的消息类型（兼容处理）
-          final infoData = data['data'] ?? {};
-          final title = infoData['title'] ?? '';
-          final infoMessage = infoData['message'] ?? '';
-          final riskLevel = infoData['risk_level'] ?? 'safe';
-          final confidence = (infoData['confidence'] ?? 0.0).toDouble();
-          final timestamp = infoData['timestamp'] ?? '';
-          
-          print('ℹ️ 信息消息:');
-          print('   标题: $title');
-          print('   消息: $infoMessage');
-          print('   风险等级: $riskLevel');
-          print('   置信度: ${(confidence * 100).toStringAsFixed(1)}%');
-          
-          // 转换为标准格式回调给 UI
-          final isRisk = riskLevel != 'safe';
-          final detectionType = title.contains('语音') || title.contains('音频') 
-              ? '语音' 
-              : title.contains('视频') 
-                  ? '视频' 
-                  : '文本';
-          
-          onDetectionResult?.call({
-            'detection_type': detectionType,
-            'is_risk': isRisk,
-            'confidence': confidence,
-            'message': infoMessage,
-            'timestamp': timestamp,
-          });
-
-          // 更新悬浮窗（info 消息直接使用后端返回的 risk_level）
-          FloatingWindowService.instance.updateRiskLevel(riskLevel, confidence);
+        case 'environment_detected':
+          // ✅ 环境识别结果（新增）
+          final envData = (data['data'] as Map<String, dynamic>?) ?? {};
+          final envPlatform  = envData['platform'] ?? '';
+          final envType      = envData['environment_type'] ?? '';
+          final isTextChat   = envData['is_text_chat'] ?? false;
+          final modalities   = envData['active_modalities'] ?? [];
+          print('🌍 环境识别: platform=$envPlatform, type=$envType, modalities=$modalities');
+          // 通知 UI 更新通话环境信息（复用 onStatusChange 传递字符串摘要）
+          onStatusChange?.call('检测到通话环境: $envPlatform');
           break;
-          
+
         case 'error':
           // 错误消息
           final errorMsg = data['message'] ?? '未知错误';
@@ -928,9 +949,9 @@ class RealTimeDetectionService {
     
     print('🔔 [定时通知] 第 $_notificationCount 次，当前防御等级: Level $_currentDefenseLevel');
     
-    // ✅ 只在 Level 1 时发送定时通知
-    // Level 2 和 Level 3 只在检测到风险时才发送通知
-    if (_currentDefenseLevel == 1) {
+    // ✅ 只在 Level 0（安全模式）时发送定时通知
+    // Level 1 和 Level 2 只在检测到风险时才发送通知
+    if (_currentDefenseLevel == 0) {
       print('🔔 [定时通知] 发送正在检测通知...');
       _notificationService.showLowRiskAlert(
         title: '🛡️ 实时监测中',
@@ -1088,98 +1109,75 @@ class RealTimeDetectionService {
     // 通知 UI 防御等级变化
     onDefenseLevelChanged?.call(targetLevel);
     
-    // 根据等级应用不同策略
+    // 根据等级应用不同策略（0=安全, 1=警戒, 2=高危）
     switch (targetLevel) {
+      case 0:
+        _applyLevel0(config);
+        break;
       case 1:
         _applyLevel1(config);
         break;
       case 2:
         _applyLevel2(config);
         break;
-      case 3:
-        _applyLevel3(config);
-        break;
     }
   }
-  
-  /// Level 1: 正常模式（绿色）
+
+  /// Level 0: 安全模式（绿色，5fps）
+  void _applyLevel0(Map<String, dynamic> config) {
+    print('✅ 切换到安全模式 (Level 0)');
+    _currentVideoFPS = (config['video_fps'] != null)
+        ? (config['video_fps'] is int ? (config['video_fps'] as int).toDouble() : config['video_fps'] as double)
+        : 5.0;
+    if (_isScreenCaptureActive) _startScreenshotCapture();
+    onStatusChange?.call('安全监测中');
+  }
+
+  /// Level 1: 警戒模式（黄色，15fps）
   void _applyLevel1(Map<String, dynamic> config) {
-    print('✅ 切换到正常模式');
-    
-    // 恢复正常检测频率
-    _currentVideoFPS = 1.0;
-    
-    // 重启视频采集（应用新帧率）
-    if (_isScreenCaptureActive) {
-      _startScreenshotCapture();
-    }
-    
-    onStatusChange?.call('正常监测中');
-  }
-  
-  /// Level 2: 警惕模式（黄色）
-  void _applyLevel2(Map<String, dynamic> config) {
-    print('⚠️ 切换到警惕模式');
-    
-    // ✅ 发送中风险警告通知
+    print('⚠️ 切换到警戒模式 (Level 1)');
+
+    // 发送中风险警告通知
     final uiMessage = config['ui_message'] ?? '检测到可疑行为，请提高警惕！';
     _notificationService.showMediumRiskAlert(
       title: '⚠️ 中风险警告',
       message: uiMessage,
-      payload: 'level_2',
+      payload: 'level_1',
     );
-    
-    // 提高检测频率
-    final videoFps = config['video_fps'];
-    if (videoFps != null) {
-      _currentVideoFPS = (videoFps is int) ? videoFps.toDouble() : videoFps;
-      print('📹 提高视频帧率: $_currentVideoFPS fps');
-      
-      // 重启视频采集（应用新帧率）
-      if (_isScreenCaptureActive) {
-        _startScreenshotCapture();
-      }
-    }
-    
-    // 开启录音（如果配置要求）
+
+    _currentVideoFPS = (config['video_fps'] != null)
+        ? (config['video_fps'] is int ? (config['video_fps'] as int).toDouble() : config['video_fps'] as double)
+        : 15.0;
+    print('📹 警戒视频帧率: $_currentVideoFPS fps');
+    if (_isScreenCaptureActive) _startScreenshotCapture();
+
     final enableRecording = config['enable_call_recording'];
-    if (enableRecording == true && !_isRecordingCall) {
-      _startCallRecording();
-    }
-    
-    onStatusChange?.call('警惕模式 - 已提高检测频率');
+    if (enableRecording == true && !_isRecordingCall) _startCallRecording();
+
+    onStatusChange?.call('警戒模式 - 已提高检测频率');
   }
-  
-  /// Level 3: 危险模式（红色）
-  void _applyLevel3(Map<String, dynamic> config) {
-    print('🚨 切换到危险模式');
-    
-    // ✅ 发送高风险警告通知（全屏显示）
-    final uiMessage = config['ui_message'] ?? '检测到高风险诈骗行为，强烈建议立即挂断！';
+
+  /// Level 2: 高危模式（红色，30fps）
+  void _applyLevel2(Map<String, dynamic> config) {
+    print('🚨 切换到高危模式 (Level 2)');
+
+    // 发送高风险警告通知
+    final uiMessage = config['ui_message'] ?? '检测到高危诈骗行为，强烈建议立即挂断！';
     _notificationService.showHighRiskAlert(
       title: '🚨 高风险警告',
       message: uiMessage,
-      payload: 'level_3',
+      payload: 'level_2',
     );
-    
-    // 最高检测频率
-    final videoFps = config['video_fps'];
-    if (videoFps != null) {
-      _currentVideoFPS = (videoFps is int) ? videoFps.toDouble() : videoFps;
-      print('📹 最高视频帧率: $_currentVideoFPS fps');
-      
-      // 重启视频采集（应用新帧率）
-      if (_isScreenCaptureActive) {
-        _startScreenshotCapture();
-      }
-    }
-    
-    // 强制开启录音
-    if (!_isRecordingCall) {
-      _startCallRecording();
-    }
-    
-    onStatusChange?.call('危险模式 - 强烈建议挂断');
+
+    _currentVideoFPS = (config['video_fps'] != null)
+        ? (config['video_fps'] is int ? (config['video_fps'] as int).toDouble() : config['video_fps'] as double)
+        : 30.0;
+    print('📹 高危视频帧率: $_currentVideoFPS fps');
+    if (_isScreenCaptureActive) _startScreenshotCapture();
+
+    if (!_isRecordingCall) _startCallRecording();
+
+    onStatusChange?.call('高危模式 - 强烈建议挂断');
   }
   
   /// 开始通话录音（保存证据）
@@ -1259,3 +1257,4 @@ void startCallback() {
   // 初始化前台任务处理器
   FlutterForegroundTask.setTaskHandler(ForegroundTaskHandler());
 }
+

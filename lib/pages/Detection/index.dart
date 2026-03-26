@@ -151,71 +151,63 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
 
   /// 设置检测服务回调
   void _setupDetectionServiceCallbacks() {
-    // 检测结果回调（按照接口文档格式）
+    // 检测结果回调（新接口格式：overall_score/voice_confidence/video_confidence/text_confidence/is_fraud/advice/keywords）
     _detectionService.onDetectionResult = (result) {
       if (mounted) {
         print('📊 收到检测结果: $result');
-        
+
         setState(() {
-          // 按照接口文档格式解析
-          final detectionType = result['detection_type'] ?? '';
-          final isRisk = result['is_risk'] ?? false;
-          final confidence = (result['confidence'] ?? 0.0).toDouble();
-          final message = result['message'] ?? '';
-          
-          // 根据检测类型更新对应的结果
-          if (detectionType == '语音' || detectionType == 'audio') {
-            _audioConfidence = confidence;
-            _audioIsFake = isRisk;
-            
-            // 显示提示消息
-            if (isRisk) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('⚠️ 音频风险: $message'),
-                  backgroundColor: AppColors.error,
-                  duration: Duration(seconds: 3),
-                ),
-              );
-            }
-          } else if (detectionType == '视频' || detectionType == 'video') {
-            _videoConfidence = confidence;
-            _videoIsDeepfake = isRisk;
-            
-            // 显示提示消息
-            if (isRisk) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('⚠️ 视频风险: $message'),
-                  backgroundColor: AppColors.error,
-                  duration: Duration(seconds: 3),
-                ),
-              );
-            }
-          } else if (detectionType == '文本' || detectionType == 'text') {
-            _textRiskLevel = isRisk ? 'high' : 'safe';
-            _textConfidence = confidence;  // ✅ 保存实际置信度
-            
-            // ✅ 提取关键词
-            final keywords = result['keywords'];
-            if (keywords != null && keywords is List) {
-              _textKeywords = List<String>.from(keywords);
-            }
-            
-            // 显示提示消息
-            if (isRisk) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('⚠️ 文本风险: $message${_textKeywords.isNotEmpty ? "\n关键词: ${_textKeywords.join(", ")}" : ""}'),
-                  backgroundColor: AppColors.error,
-                  duration: Duration(seconds: 3),
-                ),
-              );
-            }
+          // ✅ 解析新格式字段
+          final overallScore    = (result['overall_score']    ?? 0.0).toDouble();
+          final voiceConf       = (result['voice_confidence'] ?? 0.0).toDouble();
+          final videoConf       = (result['video_confidence'] ?? 0.0).toDouble();
+          final textConf        = (result['text_confidence']  ?? 0.0).toDouble();
+          final isFraud         = result['is_fraud']          ?? false;
+          final advice          = result['advice']            ?? '';
+          final keywordsRaw     = result['keywords'];
+
+          // 更新三路模态置信度
+          _audioConfidence   = voiceConf;
+          _audioIsFake       = isFraud && voiceConf > 0;
+          _videoConfidence   = videoConf;
+          _videoIsDeepfake   = isFraud && videoConf > 0;
+          _textConfidence    = textConf;
+          _textRiskLevel     = isFraud ? 'high' : 'safe';
+
+          // 提取关键词
+          if (keywordsRaw != null && keywordsRaw is List) {
+            _textKeywords = List<String>.from(keywordsRaw);
+          } else {
+            _textKeywords = [];
           }
-          
-          // 计算综合风险等级
-          _overallRisk = _calculateOverallRisk();
+
+          // 计算综合风险等级（基于 overall_score：>=80 严重, >=60 高, >=40 中, >=20 低）
+          if (overallScore >= 80) {
+            _overallRisk = RiskLevel.critical;
+          } else if (overallScore >= 60) {
+            _overallRisk = RiskLevel.high;
+          } else if (overallScore >= 40) {
+            _overallRisk = RiskLevel.medium;
+          } else if (overallScore >= 20) {
+            _overallRisk = RiskLevel.low;
+          } else {
+            _overallRisk = RiskLevel.safe;
+          }
+
+          // 显示风险提示
+          if (isFraud) {
+            final keywordStr = _textKeywords.isNotEmpty ? '\n关键词: ${_textKeywords.join(", ")}' : '';
+            final msg = advice.isNotEmpty ? advice : '检测到诈骗风险，请提高警惕！';
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('🚨 $msg$keywordStr'),
+                backgroundColor: AppColors.error,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+
+          // 综合风险等级已在上方直接计算，无需再调用 _calculateOverallRisk()
           
           // 如果是高风险，切换到警告状态
           if (_overallRisk == RiskLevel.high || _overallRisk == RiskLevel.critical) {
@@ -237,23 +229,24 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
           final reason = control['reason'] ?? '';
           final config = control['config'] ?? {};
           
-          // ✅ 根据后端文档的 warning_mode 决定显示方式
+          // ✅ 根据后端文档 warning_mode 决定显示方式
+          // Level 0=安全(无提示), Level 1=警戒(modal), Level 2=高危(fullscreen)
           final warningMode = config['warning_mode'] ?? 'modal';
           final uiMessage = config['ui_message'] ?? '⚠️ 检测到风险，请提高警惕！';
-          
-          if (warningMode == 'fullscreen' || config['show_full_screen_warning'] == true) {
-            // 全屏警告（Level 3）
+
+          if (warningMode == 'fullscreen' || targetLevel >= 2) {
+            // 全屏警告（Level 2 高危）
             _showFullScreenWarning(uiMessage, targetLevel, reason, config);
-          } else if (warningMode == 'modal') {
-            // 弹窗警告（Level 2）
+          } else if (warningMode == 'modal' || targetLevel == 1) {
+            // 弹窗警告（Level 1 警戒）
             _showModalWarning(uiMessage, targetLevel, reason, config);
-          } else if (warningMode == 'toast') {
-            // 轻量提示（Level 1）
+          } else {
+            // 轻量提示（Level 0，通常不会走到这里）
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(uiMessage),
                 backgroundColor: AppColors.warning,
-                duration: Duration(seconds: 3),
+                duration: const Duration(seconds: 3),
               ),
             );
           }
