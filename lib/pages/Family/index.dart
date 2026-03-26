@@ -17,7 +17,9 @@ class FamilyPage extends StatefulWidget {
 class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateMixin {
   bool _isLoading = true;
   Map<String, dynamic>? _userInfo;
+  Map<String, dynamic>? _familyInfo;
   bool _isAdmin = false;
+  String _myAdminRole = 'none';
   String? _errorMessage;
   late TabController _tabController;
 
@@ -42,7 +44,9 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
       _isLoading = true;
       _errorMessage = null;
       _isAdmin = false;
+      _myAdminRole = 'none';
       _userInfo = null;
+      _familyInfo = null;
     });
 
     try {
@@ -53,12 +57,25 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
       
       // 检查是否是管理员
       if (_userInfo != null && _userInfo!['family_id'] != null) {
+
+        // 获取家庭组详情（group_name、统计数据）
+        try {
+          _familyInfo = await _familyService.getFamilyInfo();
+          final role = _familyInfo?['my_role']?.toString().toLowerCase() ?? 'none';
+          _myAdminRole = role;
+          _isAdmin = role == 'primary' || role == 'secondary';
+        } catch (_) {
+          _familyInfo = null;
+        }
+
         try {
           await _familyService.getApplications();
           _isAdmin = true;
+          if (_myAdminRole == 'none') {
+            _myAdminRole = 'secondary';
+          }
           print('✅ 用户是管理员');
         } catch (e) {
-          _isAdmin = false;
           print('ℹ️ 用户是普通成员');
         }
       } else {
@@ -454,6 +471,9 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                                 ),
                                 MembersTab(
                                   familyService: _familyService,
+                                  familyId: _userInfo!['family_id'] as int,
+                                  myAdminRole: _myAdminRole,
+                                  currentUserId: _userInfo?['user_id'] as int?,
                                   onMemberUpdated: _loadData, // 成员变化后刷新
                                 ),
                               ],
@@ -628,6 +648,9 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
         Expanded(
           child: MembersTab(
             familyService: _familyService,
+            familyId: _userInfo!['family_id'] as int,
+            myAdminRole: _myAdminRole,
+            currentUserId: _userInfo?['user_id'] as int?,
             onMemberUpdated: _loadData,
           ),
         ),
@@ -685,7 +708,9 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                            '家庭组 ${_userInfo!['family_id']}',
+                            _familyInfo?['group_name']?.toString().isNotEmpty == true
+                                ? _familyInfo!['group_name'].toString()
+                                : '家庭组 ${_userInfo!['family_id']}',
                       style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.w900,
@@ -1086,11 +1111,17 @@ class _ApplicationsTabState extends State<ApplicationsTab> with AutomaticKeepAli
 // ==================== 成员管理标签页 ====================
 class MembersTab extends StatefulWidget {
   final FamilyService familyService;
+  final int familyId;
+  final String myAdminRole;
+  final int? currentUserId;
   final VoidCallback? onMemberUpdated; // 成员变化后的回调
 
   const MembersTab({
     super.key, 
     required this.familyService,
+    required this.familyId,
+    required this.myAdminRole,
+    this.currentUserId,
     this.onMemberUpdated,
   });
 
@@ -1120,7 +1151,7 @@ class _MembersTabState extends State<MembersTab> with AutomaticKeepAliveClientMi
 
     try {
       print('🔄 MembersTab: 开始加载成员列表');
-      final members = await widget.familyService.getMembers();
+      final members = await widget.familyService.getMembers(familyId: widget.familyId);
       print('✅ MembersTab: 成员列表加载成功，共 ${members.length} 个成员');
       setState(() {
         _members = members;
@@ -1139,7 +1170,160 @@ class _MembersTabState extends State<MembersTab> with AutomaticKeepAliveClientMi
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => MemberRecordsPage(member: member),
+        builder: (context) => MemberRecordsPage(
+          member: member,
+          familyId: widget.familyId,
+          familyService: widget.familyService,
+          myAdminRole: widget.myAdminRole,
+        ),
+      ),
+    );
+  }
+
+  bool _canManageMember(Map<String, dynamic> member) {
+    final myRole = widget.myAdminRole;
+    if (myRole != 'primary' && myRole != 'secondary') return false;
+
+    final memberUserId = member['user_id'] as int?;
+    if (widget.currentUserId != null && memberUserId == widget.currentUserId) {
+      return false;
+    }
+
+    final memberRole = (member['admin_role']?.toString().toLowerCase() ?? 'none');
+    if (myRole == 'primary') {
+      return memberRole != 'primary';
+    }
+
+    // secondary 只能管理普通成员
+    return memberRole == 'none' || memberRole.isEmpty;
+  }
+
+  Future<void> _setMemberRole(Map<String, dynamic> member, String targetRole) async {
+    final userId = member['user_id'] as int?;
+    if (userId == null) return;
+
+    final roleName = targetRole == 'none' ? '普通成员' : '副管理员';
+    try {
+      final ok = await widget.familyService.setAdminRole(userId: userId, role: targetRole);
+      if (!mounted) return;
+      if (ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已设置为$roleName'), backgroundColor: AppColors.success),
+        );
+        await _loadMembers();
+        widget.onMemberUpdated?.call();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('设置角色失败: $e'), backgroundColor: AppColors.error),
+      );
+    }
+  }
+
+  Future<void> _removeMember(Map<String, dynamic> member) async {
+    final userId = member['user_id'] as int?;
+    if (userId == null) return;
+
+    final name = member['name'] ?? member['phone'] ?? '该成员';
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('移除成员'),
+        content: Text('确认将 $name 移出家庭组吗？'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
+            child: const Text('移除'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final ok = await widget.familyService.removeMember(userId);
+      if (!mounted) return;
+      if (ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('成员已移除'), backgroundColor: AppColors.success),
+        );
+        await _loadMembers();
+        widget.onMemberUpdated?.call();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('移除失败: $e'), backgroundColor: AppColors.error),
+      );
+    }
+  }
+
+  Future<void> _showMemberActions(Map<String, dynamic> member) async {
+    final canManage = _canManageMember(member);
+    if (!canManage) {
+      _viewMemberRecords(member);
+      return;
+    }
+
+    final role = member['admin_role']?.toString().toLowerCase() ?? 'none';
+    final myRole = widget.myAdminRole;
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.history_rounded),
+                title: const Text('查看通话记录'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _viewMemberRecords(member);
+                },
+              ),
+              if (myRole == 'primary' && role == 'none')
+                ListTile(
+                  leading: const Icon(Icons.admin_panel_settings_rounded, color: Color(0xFF58A183)),
+                  title: const Text('设为副管理员'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _setMemberRole(member, 'secondary');
+                  },
+                ),
+              if (myRole == 'primary' && role == 'secondary')
+                ListTile(
+                  leading: const Icon(Icons.person_outline_rounded, color: Color(0xFF58A183)),
+                  title: const Text('降级为普通成员'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _setMemberRole(member, 'none');
+                  },
+                ),
+              if (role == 'none')
+                ListTile(
+                  leading: const Icon(Icons.person_remove_alt_1_rounded, color: Color(0xFFDC2626)),
+                  title: const Text('移除成员'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _removeMember(member);
+                  },
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1201,9 +1385,10 @@ class _MembersTabState extends State<MembersTab> with AutomaticKeepAliveClientMi
         itemCount: _members.length,
         itemBuilder: (context, index) {
           final member = _members[index];
-          final isAdmin = member['is_admin'] == true;
+          final memberRole = member['admin_role']?.toString().toLowerCase() ?? 'none';
+          final isAdmin = memberRole == 'primary' || memberRole == 'secondary';
           return GestureDetector(
-            onTap: () => _viewMemberRecords(member),
+            onTap: () => _showMemberActions(member),
             child: Container(
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1295,8 +1480,17 @@ class _MembersTabState extends State<MembersTab> with AutomaticKeepAliveClientMi
 // ==================== 成员通话记录页面 ====================
 class MemberRecordsPage extends StatefulWidget {
   final Map<String, dynamic> member;
+  final int familyId;
+  final FamilyService familyService;
+  final String myAdminRole;
 
-  const MemberRecordsPage({super.key, required this.member});
+  const MemberRecordsPage({
+    super.key,
+    required this.member,
+    required this.familyId,
+    required this.familyService,
+    required this.myAdminRole,
+  });
 
   @override
   State<MemberRecordsPage> createState() => _MemberRecordsPageState();
@@ -1306,6 +1500,107 @@ class _MemberRecordsPageState extends State<MemberRecordsPage> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _records = [];
   String? _errorMessage;
+
+  bool get _canRemoteIntervene =>
+      widget.myAdminRole == 'primary' || widget.myAdminRole == 'secondary';
+
+  int? _toInt(dynamic value) {
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  Future<void> _sendSosForRecord(Map<String, dynamic> record) async {
+    final callId = _toInt(record['call_id']);
+    if (callId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('当前记录缺少 call_id，无法发起求助'), backgroundColor: AppColors.error),
+      );
+      return;
+    }
+
+    final controller = TextEditingController(text: '检测到风险通话，请尽快联系我');
+    final message = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('发送紧急求助'),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          decoration: const InputDecoration(hintText: '请输入求助信息'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('发送')),
+        ],
+      ),
+    );
+
+    if (message == null || message.isEmpty) return;
+
+    try {
+      final ok = await widget.familyService.sendSos(callId: callId, message: message);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ok ? '求助已发送给家庭监护人' : '求助发送失败'),
+          backgroundColor: ok ? AppColors.success : AppColors.error,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('发送求助失败: $e'), backgroundColor: AppColors.error),
+      );
+    }
+  }
+
+  Future<void> _remoteIntervene() async {
+    final targetUserId = _toInt(widget.member['user_id']);
+    if (targetUserId == null) return;
+
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.call_end_rounded, color: Color(0xFFDC2626)),
+              title: const Text('强制挂断通话'),
+              onTap: () => Navigator.pop(context, 'block_call'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.warning_amber_rounded, color: Color(0xFFF59E0B)),
+              title: const Text('仅发送警告提示'),
+              onTap: () => Navigator.pop(context, 'warn_only'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (action == null) return;
+
+    try {
+      final ok = await widget.familyService.remoteIntervene(
+        targetUserId: targetUserId,
+        action: action,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ok ? '远程干预指令已发送' : '远程干预失败'),
+          backgroundColor: ok ? AppColors.success : AppColors.error,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('远程干预失败: $e'), backgroundColor: AppColors.error),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -1323,13 +1618,22 @@ class _MemberRecordsPageState extends State<MemberRecordsPage> {
       final userId = widget.member['user_id'];
       print('📞 开始加载成员通话记录: userId=$userId');
       
-      // 尝试正确的接口路径：/api/family/members/{user_id}/call-records
-      final response = await dioRequest.get('/api/family/members/$userId/call-records');
+      final response = await dioRequest.get(
+        '/api/call-records/family-records',
+        params: {
+          'family_id': widget.familyId,
+          'user_id': userId,
+          'page': 1,
+          'page_size': 50,
+        },
+      );
       
       print('📦 通话记录响应: $response');
       
       if (response != null && response['data'] != null) {
-        final records = List<Map<String, dynamic>>.from(response['data']);
+        final data = response['data'];
+        final recordsRaw = data is Map<String, dynamic> ? (data['records'] as List? ?? []) : (data as List? ?? []);
+        final records = recordsRaw.cast<Map<String, dynamic>>();
         print('✅ 通话记录加载成功，共 ${records.length} 条记录');
         setState(() {
           _records = records;
@@ -1397,6 +1701,19 @@ class _MemberRecordsPageState extends State<MemberRecordsPage> {
             fontWeight: FontWeight.bold,
           ),
         ),
+        actions: [
+          if (_canRemoteIntervene)
+            IconButton(
+              onPressed: _remoteIntervene,
+              tooltip: '远程干预',
+              icon: const Icon(Icons.gpp_maybe_rounded, color: Color(0xFFDC2626)),
+            ),
+          IconButton(
+            onPressed: _loadRecords,
+            tooltip: '刷新',
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: AppColors.primary))
@@ -1509,6 +1826,14 @@ class _MemberRecordsPageState extends State<MemberRecordsPage> {
                                             ),
                                             SizedBox(height: 4),
                                             Text(
+                                              _formatDateTime(record['start_time']?.toString() ?? ''),
+                                              style: TextStyle(
+                                                fontSize: AppTheme.fontSizeSmall,
+                                                color: AppColors.textSecondary,
+                                              ),
+                                            ),
+                                            SizedBox(height: 2),
+                                            Text(
                                               '时长: ${record['duration'] ?? 0}秒',
                                               style: TextStyle(
                                                 fontSize: AppTheme.fontSizeSmall,
@@ -1518,21 +1843,46 @@ class _MemberRecordsPageState extends State<MemberRecordsPage> {
                                           ],
                                         ),
                                       ),
-                                      Container(
-                                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: resultColor.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(color: resultColor),
-                                        ),
-                                        child: Text(
-                                          resultText,
-                                          style: TextStyle(
-                                            fontSize: AppTheme.fontSizeSmall,
-                                            color: resultColor,
-                                            fontWeight: FontWeight.w600,
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Container(
+                                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: resultColor.withOpacity(0.1),
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: resultColor),
+                                            ),
+                                            child: Text(
+                                              resultText,
+                                              style: TextStyle(
+                                                fontSize: AppTheme.fontSizeSmall,
+                                                color: resultColor,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
                                           ),
-                                        ),
+                                          const SizedBox(height: 8),
+                                          GestureDetector(
+                                            onTap: () => _sendSosForRecord(record),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFFEE2E2),
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(color: const Color(0xFFFCA5A5)),
+                                              ),
+                                              child: const Text(
+                                                'SOS求助',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Color(0xFFB91C1C),
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
