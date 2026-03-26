@@ -10,12 +10,18 @@ import 'package:get/get.dart';
 /// 4. 自动触发录音
 class CallDetectionService extends GetxService {
   static const platform = MethodChannel('com.example.ai_anti_fraud_detection_system_frontend/call_detection');
+
+  /// 静态实例引用，供其他服务直接访问当前通话信息
+  static CallDetectionService? get instance => GetInstance().isRegistered<CallDetectionService>() ? Get.find<CallDetectionService>() : null;
   
   // 状态
   final isAccessibilityEnabled = false.obs;
   final currentCall = Rxn<CallInfo>();
   final callHistory = <CallInfo>[].obs;
   final statusMessage = ''.obs;
+
+  /// 通话接通回调（app: 'QQ' | 'WeChat' | 'Unknown'）
+  void Function(String app, String caller)? onCallDetectedCallback;
   
   @override
   void onInit() {
@@ -54,7 +60,7 @@ class CallDetectionService extends GetxService {
     
     currentCall.value = callInfo;
     callHistory.add(callInfo);
-    
+    onCallDetectedCallback?.call(app, caller);
     print('📞 Call detected: $app - $caller');
   }
   

@@ -16,6 +16,7 @@ import 'package:ai_anti_fraud_detection_system_frontend/services/baidu_speech_se
 import 'package:ai_anti_fraud_detection_system_frontend/services/foreground_task_handler.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/local_notification_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/AudioRecordingService.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/services/CallDetectionService.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/floating_window_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/DioRequest.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/index.dart';
@@ -106,8 +107,14 @@ class RealTimeDetectionService {
         return false;
       }
       
-      // 2. 创建通话记录
-      final recordId = await _createCallRecord();
+      // 2. 创建通话记录（读取 CallDetectionService 当前通话 app，自动映射 platform）
+      final callApp = CallDetectionService.instance?.currentCall.value?.app ?? '';
+      final detectedPlatform = {
+        'QQ': 'QQ',
+        'WeChat': 'WECHAT',
+      }[callApp] ?? 'OTHER';
+      print('📞 检测到通话 app: "$callApp" → platform=$detectedPlatform');
+      final recordId = await _createCallRecord(platform: detectedPlatform);
       if (recordId == null) {
         onError?.call('创建通话记录失败');
         await _stopForegroundService();
@@ -123,6 +130,12 @@ class RealTimeDetectionService {
         return false;
       }
       
+      // 3.5 注册通话接通回调：如果开始检测时还未接通，接通后打印日志（platform 不更新后端）
+      CallDetectionService.instance?.onCallDetectedCallback = (app, caller) {
+        final updatedPlatform = {'QQ': 'QQ', 'WeChat': 'WECHAT'}[app] ?? 'OTHER';
+        print('📞 [通话接通回调] app=$app → platform=$updatedPlatform（后端 platform 不更新）');
+      };
+
       // 4. 开始录音
       final recordingStarted = await _startAudioRecording();
       if (!recordingStarted) {
@@ -163,6 +176,9 @@ class RealTimeDetectionService {
   /// 停止实时监测
   Future<void> stopDetection() async {
     try {
+      // 0. 清除通话接通回调，防止 stopDetection 后仍被触发
+      CallDetectionService.instance?.onCallDetectedCallback = null;
+
       // 0. 停止定时通知
       _stopPeriodicNotifications();
       
