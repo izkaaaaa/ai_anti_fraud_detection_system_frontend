@@ -2139,12 +2139,13 @@ class _MemberRecordsPageState extends State<MemberRecordsPage> {
     try {
       final userId = widget.member['user_id'];
       print('📞 开始加载成员通话记录: userId=$userId, familyId=${widget.familyId}');
+      print('📋 成员完整信息: ${widget.member}');
       
       final response = await dioRequest.get(
         '/api/call-records/family-records',
         params: {
           'family_id': widget.familyId,
-          'target_user_id': userId,
+          'user_id': userId,
           'page': 1,
           'page_size': 50,
         },
