@@ -119,8 +119,8 @@ class DioRequest {
     return _handleResponse(_dio.post(url, data: data, queryParameters: params));
   }
   
-  Future<dynamic> put(String url, {dynamic data}) {
-    return _handleResponse(_dio.put(url, data: data));
+  Future<dynamic> put(String url, {dynamic data, Map<String, dynamic>? params}) {
+    return _handleResponse(_dio.put(url, data: data, queryParameters: params));
   }
   
   Future<dynamic> delete(String url, {Map<String, dynamic>? params}) {

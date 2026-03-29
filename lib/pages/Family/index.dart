@@ -29,7 +29,7 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _loadData();
   }
 
@@ -55,7 +55,7 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
       
       print('🔍 用户信息: family_id=${_userInfo?['family_id']}');
       
-      // 检查是否是管理员
+      // 检查是否加入了家庭组（可能有多个）
       if (_userInfo != null && _userInfo!['family_id'] != null) {
 
         // 获取家庭组详情（group_name、统计数据）
@@ -96,6 +96,22 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
 
   /// 创建家庭组
   Future<void> _createFamily() async {
+    // 先检查是否有待审批的申请
+    print('🔍 检查是否有待审批申请...');
+    final pendingApps = await _familyService.getPendingApplications();
+    print('📊 待审批申请数量: ${pendingApps.length}');
+    
+    if (pendingApps.isNotEmpty && mounted) {
+      print('⛔ 用户有待审批申请，阻止创建家庭组');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('您有待审批的家庭组申请，请先处理后再创建新家庭组'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     final nameController = TextEditingController();
     
     final result = await showDialog<Map<String, dynamic>?>(
@@ -177,16 +193,30 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                 
                 if (createResult != null) {
                   print('✅ 家庭组创建成功: $createResult');
-                  Navigator.pop(context, createResult);
+                  if (mounted) {
+                    Navigator.pop(context, createResult);
+                  }
+                } else {
+                  print('❌ 创建家庭组返回空结果');
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('创建失败：服务器返回异常'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                  }
                 }
               } catch (e) {
                 print('❌ 创建家庭组失败: $e');
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('创建失败: $e'),
-                    backgroundColor: AppColors.error,
-                  ),
-                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('创建失败: $e'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
               }
             },
             style: ElevatedButton.styleFrom(
@@ -219,6 +249,22 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
 
   /// 申请加入家庭组
   Future<void> _joinFamily() async {
+    // 先检查是否有待审批的申请
+    print('🔍 检查是否有待审批申请...');
+    final pendingApps = await _familyService.getPendingApplications();
+    print('📊 待审批申请数量: ${pendingApps.length}');
+    
+    if (pendingApps.isNotEmpty && mounted) {
+      print('⛔ 用户有待审批申请，阻止申请其他家庭组');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('您有待审批的家庭组申请，请先处理后再申请其他家庭组'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     final idController = TextEditingController();
     
     final result = await showDialog<bool>(
@@ -323,6 +369,13 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                 final success = await _familyService.applyToJoin(familyId);
                 if (success) {
                   Navigator.pop(context, true);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('该家庭组不存在或已被删除'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
                 }
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -350,6 +403,7 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
     if (result == true) {
       if (mounted) {
         _showSuccess('申请已发送，请等待管理员审批');
+        await _loadData(forceRefresh: true);
       }
     }
   }
@@ -420,8 +474,9 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                           fontWeight: FontWeight.w700,
                         ),
                         tabs: [
-                          Tab(text: '申请管理'),
+                          Tab(text: '我的家庭组'),
                           Tab(text: '成员管理'),
+                          Tab(text: '申请管理'),
                         ],
                       ),
                     )
@@ -461,26 +516,85 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                   : Container(
                       color: const Color(0xFFF8FAF9),
                       child: SafeArea(
-                        child: _isAdmin
-                          ? TabBarView(
-                              controller: _tabController,
-                              children: [
-                                ApplicationsTab(
-                                  familyService: _familyService,
-                                  onApplicationProcessed: _loadData, // 审批后刷新
-                                ),
-                                MembersTab(
-                                  familyService: _familyService,
-                                  familyId: _userInfo!['family_id'] as int,
-                                  myAdminRole: _myAdminRole,
-                                  currentUserId: _userInfo?['user_id'] as int?,
-                                  onMemberUpdated: _loadData, // 成员变化后刷新
-                                ),
-                              ],
-                            )
-                          : _buildMemberView(), // 普通成员也显示成员列表
-        ),
-      ),
+                        child: Column(
+                          children: [
+                            // 待审批申请提示条
+                            FutureBuilder<List<Map<String, dynamic>>>(
+                              future: _familyService.getPendingApplications(),
+                              builder: (context, snapshot) {
+                                final applications = snapshot.data ?? [];
+                                if (applications.isEmpty) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Container(
+                                  color: const Color(0xFFFEF3C7),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.info_rounded, color: Color(0xFFD97706), size: 20),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          '您有 ${applications.length} 个待审批的家庭组申请',
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            color: Color(0xFF92400E),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      GestureDetector(
+                                        onTap: () => _showPendingApplicationsDialog(applications),
+                                        child: const Text(
+                                          '查看',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Color(0xFFD97706),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                            Expanded(
+                              child: _isAdmin
+                                ? TabBarView(
+                                    controller: _tabController,
+                                    children: [
+                                      // 第一个标签页：我的家庭组
+                                      SingleChildScrollView(
+                                        padding: const EdgeInsets.all(16),
+                                        child: Column(
+                                          children: [
+                                            _buildFamilyInfoCard(),
+                                          ],
+                                        ),
+                                      ),
+                                      // 第二个标签页：成员管理
+                                      MembersTab(
+                                        familyService: _familyService,
+                                        familyId: _userInfo!['family_id'] as int,
+                                        myAdminRole: _myAdminRole,
+                                        currentUserId: _userInfo?['user_id'] as int?,
+                                        onMemberUpdated: _loadData,
+                                      ),
+                                      // 第三个标签页：申请管理
+                                      ApplicationsTab(
+                                        familyService: _familyService,
+                                        onApplicationProcessed: _loadData,
+                                      ),
+                                    ],
+                                  )
+                                : _buildMemberView(), // 普通成员也显示成员列表
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+      
     );
   }
 
@@ -615,7 +729,7 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                           ),
                           child: const Text(
                           '加入家庭组',
-                style: TextStyle(
+                          style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
                               color: Color(0xFF1C3A2F),
@@ -631,8 +745,283 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
         ),
       ),
         ),
+        // 待审批申请列表
+        Positioned(
+          top: screenHeight * 0.35,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: _buildPendingApplicationsList(),
+        ),
       ],
     );
+  }
+
+  /// 构建待审批申请列表
+  Widget _buildPendingApplicationsList() {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _familyService.getPendingApplications(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Color(0xFF58A183)));
+        }
+
+        final applications = snapshot.data ?? [];
+        
+        if (applications.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Container(
+          color: const Color(0xFFF8FAF9),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                child: Text(
+                  '待审批申请 (${applications.length})',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F1923),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  itemCount: applications.length,
+                  itemBuilder: (context, index) {
+                    final app = applications[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '家庭组 ${app['family_id'] ?? '未知'}',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0F1923),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  app['apply_time'] ?? '申请中',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF9CA3AF),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => _cancelApplication(app['application_id'], app['family_id']),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEE2E2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text(
+                                '取消申请',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFFDC2626),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// 显示待审批申请对话框
+  Future<void> _showPendingApplicationsDialog(List<Map<String, dynamic>> applications) async {
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFFA9BCBD),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        titlePadding: const EdgeInsets.fromLTRB(24, 28, 24, 8),
+        contentPadding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        title: const Text(
+          '待审批申请',
+          style: TextStyle(
+            color: Color(0xFF0F1923),
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: applications.length,
+            itemBuilder: (context, index) {
+              final app = applications[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '家庭组 ${app['family_id'] ?? '未知'}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF0F1923),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            app['apply_time'] ?? '申请中',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF2D4A3E),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                        _cancelApplication(app['application_id'], app['family_id']);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEE2E2),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          '取消',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFFDC2626),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFF2D4A3E)),
+            child: const Text('关闭', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 取消申请
+  Future<void> _cancelApplication(int appId, int familyId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFFA9BCBD),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        titlePadding: const EdgeInsets.fromLTRB(24, 28, 24, 8),
+        contentPadding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        title: const Text(
+          '取消申请',
+          style: TextStyle(
+            color: Color(0xFF0F1923),
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        content: Text(
+          '确认取消对家庭组 $familyId 的申请吗？',
+          style: const TextStyle(
+            color: Color(0xFF2D4A3E),
+            fontSize: 14,
+            height: 1.5,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFF2D4A3E)),
+            child: const Text('保留', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
+            child: const Text('取消申请', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        print('📤 正在取消申请: appId=$appId');
+        final success = await _familyService.cancelApplication(appId);
+        if (success && mounted) {
+          print('✅ 申请已取消');
+          _showSuccess('申请已取消');
+          await _loadData(forceRefresh: true);
+        }
+      } catch (e) {
+        print('❌ 取消申请失败: $e');
+        if (mounted) {
+          _showError('取消失败: $e');
+        }
+      }
+    }
   }
 
   Widget _buildMemberView() {
@@ -658,6 +1047,133 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
     );
   }
 
+  Widget _buildFamilyInfoCardSimple() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: const Color(0xFF58A183).withOpacity(0.3),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
+          child: Container(
+            padding: EdgeInsets.all(AppTheme.paddingLarge * 1.5),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF58A183).withOpacity(0.12),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFF58A183).withOpacity(0.4),
+                          width: 2,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.family_restroom,
+                        size: 36,
+                        color: Color(0xFF2D4A3E),
+                      ),
+                    ),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _familyInfo?['group_name']?.toString().isNotEmpty == true
+                                ? _familyInfo!['group_name'].toString()
+                                : '家庭组 ${_userInfo!['family_id']}',
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF0F1923),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _isAdmin ? '管理员' : '成员',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF58A183),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: AppTheme.paddingLarge),
+                Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF58A183).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFF58A183).withOpacity(0.25),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.vpn_key, size: 20, color: Color(0xFF58A183)),
+                      const SizedBox(width: 12),
+                      const Text(
+                        '家庭组ID',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF2D4A3E),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Spacer(),
+                      Text(
+                        '${_userInfo!['family_id']}',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF00F5A0),
+                          letterSpacing: 2,
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      IconButton(
+                        icon: Icon(Icons.copy, size: 20, color: Color(0xFF00F5A0)),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: '${_userInfo!['family_id']}'));
+                          _showSuccess('ID已复制');
+                        },
+                        padding: EdgeInsets.zero,
+                        constraints: BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildFamilyInfoCard() {
     return Container(
       decoration: BoxDecoration(
@@ -672,7 +1188,7 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
             color: Colors.black.withOpacity(0.06),
             blurRadius: 16,
             offset: const Offset(0, 4),
-        ),
+          ),
         ],
       ),
       child: ClipRRect(
@@ -681,126 +1197,122 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
           filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
           child: Container(
             padding: EdgeInsets.all(AppTheme.paddingLarge * 1.5),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
                       padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
+                      decoration: BoxDecoration(
                         color: const Color(0xFF58A183).withOpacity(0.12),
-                  shape: BoxShape.circle,
+                        shape: BoxShape.circle,
                         border: Border.all(
                           color: const Color(0xFF58A183).withOpacity(0.4),
                           width: 2,
                         ),
-                ),
-                child: const Icon(
-                  Icons.family_restroom,
+                      ),
+                      child: const Icon(
+                        Icons.family_restroom,
                         size: 36,
                         color: Color(0xFF2D4A3E),
-                ),
-              ),
+                      ),
+                    ),
                     SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
                             _familyInfo?['group_name']?.toString().isNotEmpty == true
                                 ? _familyInfo!['group_name'].toString()
                                 : '家庭组 ${_userInfo!['family_id']}',
-                      style: const TextStyle(
+                            style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.w900,
                               color: Color(0xFF0F1923),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
                             _isAdmin ? '管理员' : '成员',
-                      style: const TextStyle(
-                        fontSize: 14,
+                            style: const TextStyle(
+                              fontSize: 14,
                               color: Color(0xFF58A183),
                               fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          
                 SizedBox(height: AppTheme.paddingLarge),
-          
-          Container(
+                Container(
                   padding: EdgeInsets.all(16),
-            decoration: BoxDecoration(
+                  decoration: BoxDecoration(
                     color: const Color(0xFF58A183).withOpacity(0.08),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: const Color(0xFF58A183).withOpacity(0.25),
                       width: 1,
-            ),
+                    ),
                   ),
-            child: Row(
-              children: [
+                  child: Row(
+                    children: [
                       const Icon(Icons.vpn_key, size: 20, color: Color(0xFF58A183)),
                       const SizedBox(width: 12),
-                const Text(
+                      const Text(
                         '家庭组ID',
-                  style: TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           color: Color(0xFF2D4A3E),
                           fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Spacer(),
-                Text(
+                        ),
+                      ),
+                      Spacer(),
+                      Text(
                         '${_userInfo!['family_id']}',
-                  style: TextStyle(
+                        style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
                           color: Color(0xFF00F5A0),
-                    letterSpacing: 2,
-                  ),
-                ),
+                          letterSpacing: 2,
+                        ),
+                      ),
                       SizedBox(width: 12),
-                IconButton(
+                      IconButton(
                         icon: Icon(Icons.copy, size: 20, color: Color(0xFF00F5A0)),
-                  onPressed: () {
+                        onPressed: () {
                           Clipboard.setData(ClipboardData(text: '${_userInfo!['family_id']}'));
                           _showSuccess('ID已复制');
-                  },
-                  padding: EdgeInsets.zero,
-                  constraints: BoxConstraints(),
+                        },
+                        padding: EdgeInsets.zero,
+                        constraints: BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: AppTheme.paddingMedium),
+                // 退出家庭组按钮
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _leaveFamily,
+                    icon: const Icon(Icons.exit_to_app, size: 18),
+                    label: const Text('退出家庭组', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF3E5E5),
+                      foregroundColor: const Color(0xFF8B5A5A),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
                 ),
               ],
-            ),
-          ),
-          
-          SizedBox(height: AppTheme.paddingMedium),
-          
-          // 退出家庭组按钮
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _leaveFamily,
-              icon: Icon(Icons.exit_to_app, size: 20),
-              label: Text('退出家庭组', style: TextStyle(fontWeight: FontWeight.w700)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-        ],
             ),
           ),
         ),
@@ -951,8 +1463,18 @@ class _ApplicationsTabState extends State<ApplicationsTab> with AutomaticKeepAli
         if (isApprove) {
           widget.onApplicationProcessed?.call();
         }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(isApprove ? '同意申请失败' : '拒绝申请失败'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
       }
     } catch (e) {
+      print('❌ 审批申请失败: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1616,13 +2138,13 @@ class _MemberRecordsPageState extends State<MemberRecordsPage> {
 
     try {
       final userId = widget.member['user_id'];
-      print('📞 开始加载成员通话记录: userId=$userId');
+      print('📞 开始加载成员通话记录: userId=$userId, familyId=${widget.familyId}');
       
       final response = await dioRequest.get(
         '/api/call-records/family-records',
         params: {
           'family_id': widget.familyId,
-          'user_id': userId,
+          'target_user_id': userId,
           'page': 1,
           'page_size': 50,
         },
