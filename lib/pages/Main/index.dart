@@ -4,7 +4,7 @@ import 'package:ai_anti_fraud_detection_system_frontend/pages/Detection/index.da
 import 'package:ai_anti_fraud_detection_system_frontend/pages/CallRecords/index.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/pages/Family/index.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/pages/Profile/index.dart';
-import 'package:ai_anti_fraud_detection_system_frontend/pages/Test/index.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/pages/LearningCenter/index.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/PermissionManager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:convex_bottom_bar/convex_bottom_bar.dart';
@@ -29,7 +29,7 @@ class _MainPageState extends State<MainPage> {
 
   List<Widget> get _pages => [
     CallRecordsPage(),
-    TestPage(),
+    LearningCenterPage(),
     DetectionPage(),
     FamilyPage(),
     ProfilePage(onSwitchTab: _switchTab),
@@ -73,7 +73,7 @@ class _MainPageState extends State<MainPage> {
         style: TabStyle.reactCircle,
         items: [
           TabItem(icon: Icons.history, title: '通话记录'),
-          TabItem(icon: Icons.science_outlined, title: '测试'),
+          TabItem(icon: Icons.school_outlined, title: '学习中心'),
           TabItem(icon: Icons.radar, title: '实时监测'),
           TabItem(icon: Icons.family_restroom, title: '家庭组'),
           TabItem(icon: Icons.person_outline, title: '我的'),

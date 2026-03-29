@@ -3,6 +3,7 @@ import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/pages/Settings/PermissionSettings.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/api/auth_api.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/pages/Test/index.dart';
 
 // 根据用户信息选择头像资源
 String _getAvatarAsset(Map<String, dynamic>? userInfo) {
@@ -303,6 +304,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   icon: Icons.phone_outlined, label: '通话记录', iconColor: deepGreen,
                   onTap: () => widget.onSwitchTab?.call(0),
                 ),
+                _line(divColor),
+                _item(icon: Icons.build_outlined, label: '设备测试', iconColor: deepGreen,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TestPage()))),
                 _line(divColor),
                 _item(icon: Icons.help_outline, label: '帮助中心', iconColor: deepGreen,
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpCenterPage()))),
