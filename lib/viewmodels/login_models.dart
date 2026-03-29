@@ -1,11 +1,47 @@
 // 登录相关的数据模型
 
-/// 登录请求模型
-class LoginRequest {
+/// 登录请求模型 - 邮箱 + 验证码
+class LoginWithEmailCodeRequest {
+  final String email;
+  final String emailCode;
+
+  LoginWithEmailCodeRequest({
+    required this.email,
+    required this.emailCode,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'email': email,
+      'email_code': emailCode,
+    };
+  }
+}
+
+/// 登录请求模型 - 邮箱 + 密码
+class LoginWithEmailPasswordRequest {
+  final String email;
+  final String password;
+
+  LoginWithEmailPasswordRequest({
+    required this.email,
+    required this.password,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'email': email,
+      'password': password,
+    };
+  }
+}
+
+/// 登录请求模型 - 手机号 + 密码
+class LoginWithPhonePasswordRequest {
   final String phone;
   final String password;
 
-  LoginRequest({
+  LoginWithPhonePasswordRequest({
     required this.phone,
     required this.password,
   });
@@ -23,19 +59,21 @@ class RegisterRequest {
   final String phone;
   final String username;
   final String name;
+  final String email;
+  final String emailCode;
   final String password;
-  final String smsCode;
-  final String? roleType;      // 新增：角色类型
-  final String? gender;        // 新增：性别
-  final String? profession;    // 新增：职业
-  final String? maritalStatus; // 新增：婚姻状况
+  final String? roleType;      // 角色类型
+  final String? gender;        // 性别
+  final String? profession;    // 职业
+  final String? maritalStatus; // 婚姻状况
 
   RegisterRequest({
     required this.phone,
     required this.username,
     required this.name,
+    required this.email,
+    required this.emailCode,
     required this.password,
-    required this.smsCode,
     this.roleType,
     this.gender,
     this.profession,
@@ -47,8 +85,9 @@ class RegisterRequest {
       'phone': phone,
       'username': username,
       'name': name,
+      'email': email,
+      'email_code': emailCode,
       'password': password,
-      'sms_code': smsCode,
     };
     
     // 只添加非空的可选字段
@@ -92,61 +131,61 @@ class RegisterResponse {
 
 /// 用户信息模型
 class User {
+  final int userId;
   final String phone;
   final String username;
   final String name;
-  final int userId;
-  final int familyId;
+  final String? roleType;      // 角色类型
+  final String? gender;        // 性别
+  final String? profession;    // 职业
+  final String? maritalStatus; // 婚姻状况
+  final int? familyId;
   final bool isActive;
   final String createdAt;
-  final String? roleType;      // 新增：角色类型
-  final String? gender;        // 新增：性别
-  final String? profession;    // 新增：职业
-  final String? maritalStatus; // 新增：婚姻状况
 
   User({
+    required this.userId,
     required this.phone,
     required this.username,
     required this.name,
-    required this.userId,
-    required this.familyId,
-    required this.isActive,
-    required this.createdAt,
     this.roleType,
     this.gender,
     this.profession,
     this.maritalStatus,
+    this.familyId,
+    required this.isActive,
+    required this.createdAt,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
+      userId: json['user_id'] ?? 0,
       phone: json['phone'] ?? '',
       username: json['username'] ?? '',
       name: json['name'] ?? '',
-      userId: json['user_id'] ?? 0,
-      familyId: json['family_id'] ?? 0,
-      isActive: json['is_active'] ?? false,
-      createdAt: json['created_at'] ?? '',
       roleType: json['role_type'],
       gender: json['gender'],
       profession: json['profession'],
       maritalStatus: json['marital_status'],
+      familyId: json['family_id'],
+      isActive: json['is_active'] ?? false,
+      createdAt: json['created_at'] ?? '',
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
+      'user_id': userId,
       'phone': phone,
       'username': username,
       'name': name,
-      'user_id': userId,
+      'role_type': roleType,
+      'gender': gender,
+      'profession': profession,
+      'marital_status': maritalStatus,
       'family_id': familyId,
       'is_active': isActive,
       'created_at': createdAt,
-      if (roleType != null) 'role_type': roleType,
-      if (gender != null) 'gender': gender,
-      if (profession != null) 'profession': profession,
-      if (maritalStatus != null) 'marital_status': maritalStatus,
     };
   }
 }

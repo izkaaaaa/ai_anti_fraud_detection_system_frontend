@@ -82,37 +82,94 @@ class AuthService {
     }
   }
 
-  /// 登录
-  Future<bool> login(String account, String password) async {
+  /// 登录 - 邮箱 + 验证码
+  Future<bool> loginWithEmailCode(String email, String emailCode) async {
     try {
-      print('🔐 开始登录: $account');
+      print('🔐 开始登录（邮箱+验证码）: $email');
       
-      // 后端只支持手机号登录，统一使用 phone 字段
       final response = await dioRequest.post(
         '/api/users/login',
         data: {
-          'phone': account,
+          'email': email,
+          'email_code': emailCode,
+        },
+      );
+
+      if (response != null) {
+        _accessToken = response['access_token'] ?? '';
+        String backendTokenType = response['token_type'] ?? 'bearer';
+        _tokenType = backendTokenType.toLowerCase() == 'bearer' ? 'Bearer' : backendTokenType;
+        _userInfo = response['user'];
+
+        await _saveToLocal();
+
+        print('✅ 登录成功');
+        print('   用户: ${_userInfo?['username']}');
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      print('❌ 登录失败: $e');
+      return false;
+    }
+  }
+
+  /// 登录 - 邮箱 + 密码
+  Future<bool> loginWithEmailPassword(String email, String password) async {
+    try {
+      print('🔐 开始登录（邮箱+密码）: $email');
+      
+      final response = await dioRequest.post(
+        '/api/users/login',
+        data: {
+          'email': email,
           'password': password,
         },
       );
 
       if (response != null) {
-        // 保存 Token
         _accessToken = response['access_token'] ?? '';
-        
-        // 统一使用 Bearer（首字母大写），无论后端返回什么
         String backendTokenType = response['token_type'] ?? 'bearer';
         _tokenType = backendTokenType.toLowerCase() == 'bearer' ? 'Bearer' : backendTokenType;
-        
-        // 保存用户信息
         _userInfo = response['user'];
 
-        // 持久化到本地
         await _saveToLocal();
 
         print('✅ 登录成功');
-        print('   Token: $_accessToken');
-        print('   Token Type: $_tokenType (后端返回: $backendTokenType)');
+        print('   用户: ${_userInfo?['username']}');
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      print('❌ 登录失败: $e');
+      return false;
+    }
+  }
+
+  /// 登录 - 手机号 + 密码
+  Future<bool> loginWithPhonePassword(String phone, String password) async {
+    try {
+      print('🔐 开始登录（手机号+密码）: $phone');
+      
+      final response = await dioRequest.post(
+        '/api/users/login',
+        data: {
+          'phone': phone,
+          'password': password,
+        },
+      );
+
+      if (response != null) {
+        _accessToken = response['access_token'] ?? '';
+        String backendTokenType = response['token_type'] ?? 'bearer';
+        _tokenType = backendTokenType.toLowerCase() == 'bearer' ? 'Bearer' : backendTokenType;
+        _userInfo = response['user'];
+
+        await _saveToLocal();
+
+        print('✅ 登录成功');
         print('   用户: ${_userInfo?['username']}');
         return true;
       }
@@ -128,22 +185,36 @@ class AuthService {
   Future<bool> register({
     required String phone,
     required String username,
-    String? name,
+    required String name,
+    required String email,
+    required String emailCode,
     required String password,
-    required String smsCode,
+    String? roleType,
+    String? gender,
+    String? profession,
+    String? maritalStatus,
   }) async {
     try {
       print('📝 开始注册: $phone');
       
+      final data = {
+        'phone': phone,
+        'username': username,
+        'name': name,
+        'email': email,
+        'email_code': emailCode,
+        'password': password,
+      };
+      
+      // 添加可选字段
+      if (roleType != null) data['role_type'] = roleType;
+      if (gender != null) data['gender'] = gender;
+      if (profession != null) data['profession'] = profession;
+      if (maritalStatus != null) data['marital_status'] = maritalStatus;
+      
       final response = await dioRequest.post(
         '/api/users/register',
-        data: {
-          'phone': phone,
-          'username': username,
-          'name': name,
-          'password': password,
-          'sms_code': smsCode,
-        },
+        data: data,
       );
 
       if (response != null) {

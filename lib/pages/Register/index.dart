@@ -14,9 +14,10 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
-  final TextEditingController _smsCodeController = TextEditingController();
+  final TextEditingController _emailCodeController = TextEditingController();
   final TextEditingController _professionController = TextEditingController(); // 新增：职业
   final _formKey = GlobalKey<FormState>();
   
@@ -27,7 +28,6 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
   bool _isSendingCode = false;
   int _countdown = 0;
   bool _showAdvancedOptions = false; // 新增：是否显示高级选项
-  String _countryCode = '+86'; // 国家代码
   
   // 新增：用户画像字段
   String? _selectedRoleType = '青壮年';
@@ -68,10 +68,11 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
     _phoneController.dispose();
     _usernameController.dispose();
     _nameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _smsCodeController.dispose();
-    _professionController.dispose(); // 新增
+    _emailCodeController.dispose();
+    _professionController.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -90,6 +91,17 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
     return null;
   }
 
+  /// 验证邮箱格式
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) {
+      return '请输入邮箱';
+    }
+    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(value)) {
+      return '邮箱格式错误';
+    }
+    return null;
+  }
+
   /// 验证用户名
   String? _validateUsername(String? value) {
     if (value == null || value.isEmpty) {
@@ -103,6 +115,12 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
 
   /// 验证姓名
   String? _validateName(String? value) {
+    if (value == null || value.isEmpty) {
+      return '请输入姓名';
+    }
+    if (value.length < 2) {
+      return '姓名至少2个字符';
+    }
     return null;
   }
 
@@ -131,8 +149,8 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
     return null;
   }
 
-  /// 验证验证码
-  String? _validateSmsCode(String? value) {
+  /// 验证邮箱验证码
+  String? _validateEmailCode(String? value) {
     if (value == null || value.isEmpty) {
       return '请输入验证码';
     }
@@ -189,8 +207,9 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
         phone: _phoneController.text.trim(),
         username: _usernameController.text.trim(),
         name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        emailCode: _emailCodeController.text.trim(),
         password: _passwordController.text,
-        smsCode: _smsCodeController.text.trim(),
         roleType: _selectedRoleType,
         gender: _selectedGender,
         profession: _professionController.text.trim().isEmpty ? null : _professionController.text.trim(),
@@ -210,17 +229,10 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
         errorMessage = '输入信息格式不正确';
       } else if (e.response?.statusCode == 400) {
         final responseData = e.response?.data;
-        if (responseData is Map && responseData['detail'] != null) {
-          final detail = responseData['detail'].toString();
-          if (detail.contains('手机号') || detail.contains('phone')) {
-            errorMessage = '该手机号已被注册';
-          } else if (detail.contains('用户名') || detail.contains('username')) {
-            errorMessage = '该用户名已被使用';
-          } else {
-            errorMessage = detail;
-          }
+        if (responseData is Map && responseData['message'] != null) {
+          errorMessage = responseData['message'].toString();
         } else {
-          errorMessage = '该手机号或用户名已被注册';
+          errorMessage = '该邮箱或手机号已被注册';
         }
       } else if (e.message != null) {
         errorMessage = e.message!;
@@ -238,19 +250,15 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
     }
   }
 
-  /// 发送验证码
-  Future<void> _sendSmsCode() async {
-    final phone = _phoneController.text.trim();
-    if (phone.isEmpty) {
-      _showError('请先输入手机号');
+  /// 发送邮箱验证码
+  Future<void> _sendEmailCode() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      _showError('请先输入邮箱');
       return;
     }
-    if (phone.length != 11) {
-      _showError('手机号必须是11位');
-      return;
-    }
-    if (!RegExp(r'^[0-9]+$').hasMatch(phone)) {
-      _showError('手机号格式错误');
+    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
+      _showError('邮箱格式错误');
       return;
     }
 
@@ -259,8 +267,8 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
     });
 
     try {
-      await sendSmsCodeAPI(phone);
-      _showSuccess('验证码已发送');
+      await sendRegisterCodeAPI(email);
+      _showSuccess('验证码已发送到邮箱');
       
       setState(() {
         _countdown = 60;
@@ -270,8 +278,8 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
     } on DioException catch (e) {
       String errorMessage = '发送失败';
       
-      if (e.response?.statusCode == 422) {
-        errorMessage = '手机号格式不正确';
+      if (e.response?.statusCode == 400) {
+        errorMessage = '邮箱格式不正确';
       } else if (e.message != null) {
         errorMessage = e.message!;
       }
@@ -301,20 +309,20 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFF8FAF9),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFFF8FAF9),
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF0F1923)),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(
+        title: const Text(
           '注册账户',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: Color(0xFF0F1923),
             fontSize: 18,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
           ),
         ),
         centerTitle: true,
@@ -337,7 +345,14 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _buildPhoneField(),
+                        _buildTextField(
+                          controller: _phoneController,
+                          label: '手机号',
+                          hint: '请输入11位手机号',
+                          icon: Icons.phone_outlined,
+                          validator: _validatePhone,
+                          keyboardType: TextInputType.phone,
+                        ),
                         SizedBox(height: AppTheme.paddingSmall),
                         
                         _buildTextField(
@@ -351,10 +366,20 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
                         
                         _buildTextField(
                           controller: _nameController,
-                          label: '姓名（可选）',
+                          label: '姓名',
                           hint: '请输入真实姓名',
                           icon: Icons.badge_outlined,
                           validator: _validateName,
+                        ),
+                        SizedBox(height: AppTheme.paddingSmall),
+                        
+                        _buildTextField(
+                          controller: _emailController,
+                          label: '邮箱',
+                          hint: '请输入邮箱地址',
+                          icon: Icons.email_outlined,
+                          validator: _validateEmail,
+                          keyboardType: TextInputType.emailAddress,
                         ),
                         SizedBox(height: AppTheme.paddingSmall),
                         
@@ -496,196 +521,101 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
   }
 
   Widget _buildSmsCodeField() {
+    const kAccent = Color(0xFF58A183);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '短信验证码',
+        const Text(
+          '邮箱验证码',
           style: TextStyle(
-            fontSize: AppTheme.fontSizeSmall,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+            color: Color(0xFF0F1923),
           ),
         ),
-        SizedBox(height: AppTheme.paddingSmall),
+        const SizedBox(height: 6),
         Row(
           children: [
             Expanded(
               child: TextFormField(
-                controller: _smsCodeController,
+                controller: _emailCodeController,
                 keyboardType: TextInputType.number,
-                validator: _validateSmsCode,
+                validator: _validateEmailCode,
                 enabled: !_isLoading,
-                style: TextStyle(
-                  fontSize: AppTheme.fontSizeMedium,
-                  color: AppColors.textPrimary,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF0F1923),
                 ),
                 decoration: InputDecoration(
                   hintText: '请输入验证码',
-                  hintStyle: TextStyle(color: AppColors.textLight, fontSize: AppTheme.fontSizeSmall),
+                  hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
                   filled: true,
-                  fillColor: AppColors.inputBackground,
+                  fillColor: Colors.white,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide.none,
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide.none,
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.primary, width: 1.0),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: kAccent, width: 1.5),
                   ),
                   errorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.error, width: 1.0),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.5),
                   ),
                   focusedErrorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.error, width: 1.0),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.5),
                   ),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: AppTheme.paddingMedium,
-                    vertical: AppTheme.paddingMedium,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
                   ),
                 ),
               ),
             ),
-            SizedBox(width: AppTheme.paddingMedium),
+            const SizedBox(width: 10),
             Container(
-              height: 48,
+              height: 44,
               decoration: BoxDecoration(
                 color: (_isSendingCode || _countdown > 0 || _isLoading) 
-                    ? AppColors.backgroundCard
-                    : AppColors.primary,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                    ? const Color(0xFFF3F4F6)
+                    : kAccent,
+                borderRadius: BorderRadius.circular(12),
               ),
               child: ElevatedButton(
-                onPressed: (_isSendingCode || _countdown > 0 || _isLoading) ? null : _sendSmsCode,
+                onPressed: (_isSendingCode || _countdown > 0 || _isLoading) ? null : _sendEmailCode,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   foregroundColor: (_isSendingCode || _countdown > 0 || _isLoading)
-                      ? AppColors.textLight
-                      : AppColors.textDark,
+                      ? const Color(0xFF9CA3AF)
+                      : Colors.white,
                   shadowColor: Colors.transparent,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  padding: EdgeInsets.symmetric(horizontal: AppTheme.paddingMedium),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                 ),
                 child: _isSendingCode
-                    ? SizedBox(
-                        width: 16,
-                        height: 16,
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.textLight),
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF9CA3AF)),
                         ),
                       )
                     : Text(
                         _countdown > 0 ? '${_countdown}s' : '获取',
-                        style: TextStyle(
-                          fontSize: AppTheme.fontSizeSmall,
+                        style: const TextStyle(
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPhoneField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '手机号',
-          style: TextStyle(
-            fontSize: AppTheme.fontSizeSmall,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        SizedBox(height: AppTheme.paddingSmall),
-        Row(
-          children: [
-            Container(
-              height: 48,
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: AppColors.inputBackground,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _countryCode,
-                  icon: Icon(Icons.arrow_drop_down, color: AppColors.primary, size: 20),
-                  style: TextStyle(
-                    fontSize: AppTheme.fontSizeMedium,
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  dropdownColor: AppColors.cardBackground,
-                  items: [
-                    DropdownMenuItem(value: '+86', child: Text('+86')),
-                    DropdownMenuItem(value: '+1', child: Text('+1')),
-                    DropdownMenuItem(value: '+44', child: Text('+44')),
-                    DropdownMenuItem(value: '+81', child: Text('+81')),
-                    DropdownMenuItem(value: '+82', child: Text('+82')),
-                  ],
-                  onChanged: _isLoading ? null : (value) {
-                    setState(() {
-                      _countryCode = value!;
-                    });
-                  },
-                ),
-              ),
-            ),
-            SizedBox(width: AppTheme.paddingSmall),
-            Expanded(
-              child: TextFormField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                validator: _validatePhone,
-                enabled: !_isLoading,
-                style: TextStyle(
-                  fontSize: AppTheme.fontSizeMedium,
-                  color: AppColors.textPrimary,
-                ),
-                decoration: InputDecoration(
-                  hintText: '请输入11位手机号',
-                  hintStyle: TextStyle(color: AppColors.textLight, fontSize: AppTheme.fontSizeSmall),
-                  filled: true,
-                  fillColor: AppColors.inputBackground,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.primary, width: 1.0),
-                  ),
-                  errorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.error, width: 1.0),
-                  ),
-                  focusedErrorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.error, width: 1.0),
-                  ),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: AppTheme.paddingMedium,
-                    vertical: AppTheme.paddingMedium,
-                  ),
-                ),
               ),
             ),
           ],
@@ -814,30 +744,31 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
 
   // 高级选项区域
   Widget _buildAdvancedOptionsSection() {
+    const kAccent = Color(0xFF58A183);
     return Container(
-      padding: EdgeInsets.all(AppTheme.paddingMedium),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.inputBackground.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        border: Border.all(color: AppColors.borderLight, width: 1.0),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB), width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: [
-              Icon(Icons.info_outline, size: 16, color: AppColors.secondary),
+            children: const [
+              Icon(Icons.info_outline, size: 15, color: kAccent),
               SizedBox(width: 6),
               Text(
                 '完善资料可获得更精准的防骗建议',
                 style: TextStyle(
-                  fontSize: AppTheme.fontSizeSmall,
-                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  color: Color(0xFF6B7280),
                 ),
               ),
             ],
           ),
-          SizedBox(height: AppTheme.paddingMedium),
+          const SizedBox(height: 12),
           
           _buildDropdownField(
             label: '角色类型',
@@ -849,7 +780,7 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
               });
             },
           ),
-          SizedBox(height: AppTheme.paddingMedium),
+          const SizedBox(height: 12),
           
           _buildDropdownField(
             label: '性别',
@@ -862,7 +793,7 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
               });
             },
           ),
-          SizedBox(height: AppTheme.paddingMedium),
+          const SizedBox(height: 12),
           
           _buildTextField(
             controller: _professionController,
@@ -870,7 +801,7 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
             hint: '如：工程师、教师、学生等',
             icon: Icons.work_outline,
           ),
-          SizedBox(height: AppTheme.paddingMedium),
+          const SizedBox(height: 12),
           
           _buildDropdownField(
             label: '婚姻状况',
@@ -896,41 +827,43 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
     required List<String> items,
     required Function(String?) onChanged,
   }) {
+    const kAccent = Color(0xFF58A183);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: TextStyle(
-            fontSize: AppTheme.fontSizeSmall,
+          style: const TextStyle(
+            fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+            color: Color(0xFF0F1923),
           ),
         ),
-        SizedBox(height: AppTheme.paddingSmall),
+        const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(
-            color: AppColors.inputBackground,
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE5E7EB), width: 1.5),
           ),
-          padding: EdgeInsets.symmetric(horizontal: AppTheme.paddingMedium),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: value,
               hint: Text(
                 hint ?? '请选择$label',
-                style: TextStyle(
-                  color: AppColors.textLight,
-                  fontSize: AppTheme.fontSizeSmall,
+                style: const TextStyle(
+                  color: Color(0xFF9CA3AF),
+                  fontSize: 13,
                 ),
               ),
               isExpanded: true,
-              icon: Icon(Icons.arrow_drop_down, color: AppColors.primary),
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeMedium,
-                color: AppColors.textPrimary,
+              icon: const Icon(Icons.arrow_drop_down, color: kAccent),
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF0F1923),
               ),
-              dropdownColor: AppColors.cardBackground,
+              dropdownColor: Colors.white,
               items: items.map((String item) {
                 return DropdownMenuItem<String>(
                   value: item,
@@ -946,43 +879,40 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
   }
 
   Widget _buildRegisterButton() {
+    const kAccent = Color(0xFF58A183);
     return Container(
-      height: 50,
+      height: 44,
       decoration: BoxDecoration(
-        color: _isLoading ? AppColors.borderLight : AppColors.primary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        boxShadow: _isLoading ? [] : [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
-        ],
+        color: _isLoading ? const Color(0xFFF3F4F6) : kAccent,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: _isLoading
+            ? []
+            : [BoxShadow(color: kAccent.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: ElevatedButton(
         onPressed: _isLoading ? null : _handleRegister,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
-          foregroundColor: AppColors.textDark,
+          foregroundColor: _isLoading ? const Color(0xFF9CA3AF) : Colors.white,
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
         child: _isLoading
-            ? SizedBox(
-                height: 20,
-                width: 20,
+            ? const SizedBox(
+                height: 18,
+                width: 18,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.textDark),
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF9CA3AF)),
                 ),
               )
-            : Text(
+            : const Text(
                 '注册',
                 style: TextStyle(
-                  fontSize: AppTheme.fontSizeLarge,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
                   letterSpacing: 1,
                 ),
               ),

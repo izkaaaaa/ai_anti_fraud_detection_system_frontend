@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/api/auth_api.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
 
 class LoginPage extends StatefulWidget {
@@ -10,9 +11,10 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
-  final TextEditingController _accountController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _smsCodeController = TextEditingController();
+  final TextEditingController _emailCodeController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   
   bool _isPasswordVisible = false;
@@ -22,7 +24,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   bool _isSendingCode = false;
   int _countdown = 0;
   
-  // 登录方式：0=账号密码, 1=手机号验证码
+  // 登录方式：0=手机号密码, 1=邮箱密码, 2=邮箱验证码
   int _loginMode = 0;
   
   late AnimationController _animationController;
@@ -60,26 +62,36 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
   @override
   void dispose() {
-    _accountController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
-    _smsCodeController.dispose();
+    _emailCodeController.dispose();
     _animationController.dispose();
     super.dispose();
   }
 
-  /// 验证账号格式（手机号）
-  String? _validateAccount(String? value) {
+  /// 验证邮箱格式
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) {
+      return '请输入邮箱';
+    }
+    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(value)) {
+      return '邮箱格式错误';
+    }
+    return null;
+  }
+
+  /// 验证手机号格式
+  String? _validatePhone(String? value) {
     if (value == null || value.isEmpty) {
       return '请输入手机号';
     }
-    
     if (value.length != 11) {
       return '手机号必须是11位';
     }
     if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
       return '手机号格式错误';
     }
-    
     return null;
   }
 
@@ -97,8 +109,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     return null;
   }
 
-  /// 验证验证码
-  String? _validateSmsCode(String? value) {
+  /// 验证邮箱验证码
+  String? _validateEmailCode(String? value) {
     if (value == null || value.isEmpty) {
       return '请输入验证码';
     }
@@ -151,22 +163,37 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     });
 
     try {
-      // 使用 AuthService 登录
-      final success = await AuthService().login(
-        _accountController.text.trim(),
-        _passwordController.text,
-      );
+      bool success = false;
+      
+      if (_loginMode == 0) {
+        // 手机号 + 密码
+        success = await AuthService().loginWithPhonePassword(
+          _phoneController.text.trim(),
+          _passwordController.text,
+        );
+      } else if (_loginMode == 1) {
+        // 邮箱 + 密码
+        success = await AuthService().loginWithEmailPassword(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+      } else {
+        // 邮箱 + 验证码
+        success = await AuthService().loginWithEmailCode(
+          _emailController.text.trim(),
+          _emailCodeController.text.trim(),
+        );
+      }
 
       if (success) {
         _showSuccess('登录成功！');
         await Future.delayed(const Duration(milliseconds: 500));
 
         if (mounted) {
-          // 登录成功后跳转到主页
           Navigator.of(context).pushReplacementNamed('/');
         }
       } else {
-        _showError('账号或密码错误');
+        _showError('登录失败，请检查账号和密码/验证码');
       }
     } catch (e) {
       _showError('登录失败: ${e.toString()}');
@@ -179,19 +206,15 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     }
   }
 
-  /// 发送验证码
-  Future<void> _sendSmsCode() async {
-    final phone = _accountController.text.trim();
-    if (phone.isEmpty) {
-      _showError('请先输入手机号');
+  /// 发送邮箱验证码
+  Future<void> _sendEmailCode() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      _showError('请先输入邮箱');
       return;
     }
-    if (phone.length != 11) {
-      _showError('手机号必须是11位');
-      return;
-    }
-    if (!RegExp(r'^[0-9]+$').hasMatch(phone)) {
-      _showError('手机号格式错误');
+    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
+      _showError('邮箱格式错误');
       return;
     }
 
@@ -200,9 +223,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     });
 
     try {
-      // TODO: 实现发送验证码功能
-      // await AuthService().sendSmsCode(phone);
-      _showSuccess('验证码已发送（功能待实现）');
+      await sendLoginCodeAPI(email);
+      _showSuccess('验证码已发送到邮箱');
       
       setState(() {
         _countdown = 60;
@@ -247,9 +269,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
               alignment: Alignment.center,
               errorBuilder: (context, error, stackTrace) {
                 return Container(
-                  color: AppColors.primary.withOpacity(0.1),
-                  child: Center(
-                    child: Icon(Icons.image, size: 50, color: AppColors.textSecondary),
+                  color: const Color(0xFF58A183).withOpacity(0.1),
+                  child: const Center(
+                    child: Icon(Icons.image, size: 50, color: Color(0xFF58A183)),
                   ),
                 );
               },
@@ -259,8 +281,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           // 欢迎语（在图片上方，左对齐，带弹出效果）
           Positioned(
             top: MediaQuery.of(context).padding.top + 30,
-            left: AppTheme.paddingLarge,
-            right: AppTheme.paddingLarge,
+            left: 24,
+            right: 24,
             child: SlideTransition(
               position: _textSlideAnimation,
               child: FadeTransition(
@@ -278,7 +300,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                         shadows: [
                           Shadow(
                             color: Colors.black.withOpacity(0.3),
-                            offset: Offset(0, 2),
+                            offset: const Offset(0, 2),
                             blurRadius: 4,
                           ),
                         ],
@@ -294,13 +316,13 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                         shadows: [
                           Shadow(
                             color: Colors.black.withOpacity(0.3),
-                            offset: Offset(0, 2),
+                            offset: const Offset(0, 2),
                             blurRadius: 4,
                           ),
                         ],
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       'We only wish to keep you safe in every call.',
                       style: TextStyle(
@@ -312,7 +334,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                         shadows: [
                           Shadow(
                             color: Colors.black.withOpacity(0.3),
-                            offset: Offset(0, 1),
+                            offset: const Offset(0, 1),
                             blurRadius: 3,
                           ),
                         ],
@@ -329,7 +351,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             alignment: Alignment.bottomCenter,
             child: SlideTransition(
               position: Tween<Offset>(
-                begin: Offset(0, 1),
+                begin: const Offset(0, 1),
                 end: Offset.zero,
               ).animate(CurvedAnimation(
                 parent: _animationController,
@@ -339,17 +361,17 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 heightFactor: 0.62,
                 child: Container(
                   width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF8FAF9),
                     borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(30),
                       topRight: Radius.circular(30),
                     ),
                   ),
                   child: SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: AppTheme.paddingLarge,
-                      vertical: AppTheme.paddingMedium,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
                     ),
                     child: Center(
                       child: ConstrainedBox(
@@ -360,21 +382,25 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               _buildLoginModeTabs(),
-                              SizedBox(height: 12),
-                              _buildAccountField(),
-                              SizedBox(height: 10),
-                              if (_loginMode == 0) ...[
+                              const SizedBox(height: 12),
+                              if (_loginMode == 0 || _loginMode == 1) ...[
+                                _buildPhoneField(),
+                              ] else ...[
+                                _buildAccountField(),
+                              ],
+                              const SizedBox(height: 10),
+                              if (_loginMode == 0 || _loginMode == 1) ...[
                                 _buildPasswordField(),
-                                SizedBox(height: 10),
+                                const SizedBox(height: 10),
                                 _buildRememberMeRow(),
                               ] else ...[
-                                _buildSmsCodeField(),
+                                _buildEmailCodeField(),
                               ],
-                              SizedBox(height: 10),
+                              const SizedBox(height: 10),
                               _buildAgreementRow(),
-                              SizedBox(height: 16),
+                              const SizedBox(height: 16),
                               _buildLoginButton(),
-                              SizedBox(height: 10),
+                              const SizedBox(height: 10),
                               _buildFooter(),
                             ],
                           ),
@@ -393,11 +419,22 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   
   Widget _buildAccountField() {
     return _buildTextField(
-      controller: _accountController,
+      controller: _emailController,
+      label: '邮箱',
+      hint: '请输入邮箱地址',
+      icon: Icons.email_outlined,
+      validator: _validateEmail,
+      keyboardType: TextInputType.emailAddress,
+    );
+  }
+
+  Widget _buildPhoneField() {
+    return _buildTextField(
+      controller: _phoneController,
       label: '手机号',
       hint: '请输入11位手机号',
-      icon: Icons.person_outline,
-      validator: _validateAccount,
+      icon: Icons.phone_outlined,
+      validator: _validatePhone,
       keyboardType: TextInputType.phone,
     );
   }
@@ -420,8 +457,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         Row(
           children: [
             SizedBox(
-              width: 20,
-              height: 20,
+              width: 18,
+              height: 18,
               child: Checkbox(
                 value: _rememberMe,
                 onChanged: (value) {
@@ -429,31 +466,32 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     _rememberMe = value ?? false;
                   });
                 },
-                activeColor: AppColors.primary,
-                checkColor: AppColors.textWhite,
-                side: BorderSide(
-                  color: AppColors.borderMedium,
+                activeColor: const Color(0xFF58A183),
+                checkColor: Colors.white,
+                side: const BorderSide(
+                  color: Color(0xFFE5E7EB),
                   width: 1.5,
                 ),
               ),
             ),
-            SizedBox(width: 8),
-            Text(
+            const SizedBox(width: 6),
+            const Text(
               '记住我',
               style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
+                fontSize: 13,
+                color: Color(0xFF6B7280),
               ),
             ),
           ],
         ),
         TextButton(
           onPressed: () {},
-          child: Text(
+          style: TextButton.styleFrom(padding: EdgeInsets.zero),
+          child: const Text(
             '忘记密码？',
             style: TextStyle(
-              fontSize: 14,
-              color: AppColors.primary,
+              fontSize: 13,
+              color: Color(0xFF58A183),
             ),
           ),
         ),
@@ -465,8 +503,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     return Row(
       children: [
         SizedBox(
-          width: 20,
-          height: 20,
+          width: 18,
+          height: 18,
           child: Checkbox(
             value: _agreeToTerms,
             onChanged: (value) {
@@ -474,37 +512,37 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 _agreeToTerms = value ?? false;
               });
             },
-            activeColor: AppColors.primary,
-            checkColor: AppColors.textWhite,
-            side: BorderSide(
-              color: AppColors.borderMedium,
+            activeColor: const Color(0xFF58A183),
+            checkColor: Colors.white,
+            side: const BorderSide(
+              color: Color(0xFFE5E7EB),
               width: 1.5,
             ),
           ),
         ),
-        SizedBox(width: 8),
+        const SizedBox(width: 6),
         Flexible(
           child: Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Text(
+              const Text(
                 '我已阅读并接受',
                 style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  color: Color(0xFF6B7280),
                 ),
               ),
               GestureDetector(
                 onTap: () {
                   Navigator.of(context).pushNamed('/user-agreement');
                 },
-                child: Text(
+                child: const Text(
                   '《用户服务协议》',
                   style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.primary.withOpacity(0.8),
+                    fontSize: 12,
+                    color: Color(0xFF58A183),
                     decoration: TextDecoration.underline,
-                    decorationColor: AppColors.primary.withOpacity(0.8),
+                    decorationColor: Color(0xFF58A183),
                   ),
                 ),
               ),
@@ -516,62 +554,93 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   }
 
   Widget _buildLoginModeTabs() {
+    const kAccent = Color(0xFF58A183);
     return Row(
       children: [
         Expanded(
           child: GestureDetector(
-            onTap: () {
-              setState(() {
-                _loginMode = 0;
-              });
-            },
-            child: Container(
-              padding: EdgeInsets.symmetric(vertical: 14),
+            onTap: () => setState(() => _loginMode = 0),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(vertical: 11),
               decoration: BoxDecoration(
-                color: _loginMode == 0 ? AppColors.primary : Colors.transparent,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                color: _loginMode == 0 ? kAccent : Colors.white,
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: _loginMode == 0 ? AppColors.primary : AppColors.borderMedium,
+                  color: _loginMode == 0 ? kAccent : const Color(0xFFE5E7EB),
                   width: 1.5,
                 ),
+                boxShadow: _loginMode == 0
+                    ? [BoxShadow(color: kAccent.withOpacity(0.2), blurRadius: 6, offset: const Offset(0, 2))]
+                    : [],
               ),
               child: Text(
-                '账号密码',
+                '手机号密码',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: _loginMode == 0 ? AppColors.textDark : AppColors.textSecondary,
+                  color: _loginMode == 0 ? Colors.white : const Color(0xFF6B7280),
                 ),
               ),
             ),
           ),
         ),
-        SizedBox(width: AppTheme.paddingMedium),
+        const SizedBox(width: 8),
         Expanded(
           child: GestureDetector(
-            onTap: () {
-              setState(() {
-                _loginMode = 1;
-              });
-            },
-            child: Container(
-              padding: EdgeInsets.symmetric(vertical: 14),
+            onTap: () => setState(() => _loginMode = 1),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(vertical: 11),
               decoration: BoxDecoration(
-                color: _loginMode == 1 ? AppColors.primary : Colors.transparent,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                color: _loginMode == 1 ? kAccent : Colors.white,
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: _loginMode == 1 ? AppColors.primary : AppColors.borderMedium,
+                  color: _loginMode == 1 ? kAccent : const Color(0xFFE5E7EB),
                   width: 1.5,
                 ),
+                boxShadow: _loginMode == 1
+                    ? [BoxShadow(color: kAccent.withOpacity(0.2), blurRadius: 6, offset: const Offset(0, 2))]
+                    : [],
               ),
               child: Text(
-                '验证码登录',
+                '邮箱密码',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: _loginMode == 1 ? AppColors.textDark : AppColors.textSecondary,
+                  color: _loginMode == 1 ? Colors.white : const Color(0xFF6B7280),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: GestureDetector(
+            onTap: () => setState(() => _loginMode = 2),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(vertical: 11),
+              decoration: BoxDecoration(
+                color: _loginMode == 2 ? kAccent : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _loginMode == 2 ? kAccent : const Color(0xFFE5E7EB),
+                  width: 1.5,
+                ),
+                boxShadow: _loginMode == 2
+                    ? [BoxShadow(color: kAccent.withOpacity(0.2), blurRadius: 6, offset: const Offset(0, 2))]
+                    : [],
+              ),
+              child: Text(
+                '邮箱验证码',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: _loginMode == 2 ? Colors.white : const Color(0xFF6B7280),
                 ),
               ),
             ),
@@ -590,38 +659,39 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     String? Function(String?)? validator,
     TextInputType? keyboardType,
   }) {
+    const kAccent = Color(0xFF58A183);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: TextStyle(
-            fontSize: 15,
+          style: const TextStyle(
+            fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+            color: Color(0xFF0F1923),
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 6),
         TextFormField(
           controller: controller,
           obscureText: isPassword && !_isPasswordVisible,
           keyboardType: keyboardType,
           validator: validator,
           enabled: !_isLoading,
-          style: TextStyle(
-            fontSize: 15,
-            color: AppColors.textPrimary,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF0F1923),
           ),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: AppColors.textLight, fontSize: 14),
-            prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
+            hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+            prefixIcon: Icon(icon, color: kAccent, size: 18),
             suffixIcon: isPassword
                 ? IconButton(
                     icon: Icon(
                       _isPasswordVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                      color: AppColors.textLight,
-                      size: 20,
+                      color: const Color(0xFF9CA3AF),
+                      size: 18,
                     ),
                     onPressed: () {
                       setState(() {
@@ -631,130 +701,123 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   )
                 : null,
             filled: true,
-            fillColor: AppColors.inputBackground,
+            fillColor: Colors.white,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide.none,
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide.none,
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: kAccent, width: 1.5),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.error, width: 1.5),
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.5),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.error, width: 1.5),
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.5),
             ),
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 14,
-            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSmsCodeField() {
+  Widget _buildEmailCodeField() {
+    const kAccent = Color(0xFF58A183);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '验证码',
+        const Text(
+          '邮箱验证码',
           style: TextStyle(
-            fontSize: 15,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+            color: Color(0xFF0F1923),
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 6),
         Row(
           children: [
             Expanded(
               child: TextFormField(
-                controller: _smsCodeController,
+                controller: _emailCodeController,
                 keyboardType: TextInputType.number,
-                validator: _validateSmsCode,
+                validator: _validateEmailCode,
                 enabled: !_isLoading,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: AppColors.textPrimary,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF0F1923),
                 ),
                 decoration: InputDecoration(
                   hintText: '请输入验证码',
-                  hintStyle: TextStyle(color: AppColors.textLight, fontSize: 14),
-                  prefixIcon: Icon(Icons.sms_outlined, color: AppColors.primary, size: 20),
+                  hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+                  prefixIcon: const Icon(Icons.mail_outline, color: kAccent, size: 18),
                   filled: true,
-                  fillColor: AppColors.inputBackground,
+                  fillColor: Colors.white,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide.none,
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide.none,
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: kAccent, width: 1.5),
                   ),
                   errorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.error, width: 1.5),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.5),
                   ),
                   focusedErrorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppColors.error, width: 1.5),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.5),
                   ),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 ),
               ),
             ),
-            SizedBox(width: AppTheme.paddingMedium),
+            const SizedBox(width: 10),
             Container(
-              height: 48,
+              height: 44,
               decoration: BoxDecoration(
-                color: (_isSendingCode || _countdown > 0 || _isLoading) 
-                    ? AppColors.backgroundCard
-                    : AppColors.primary,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                color: (_isSendingCode || _countdown > 0 || _isLoading) ? const Color(0xFFF3F4F6) : kAccent,
+                borderRadius: BorderRadius.circular(12),
               ),
               child: ElevatedButton(
-                onPressed: (_isSendingCode || _countdown > 0 || _isLoading) ? null : _sendSmsCode,
+                onPressed: (_isSendingCode || _countdown > 0 || _isLoading) ? null : _sendEmailCode,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   foregroundColor: (_isSendingCode || _countdown > 0 || _isLoading)
-                      ? AppColors.textLight
-                      : AppColors.textDark,
+                      ? const Color(0xFF9CA3AF)
+                      : Colors.white,
                   shadowColor: Colors.transparent,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                 ),
                 child: _isSendingCode
-                    ? SizedBox(
-                        width: 16,
-                        height: 16,
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.textLight),
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF9CA3AF)),
                         ),
                       )
                     : Text(
                         _countdown > 0 ? '${_countdown}s' : '获取',
-                        style: TextStyle(
-                          fontSize: 14,
+                        style: const TextStyle(
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -767,44 +830,41 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   }
 
   Widget _buildLoginButton() {
+    const kAccent = Color(0xFF58A183);
     return Container(
-      height: 48,
+      height: 44,
       decoration: BoxDecoration(
-        color: _isLoading ? AppColors.borderLight : AppColors.primary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        boxShadow: _isLoading ? [] : [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
+        color: _isLoading ? const Color(0xFFF3F4F6) : kAccent,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: _isLoading
+            ? []
+            : [BoxShadow(color: kAccent.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: ElevatedButton(
         onPressed: _isLoading ? null : _handleLogin,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
-          foregroundColor: AppColors.textDark,
+          foregroundColor: _isLoading ? const Color(0xFF9CA3AF) : Colors.white,
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
         child: _isLoading
-            ? SizedBox(
-                height: 20,
-                width: 20,
+            ? const SizedBox(
+                height: 18,
+                width: 18,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.textDark),
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF9CA3AF)),
                 ),
               )
-            : Text(
+            : const Text(
                 '登录',
                 style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1,
                 ),
               ),
       ),
@@ -815,11 +875,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
+        const Text(
           '还没有账户？',
           style: TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 14,
+            color: Color(0xFF6B7280),
+            fontSize: 13,
           ),
         ),
         TextButton(
@@ -827,13 +887,13 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             Navigator.of(context).pushNamed('/register');
           },
           style: TextButton.styleFrom(
-            padding: EdgeInsets.symmetric(horizontal: AppTheme.paddingSmall),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
           ),
-          child: Text(
+          child: const Text(
             '立即注册',
             style: TextStyle(
-              color: AppColors.primary,
-              fontSize: 14,
+              color: Color(0xFF58A183),
+              fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
           ),
