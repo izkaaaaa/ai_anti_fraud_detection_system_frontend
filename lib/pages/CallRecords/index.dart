@@ -862,6 +862,88 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet>
     }
   }
 
+  Future<void> _emergencyAlert() async {
+    final callId = widget.record['call_id'];
+    final messageController = TextEditingController(text: '我正在遭遇诈骗，请立即帮助！');
+    
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('一键报警', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '这将向所有家庭组管理员发送紧急报警通知',
+              style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              '报警信息',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F1923)),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: messageController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: '输入报警信息...',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.all(12),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('发送报警'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        print('🚨 发送一键报警: callId=$callId');
+        await dioRequest.post(
+          '/api/call-records/$callId/emergency-alert',
+          params: {
+            'call_id': callId,
+            'alert_type': 'emergency',
+            'message': messageController.text.trim(),
+          },
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ 报警已发送给所有管理员'),
+              backgroundColor: Color(0xFF059669),
+            ),
+          );
+        }
+      } catch (e) {
+        print('❌ 发送报警失败: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('报警发送失败: $e'),
+              backgroundColor: const Color(0xFFDC2626),
+            ),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final sheetHeight = MediaQuery.of(context).size.height * 0.92;
@@ -945,6 +1027,8 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet>
   }
 
   Widget _buildOverviewTab(_RiskConfig cfg) {
+    final isHighRisk = widget.record['detected_result'] == 'fake';
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
       child: Column(
@@ -999,6 +1083,51 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet>
               ),
             ),
           ]),
+          if (isHighRisk) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEE2E2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFCA5A5), width: 1.5),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: const [
+                    Icon(Icons.warning_rounded, color: Color(0xFFDC2626), size: 18),
+                    SizedBox(width: 8),
+                    Text(
+                      '检测到高风险诈骗',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFDC2626),
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _emergencyAlert,
+                      icon: const Icon(Icons.emergency_rounded, size: 16),
+                      label: const Text('🚨 一键报警', style: TextStyle(fontWeight: FontWeight.w700)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
