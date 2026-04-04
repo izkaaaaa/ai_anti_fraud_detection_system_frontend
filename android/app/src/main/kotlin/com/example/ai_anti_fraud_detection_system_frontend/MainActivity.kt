@@ -19,14 +19,14 @@ class MainActivity : FlutterActivity() {
     private val CALL_DETECTION_CHANNEL = "com.example.ai_anti_fraud_detection_system_frontend/call_detection"
     private val FLOATING_WINDOW_CHANNEL = "com.example.ai_anti_fraud_detection_system_frontend/floating_window"
     private val REQUEST_MEDIA_PROJECTION = 1001
-    
+
     private var pendingResult: MethodChannel.Result? = null
     private var audioRecordingMethodChannel: MethodChannel? = null
     private var callDetectionMethodChannel: MethodChannel? = null
-    
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        
+
         // 屏幕截图 Channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SCREEN_CAPTURE_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
@@ -39,9 +39,6 @@ class MainActivity : FlutterActivity() {
                 "stopCapture" -> {
                     stopCapture()
                     result.success(null)
-                }
-                "getRecentScreenshots" -> {
-                    getRecentScreenshots(result)
                 }
                 else -> {
                     result.notImplemented()
@@ -146,6 +143,16 @@ class MainActivity : FlutterActivity() {
                             result.error("UPDATE_FAILED", e.message, null)
                         }
                     }
+                    "updateScene" -> {
+                        // 场景变化时更新悬浮窗
+                        try {
+                            val scene = call.argument<String>("scene") ?: "未知环境"
+                            FloatingWindowService.updateScene(scene)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("UPDATE_SCENE_FAILED", e.message, null)
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }
@@ -196,12 +203,7 @@ class MainActivity : FlutterActivity() {
     private fun stopCapture() {
         ScreenCaptureService.stopService(this)
     }
-    
-    private fun getRecentScreenshots(result: MethodChannel.Result) {
-        val screenshots = ScreenCaptureService.getRecentScreenshots()
-        result.success(screenshots)
-    }
-    
+
     private fun startAudioRecording(result: MethodChannel.Result) {
         try {
             AudioRecordingService.startService(this)

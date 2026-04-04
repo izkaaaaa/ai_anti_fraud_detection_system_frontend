@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/contants/index.dart';
 
 /// 悬浮窗服务（Flutter 侧封装）
 /// 通过 MethodChannel 驱动原生 FloatingWindowService。
@@ -78,9 +79,20 @@ class FloatingWindowService {
       print('❌ [FloatingWindow] updateRiskLevel: $e');
     }
   }
+
+  // ── 平台场景更新 ─────────────────────────────────────────────
+
+  /// 更新悬浮窗显示的平台场景（来自后端 environment_detected）
+  /// [scene]: 后端返回的 description 字段，如"语音聊天"、"电话通话"等
+  Future<void> updateScene(String scene) async {
+    if (!_showing) return;
+    try {
+      await _ch.invokeMethod('updateScene', {
+        'scene': scene,
+      });
+      print('✅ [FloatingWindow] 场景更新: $scene');
+    } catch (e) {
+      print('❌ [FloatingWindow] updateScene: $e');
+    }
+  }
 }
-
-
-
-
-

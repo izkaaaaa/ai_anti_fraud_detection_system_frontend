@@ -24,7 +24,7 @@ import android.widget.TextView
  * 完全独立，不干扰 AudioRecordingService / CallDetectionService 的任何逻辑。
  * 通过 companion object 静态方法从 MainActivity MethodChannel 调用。
  *
- * 显示内容：当前风险等级（安全/可疑/危险）+ 置信度
+ * 显示内容：当前风险等级（安全/可疑/危险）+ 置信度 + 平台场景
  * 支持拖动，默认固定在右上角
  */
 class FloatingWindowService : Service() {
@@ -46,6 +46,11 @@ class FloatingWindowService : Service() {
         fun updateRiskLevel(riskLevel: String, confidence: Double) {
             instance?.updateRisk(riskLevel, confidence)
         }
+
+        /** 由 MainActivity MethodChannel 调用，线程安全 - 更新平台场景 */
+        fun updateScene(scene: String) {
+            instance?.updateSceneDisplay(scene)
+        }
     }
 
     private var windowManager: WindowManager? = null
@@ -53,6 +58,7 @@ class FloatingWindowService : Service() {
     private var layoutParams: WindowManager.LayoutParams? = null
 
     // 子 View 引用（避免每次 updateRisk 重复 findView）
+    private var sceneView: TextView? = null  // 平台场景显示
     private var dotView: View? = null
     private var labelView: TextView? = null
     private var riskTextView: TextView? = null
@@ -94,7 +100,17 @@ class FloatingWindowService : Service() {
         }
         applyCardBg(card, "safe")
 
-        // 第一行：圆点 + 状态标签
+        // 第一行：平台场景（新增，默认显示"默认检测"）
+        sceneView = TextView(this).apply {
+            text = "🎯 默认检测"
+            textSize = 8.5f
+            gravity = Gravity.CENTER
+            setTextColor(Color.parseColor("#9CA3AF"))
+            setPadding(0, 0, 0, dp(4))
+        }
+        card.addView(sceneView)
+
+        // 第二行：圆点 + 状态标签
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -117,7 +133,7 @@ class FloatingWindowService : Service() {
         row.addView(labelView)
         card.addView(row)
 
-        // 第二行：风险等级大字
+        // 第三行：风险等级大字
         riskTextView = TextView(this).apply {
             text = "安全"
             textSize = 14f
@@ -128,7 +144,7 @@ class FloatingWindowService : Service() {
         }
         card.addView(riskTextView)
 
-        // 第三行：置信度（有值才显示）
+        // 第四行：置信度（有值才显示）
         confTextView = TextView(this).apply {
             text = ""
             textSize = 9f
@@ -235,6 +251,28 @@ class FloatingWindowService : Service() {
             confTextView?.text = if (confidence > 0.0)
                 "${(confidence * 100).toInt()}%" else ""
 
+            try {
+                windowManager?.updateViewLayout(rootView, layoutParams)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    // ── 平台场景更新 ─────────────────────────────────────────────
+
+    /**
+     * 更新平台场景显示
+     * 直接显示传入的文本，如后端 description
+     */
+    fun updateSceneDisplay(scene: String) {
+        mainHandler.post {
+            // 根据 API 文档：unknown / 未知环境 时显示"默认检测"
+            val displayText = when (scene) {
+                "未知环境", "unknown", "" -> "🎯 默认检测"
+                else -> scene
+            }
+            sceneView?.text = displayText
             try {
                 windowManager?.updateViewLayout(rootView, layoutParams)
             } catch (e: Exception) {

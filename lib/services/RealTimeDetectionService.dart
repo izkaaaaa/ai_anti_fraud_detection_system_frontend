@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -41,6 +42,10 @@ class RealTimeDetectionService {
   bool _isScreenCaptureActive = false;
   Timer? _videoFrameTimer;
   bool _isCapturingFrame = false; // 防止并发截图
+
+  // ✅ OCR 平台识别截图上传（每 2 秒）
+  Timer? _ocrUploadTimer;
+  bool _isUploadingOcr = false;
   
   // ✅ 百度语音识别服务（用于文字流检测）
   final BaiduSpeechService _speechService = BaiduSpeechService();
@@ -162,7 +167,10 @@ class RealTimeDetectionService {
       // ✅ 7. 启动定时通知（每5秒弹一次）
       _startPeriodicNotifications();
 
-      // 8. 显示悬浮窗（后台时展示风险等级）
+      // ✅ 8. 启动 OCR 平台识别截图上传（每 2 秒）
+      _startOcrUpload();
+
+      // 9. 显示悬浮窗（后台时展示风险等级）
       _startFloatingWindow();
 
       onStatusChange?.call('监测已启动');
@@ -190,7 +198,10 @@ class RealTimeDetectionService {
       
       // ✅ 3. 停止语音识别
       await _stopSpeechRecognition();
-      
+
+      // ✅ 3.5 停止 OCR 截图上传
+      _stopOcrUpload();
+
       // 4. 调用结束通话接口（触发后端 AI 总结生成）
       await _endCallRecord();
 
@@ -497,15 +508,19 @@ class RealTimeDetectionService {
           break;
           
         case 'environment_detected':
-          // ✅ 环境识别结果（新增）
+          // ✅ 环境识别结果（来自后端）
           final envData = (data['data'] as Map<String, dynamic>?) ?? {};
-          final envPlatform  = envData['platform'] ?? '';
-          final envType      = envData['environment_type'] ?? '';
-          final isTextChat   = envData['is_text_chat'] ?? false;
-          final modalities   = envData['active_modalities'] ?? [];
-          print('🌍 环境识别: platform=$envPlatform, type=$envType, modalities=$modalities');
-          // 通知 UI 更新通话环境信息（复用 onStatusChange 传递字符串摘要）
-          onStatusChange?.call('检测到通话环境: $envPlatform');
+          final description = envData['description'] ?? '未知环境';
+          print('🌍 环境识别: description=$description');
+
+          // ✅ 更新悬浮窗显示平台场景（未知时显示"默认检测"）
+          final sceneDisplay = description.isEmpty || description == '未知环境'
+              ? '🎯 默认检测'
+              : description;
+          FloatingWindowService.instance.updateScene(sceneDisplay);
+
+          // 通知 UI 更新通话环境信息
+          onStatusChange?.call('检测到通话环境: $description');
           break;
 
         case 'error':
@@ -829,7 +844,76 @@ class RealTimeDetectionService {
       return [];
     }
   }
-  
+
+  // ============================================================
+  // ✅ OCR 平台识别截图上传（每 2 秒，自动调用 REST /upload/image）
+  // ============================================================
+
+  /// 启动 OCR 截图上传定时器（每 2 秒）
+  void _startOcrUpload() {
+    _ocrUploadTimer?.cancel();
+    _ocrUploadTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
+      if (!_isConnected || !_isScreenCaptureActive) {
+        return;
+      }
+      if (_isUploadingOcr) {
+        return;
+      }
+      _isUploadingOcr = true;
+      try {
+        final Uint8List? jpegData = await platform.invokeMethod('captureScreen');
+        if (jpegData == null || jpegData.isEmpty) {
+          _isUploadingOcr = false;
+          return;
+        }
+        await _uploadImageForOcr(jpegData);
+      } catch (e) {
+        print('❌ OCR 截图上传失败: $e');
+      } finally {
+        _isUploadingOcr = false;
+      }
+    });
+    print('📸 OCR 截图上传已启动（每 2 秒）');
+  }
+
+  /// 停止 OCR 截图上传定时器
+  void _stopOcrUpload() {
+    _ocrUploadTimer?.cancel();
+    _ocrUploadTimer = null;
+    print('📸 OCR 截图上传已停止');
+  }
+
+  /// 上传截图到 REST /upload/image（触发后端 OCR + 平台识别）
+  Future<void> _uploadImageForOcr(Uint8List imageData) async {
+    try {
+      final token = AuthService().getToken();
+      if (token.isEmpty) return;
+
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(
+          imageData,
+          filename: 'ocr_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        ),
+        if (_callRecordId != null) 'call_id': int.tryParse(_callRecordId!),
+      });
+
+      final dio = Dio();
+      final response = await dio.post(
+        '${GlobalConstants.BASE_URL}/api/detection/upload/image',
+        data: formData,
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        print('📸 OCR 截图上传成功，等待后端 OCR 识别...');
+      }
+    } catch (e) {
+      print('❌ OCR REST 上传异常: $e');
+    }
+  }
+
   // ============================================================
   // ✅ 语音识别（文字流检测）
   // ============================================================
