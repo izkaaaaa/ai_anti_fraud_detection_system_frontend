@@ -1,5 +1,9 @@
 package com.example.ai_anti_fraud_detection_system_frontend
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.Notification
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -15,6 +19,7 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 
@@ -34,6 +39,9 @@ class FloatingWindowService : Service() {
         var instance: FloatingWindowService? = null
             private set
 
+        const val ALERT_CHANNEL_ID = "ai_anti_fraud_alert"
+        const val ALERT_CHANNEL_NAME = "风险预警"
+
         fun start(context: Context) {
             context.startService(Intent(context, FloatingWindowService::class.java))
         }
@@ -51,6 +59,17 @@ class FloatingWindowService : Service() {
         fun updateScene(scene: String) {
             instance?.updateSceneDisplay(scene)
         }
+
+        /** 由 MainActivity MethodChannel 调用，触发 Alert（medium=通知，high=全屏遮罩）*/
+        fun showAlert(context: Context, level: String, title: String, message: String) {
+            instance?.showAlertInternal(level, title, message)
+                ?: start(context).also { instance?.showAlertInternal(level, title, message) }
+        }
+
+        /** 由 MainActivity MethodChannel 调用，关闭全屏遮罩 */
+        fun dismissFullScreenWarning() {
+            instance?.dismissFullScreenAlert()
+        }
     }
 
     private var windowManager: WindowManager? = null
@@ -64,6 +83,10 @@ class FloatingWindowService : Service() {
     private var riskTextView: TextView? = null
     private var confTextView: TextView? = null
 
+    // ── 全屏遮罩（high 预警）──────────────────────────────
+    private var alertWindow: LinearLayout? = null
+    private var alertLayoutParams: WindowManager.LayoutParams? = null
+
     private val mainHandler = Handler(Looper.getMainLooper())
 
     // ── 生命周期 ────────────────────────────────────────────────
@@ -74,13 +97,210 @@ class FloatingWindowService : Service() {
         super.onCreate()
         instance = this
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        createNotificationChannel()
         buildWindow()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         instance = null
+        dismissFullScreenAlert()
         removeWindow()
+    }
+
+    // ── 创建通知渠道（Android 8.0+）──────────────────────────────
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                ALERT_CHANNEL_ID,
+                ALERT_CHANNEL_NAME,
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "AI 反诈风险预警通知"
+                enableLights(true)
+                lightColor = Color.parseColor("#F59E0B")
+                enableVibration(true)
+            }
+            val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            nm.createNotificationChannel(channel)
+        }
+    }
+
+    // ── Alert 入口（按 level 分发）───────────────────────────────
+
+    private fun showAlertInternal(level: String, title: String, message: String) {
+        mainHandler.post {
+            when (level) {
+                "high"   -> showHighAlert(title, message)
+                else     -> showMediumAlert(title, message)  // medium / 其他
+            }
+        }
+    }
+
+    // ── Medium: 系统通知栏通知 ───────────────────────────────
+
+    private fun showMediumAlert(title: String, message: String) {
+        val ctx = applicationContext
+
+        // 点击通知 → 拉起 App 主界面
+        val intent = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)?.apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            ctx, 0, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = Notification.Builder(ctx, ALERT_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentTitle("⚠️ $title")
+            .setContentText(message)
+            .setPriority(Notification.PRIORITY_HIGH)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setColor(Color.parseColor("#F59E0B"))
+            .build()
+
+        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(System.currentTimeMillis().toInt(), notification)
+    }
+
+    // ── High: 全屏预警遮罩 ───────────────────────────────────
+
+    private fun showHighAlert(title: String, message: String) {
+        // 先关闭已有遮罩，避免重复
+        dismissFullScreenAlert()
+
+        val ctx = this
+
+        // 全屏窗口参数
+        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        else
+            @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
+
+        alertLayoutParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            type,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.CENTER
+        }
+
+        // 半透明背景层（点击不关闭）
+        val bg = View(ctx).apply {
+            setBackgroundColor(Color.parseColor("#CC000000"))
+        }
+
+        // 卡片容器
+        val card = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(32), dp(40), dp(32), dp(40))
+        }
+        card.background = GradientDrawable(
+            GradientDrawable.Orientation.TL_BR,
+            intArrayOf(Color.parseColor("#3B0000"), Color.parseColor("#270000"))
+        ).apply {
+            cornerRadius = dp(20).toFloat()
+            setStroke(dp(2), Color.parseColor("#EF4444"))
+        }
+
+        // 警告图标
+        val iconText = TextView(ctx).apply {
+            text = "🚨"
+            textSize = 60f
+            gravity = Gravity.CENTER
+        }
+
+        // 风险等级标签
+        val levelLabel = TextView(ctx).apply {
+            text = "高风险警告"
+            textSize = 22f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setTextColor(Color.parseColor("#EF4444"))
+            setPadding(0, dp(16), 0, dp(8))
+        }
+
+        // 标题
+        val titleView = TextView(ctx).apply {
+            text = title
+            textSize = 18f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setTextColor(Color.parseColor("#FEE2E2"))
+            setPadding(0, 0, 0, dp(12))
+        }
+
+        // 消息内容
+        val msgView = TextView(ctx).apply {
+            text = message
+            textSize = 15f
+            gravity = Gravity.CENTER
+            setTextColor(Color.parseColor("#FCA5A5"))
+            setPadding(0, 0, 0, dp(28))
+        }
+
+        // 确认按钮
+        val btn = Button(ctx).apply {
+            text = "我已知晓"
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+            setBackgroundColor(Color.parseColor("#EF4444"))
+            setTextColor(Color.WHITE)
+            setPadding(dp(40), dp(12), dp(40), dp(12))
+            // 圆角需要通过 background drawable 实现
+            (layoutParams as? LinearLayout.LayoutParams)?.gravity = Gravity.CENTER
+            setOnClickListener {
+                dismissFullScreenAlert()
+            }
+        }
+        // 圆角按钮
+        btn.background = GradientDrawable().apply {
+            cornerRadius = dp(10).toFloat()
+            setColor(Color.parseColor("#EF4444"))
+        }
+
+        card.addView(iconText)
+        card.addView(levelLabel)
+        card.addView(titleView)
+        card.addView(msgView)
+        card.addView(btn)
+
+        // 背景覆盖在卡片下方，保证卡片居中
+        alertWindow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+        }
+        alertWindow?.addView(bg, WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT
+        ).apply { gravity = Gravity.CENTER })
+        alertWindow?.addView(card)
+
+        try {
+            windowManager?.addView(alertWindow, alertLayoutParams)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // ── 关闭全屏遮罩 ───────────────────────────────────────────
+
+    fun dismissFullScreenAlert() {
+        mainHandler.post {
+            alertWindow?.let {
+                try { windowManager?.removeView(it) } catch (_: Exception) {}
+                alertWindow = null
+            }
+        }
     }
 
     // ── 构建悬浮窗 ──────────────────────────────────────────────

@@ -1,11 +1,246 @@
 import 'package:flutter/material.dart';
-import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/pages/LearningCenter/PostDetailPage.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/DioRequest.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
 
-const _kAccent = Color(0xFF58A183);
-const _kBg = Color(0xFFF8FAF9);
+const _accent = Color(0xFF58A183);
+const _bg = Color(0xFFF8FAF9);
 
+// ==================== 案例库卡片（两列，绿色系，更扁平） ====================
+class CaseCard extends StatelessWidget {
+  final Map<String, dynamic> item;
+
+  const CaseCard({super.key, required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final title = item['title']?.toString() ?? '未知案例';
+
+    return InkWell(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PostDetailPage(data: item, source: 'case'),
+        ),
+      ),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              title,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F1923),
+                height: 1.3,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              item['fraud_type']?.toString() ?? '',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF22C55E),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==================== 法律库折叠项 ====================
+class LawExpandTile extends StatefulWidget {
+  final Map<String, dynamic> item;
+
+  const LawExpandTile({super.key, required this.item});
+
+  @override
+  State<LawExpandTile> createState() => _LawExpandTileState();
+}
+
+class _LawExpandTileState extends State<LawExpandTile> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = widget.item['title']?.toString() ?? '未知法律';
+    final content = widget.item['content']?.toString() ?? '';
+    final penalty = widget.item['penalty']?.toString();
+    final fraudType = widget.item['fraud_type']?.toString() ?? '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.gavel, color: Color(0xFF10B981), size: 16),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: _expanded ? null : 1,
+                          overflow: _expanded ? null : TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: _expanded ? const Color(0xFF10B981) : const Color(0xFF0F1923),
+                          ),
+                        ),
+                        if (!_expanded && fraudType.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              fraudType,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Color(0xFF10B981),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  AnimatedRotation(
+                    duration: const Duration(milliseconds: 200),
+                    turns: _expanded ? 0.5 : 0,
+                    child: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF9CA3AF), size: 20),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_expanded)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    height: 1,
+                    color: const Color(0xFFE5E7EB),
+                    margin: const EdgeInsets.only(bottom: 12),
+                  ),
+                  Text(
+                    content,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF6B7280),
+                      height: 1.7,
+                    ),
+                  ),
+                  if (penalty != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDC2626).withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 13),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              '处罚: $penalty',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFFDC2626),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PostDetailPage(data: widget.item, source: 'law'),
+                        ),
+                      ),
+                      child: const Text(
+                        '查看全文 →',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF10B981),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================== 主页面 ====================
 class LearningCenterPage extends StatefulWidget {
   const LearningCenterPage({super.key});
 
@@ -13,911 +248,632 @@ class LearningCenterPage extends StatefulWidget {
   State<LearningCenterPage> createState() => _LearningCenterPageState();
 }
 
-class _LearningCenterPageState extends State<LearningCenterPage> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _LearningCenterPageState extends State<LearningCenterPage> {
   Map<String, dynamic>? _userInfo;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
     _loadUserInfo();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadUserInfo() async {
     try {
-      final userInfo = await AuthService().getCurrentUser();
+      final info = await AuthService().getCurrentUser();
       setState(() {
-        _userInfo = userInfo;
+        _userInfo = info;
         _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
-      appBar: AppBar(
-        backgroundColor: _kBg,
-        elevation: 0,
-        scrolledUnderElevation: 0,
+      backgroundColor: _bg,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: _accent))
+          : CustomScrollView(
+              slivers: [
+                _buildAppBar(),
+                SliverList(
+                  delegate: SliverChildListDelegate([
+                    // 为你推荐（轮播，视频优先，无标题）
+                    _SectionRecommend(
+                      userInfo: _userInfo,
+                      accentColor: _accent,
+                    ),
+
+                    // 案例库（分类tab + 两列）
+                    _SectionCaseList(userInfo: _userInfo),
+
+                    // 法律库（分类tab + 折叠）
+                    _SectionLawList(userInfo: _userInfo),
+
+                    const SizedBox(height: 60),
+                  ]),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildAppBar() {
+    return SliverAppBar(
+      backgroundColor: _bg,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      pinned: true,
+      expandedHeight: 80,
+      flexibleSpace: FlexibleSpaceBar(
+        titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
         title: const Text(
           '学习中心',
           style: TextStyle(
             color: Color(0xFF0F1923),
             fontSize: 20,
             fontWeight: FontWeight.w700,
-            letterSpacing: 1,
-          ),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(50),
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE9F2EC),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              indicator: BoxDecoration(
-                color: _kAccent,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              indicatorSize: TabBarIndicatorSize.tab,
-              dividerColor: Colors.transparent,
-              labelColor: Colors.white,
-              unselectedLabelColor: const Color(0xFF6B7280),
-              labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-              padding: const EdgeInsets.all(3),
-              tabs: const [
-                Tab(text: '推荐'),
-                Tab(text: '案例库'),
-                Tab(text: '法律库'),
-              ],
-            ),
           ),
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: _kAccent))
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildRecommendationsTab(),
-                _buildCasesTab(),
-                _buildLawsTab(),
-              ],
-            ),
     );
   }
-
-  Widget _buildRecommendationsTab() {
-    return RecommendationsTab(userInfo: _userInfo);
-  }
-
-  Widget _buildCasesTab() {
-    return CasesTab(userInfo: _userInfo);
-  }
-
-  Widget _buildLawsTab() {
-    return LawsTab(userInfo: _userInfo);
-  }
 }
 
-// ==================== 推荐标签页 ====================
-class RecommendationsTab extends StatefulWidget {
+// ==================== 为你推荐（PageView轮播，视频优先，只显示标题+类型） ====================
+class _SectionRecommend extends StatefulWidget {
   final Map<String, dynamic>? userInfo;
+  final Color accentColor;
 
-  const RecommendationsTab({super.key, this.userInfo});
+  const _SectionRecommend({this.userInfo, required this.accentColor});
 
   @override
-  State<RecommendationsTab> createState() => _RecommendationsTabState();
+  State<_SectionRecommend> createState() => _SectionRecommendState();
 }
 
-class _RecommendationsTabState extends State<RecommendationsTab> {
-  bool _isLoading = true;
-  List<dynamic> _recommendations = [];
-  String? _errorMessage;
+class _SectionRecommendState extends State<_SectionRecommend> {
+  bool _loading = true;
+  List<Map<String, dynamic>> _items = [];
+  final PageController _pageController = PageController(viewportFraction: 0.88);
+  int _currentPage = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadRecommendations();
+    _load();
   }
 
-  Future<void> _loadRecommendations() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
+  Future<void> _load() async {
+    final userId = widget.userInfo?['user_id'];
+    if (userId == null) {
+      setState(() => _loading = false);
+      return;
+    }
     try {
-      final userId = widget.userInfo?['user_id'];
-      if (userId == null) {
-        setState(() {
-          _errorMessage = '用户未登录';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      print('📚 加载个性化推荐: userId=$userId');
-      final response = await dioRequest.get(
+      final res = await dioRequest.get(
         '/api/education/recommendations/profile/$userId',
-        params: {'limit': 10},
+        params: {'limit': 6},
       );
-
-      print('📦 推荐响应: $response');
-
-      if (response != null && response['data'] != null) {
-        final data = response['data'];
-        final cases = (data['cases'] as List?) ?? [];
-        final slogans = (data['slogans'] as List?) ?? [];
-        final videos = (data['videos'] as List?) ?? [];
-
-        final allItems = [
-          ...cases.map((c) => {'type': 'case', ...c}),
-          ...slogans.map((s) => {'type': 'slogan', ...s}),
-          ...videos.map((v) => {'type': 'video', ...v}),
-        ];
-
+      if (res != null && res['data'] != null) {
+        final data = res['data'];
+        final cases = (data['cases'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+        final slogans = (data['slogans'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+        final videos = (data['videos'] as List?)?.cast<Map<String, dynamic>>() ?? [];
         setState(() {
-          _recommendations = allItems;
-          _isLoading = false;
+          // 视频排最前面
+          _items = [
+            ...videos.map((v) => {'type': 'video', ...v}),
+            ...cases.map((c) => {'type': 'case', ...c}),
+            ...slogans.map((s) => {'type': 'slogan', ...s}),
+          ];
+          _loading = false;
         });
       } else {
-        setState(() {
-          _recommendations = [];
-          _isLoading = false;
-        });
+        setState(() => _loading = false);
       }
     } catch (e) {
-      print('❌ 加载推荐失败: $e');
-      setState(() {
-        _errorMessage = '加载失败: $e';
-        _isLoading = false;
-      });
+      setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: _kAccent));
-    }
-
-    if (_errorMessage != null) {
-      return SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: SizedBox(
-          height: MediaQuery.of(context).size.height - 200,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildServerErrorCard(),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: _loadRecommendations,
-                icon: const Icon(Icons.refresh),
-                label: const Text('重试'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _kAccent,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (_recommendations.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.lightbulb_outline, size: 56, color: Colors.grey.shade300),
-            const SizedBox(height: 12),
-            const Text('暂无推荐内容', style: TextStyle(fontSize: 15, color: Color(0xFF9CA3AF))),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadRecommendations,
-      color: _kAccent,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        itemCount: _recommendations.length,
-        itemBuilder: (context, index) => _buildRecommendationCard(_recommendations[index]),
-      ),
-    );
-  }
-
-  Widget _buildRecommendationCard(Map<String, dynamic> item) {
-    final type = item['type'];
-    final title = item['title'] ?? item['content'] ?? '未知';
-    final fraudType = item['fraud_type'] ?? '';
-
-    IconData icon;
-    Color color;
-
-    switch (type) {
-      case 'case':
-        icon = Icons.description_outlined;
-        color = const Color(0xFF3B82F6);
-        break;
-      case 'slogan':
-        icon = Icons.lightbulb_outlined;
-        color = const Color(0xFFF59E0B);
-        break;
-      case 'video':
-        icon = Icons.play_circle_outline;
-        color = const Color(0xFF10B981);
-        break;
-      default:
-        icon = Icons.article_outlined;
-        color = _kAccent;
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF0F1923),
-                  ),
-                ),
-                if (fraudType.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      fraudType,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: color,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const Icon(Icons.chevron_right, color: Color(0xFFCBD5E1), size: 20),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildServerErrorCard() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFEE2E2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFCA5A5), width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 20),
-              const SizedBox(width: 8),
-              const Text(
-                '后端服务异常',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFFDC2626),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            '教育API服务暂时不可用，请稍后重试或联系管理员。',
-            style: TextStyle(
-              fontSize: 12,
-              color: Color(0xFF7F1D1D),
-              height: 1.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ==================== 案例库标签页 ====================
-class CasesTab extends StatefulWidget {
-  final Map<String, dynamic>? userInfo;
-
-  const CasesTab({super.key, this.userInfo});
-
-  @override
-  State<CasesTab> createState() => _CasesTabState();
-}
-
-class _CasesTabState extends State<CasesTab> {
-  bool _isLoading = true;
-  List<dynamic> _cases = [];
-  String? _errorMessage;
-  String? _selectedFraudType;
-  List<String> _fraudTypes = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadCases();
-  }
-
-  Future<void> _loadCases() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final userId = widget.userInfo?['user_id'];
-      if (userId == null) {
-        setState(() {
-          _errorMessage = '用户未登录';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      print('📚 加载案例库: userId=$userId');
-      final params = <String, dynamic>{'limit': 20};
-      if (_selectedFraudType != null) {
-        params['fraud_type'] = _selectedFraudType;
-      }
-
-      final response = await dioRequest.get(
-        '/api/education/recommendations/library/$userId',
-        params: params,
-      );
-
-      if (response != null && response['data'] != null) {
-        final data = response['data'];
-        final cases = (data['cases'] as List?) ?? [];
-
-        // 提取诈骗类型
-        final types = <String>{};
-        for (var c in cases) {
-          if (c['fraud_type'] != null) {
-            types.add(c['fraud_type'].toString());
-          }
-        }
-
-        setState(() {
-          _cases = cases;
-          _fraudTypes = types.toList();
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _cases = [];
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      print('❌ 加载案例库失败: $e');
-      setState(() {
-        _errorMessage = '加载失败: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: _kAccent));
-    }
-
     return Column(
       children: [
-        if (_fraudTypes.isNotEmpty)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () {
-                    setState(() => _selectedFraudType = null);
-                    _loadCases();
-                  },
+        SizedBox(
+          height: 165,
+          child: _loading
+              ? const Center(child: CircularProgressIndicator(color: _accent))
+              : _items.isEmpty
+                  ? const Center(
+                      child: Text('暂无推荐内容',
+                          style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)))
+                  : Stack(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          child: PageView.builder(
+                            controller: _pageController,
+                            itemCount: _items.length,
+                            onPageChanged: (i) => setState(() => _currentPage = i),
+                            itemBuilder: (context, i) => _RecommendCard(item: _items[i]),
+                          ),
+                        ),
+                        // 底部小点点
+                        if (_items.length > 1)
+                          Positioned(
+                            bottom: 8,
+                            left: 0,
+                            right: 0,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(_items.length, (i) {
+                                return AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                                  width: i == _currentPage ? 16 : 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: i == _currentPage
+                                        ? const Color(0xFF58A183)
+                                        : const Color(0xFFD1D5DB),
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+                      ],
+                    ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RecommendCard extends StatelessWidget {
+  final Map<String, dynamic> item;
+
+  const _RecommendCard({required this.item});
+
+  Color get _cardColor {
+    switch (item['type']?.toString()) {
+      case 'video':
+        return const Color(0xFF10B981); // 绿色
+      case 'case':
+        return const Color(0xFF3B82F6); // 蓝色
+      case 'slogan':
+        return const Color(0xFFF59E0B); // 橙色
+      default:
+        return const Color(0xFF58A183);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final type = item['type']?.toString();
+    final title = item['title']?.toString() ?? item['content']?.toString() ?? '';
+    final fraudType = item['fraud_type']?.toString() ?? '';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 20),
+      child: InkWell(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PostDetailPage(data: item, source: 'recommendation'),
+          ),
+        ),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                _cardColor.withValues(alpha: 0.85),
+                _cardColor,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: _cardColor.withValues(alpha: 0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              // 视频类型显示封面效果（渐变叠加层）
+              if (type == 'video')
+                Positioned.fill(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: _selectedFraudType == null ? _kAccent : Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: _selectedFraudType == null ? _kAccent : const Color(0xFFE5E7EB),
+                      borderRadius: BorderRadius.circular(14),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.15),
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.2),
+                        ],
                       ),
                     ),
-                    child: Text(
-                      '全部',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: _selectedFraudType == null ? Colors.white : const Color(0xFF6B7280),
+                    child: Center(
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.25),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.play_arrow, color: Colors.white, size: 26),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                ..._fraudTypes.map((type) {
-                  final isSelected = _selectedFraudType == type;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() => _selectedFraudType = type);
-                        _loadCases();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isSelected ? _kAccent : Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isSelected ? _kAccent : const Color(0xFFE5E7EB),
-                          ),
-                        ),
+              // 内容
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (fraudType.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
                         child: Text(
-                          type,
+                          fraudType,
                           style: TextStyle(
                             fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.9),
                             fontWeight: FontWeight.w600,
-                            color: isSelected ? Colors.white : const Color(0xFF6B7280),
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        height: 1.3,
+                      ),
                     ),
-                  );
-                }),
-              ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ==================== 案例库（分类Tab + 两列Grid，绿色系） ====================
+class _SectionCaseList extends StatefulWidget {
+  final Map<String, dynamic>? userInfo;
+
+  const _SectionCaseList({this.userInfo});
+
+  @override
+  State<_SectionCaseList> createState() => _SectionCaseListState();
+}
+
+class _SectionCaseListState extends State<_SectionCaseList> {
+  bool _loading = true;
+  List<Map<String, dynamic>> _allCases = [];
+  List<String> _categories = ['全部'];
+  int _selectedTab = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final userId = widget.userInfo?['user_id'];
+    if (userId == null) {
+      setState(() => _loading = false);
+      return;
+    }
+    try {
+      final res = await dioRequest.get(
+        '/api/education/recommendations/library/$userId',
+        params: {'limit': 50},
+      );
+      if (res != null && res['data'] != null) {
+        final cases = (res['data']['cases'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+        final fraudTypes = cases
+            .map((c) => c['fraud_type']?.toString())
+            .where((t) => t != null && t.isNotEmpty)
+            .toSet()
+            .cast<String>()
+            .toList();
+        fraudTypes.sort();
+        setState(() {
+          _allCases = cases;
+          _categories = ['全部', ...fraudTypes];
+          _loading = false;
+        });
+      } else {
+        setState(() => _loading = false);
+      }
+    } catch (e) {
+      setState(() => _loading = false);
+    }
+  }
+
+  List<Map<String, dynamic>> get _filteredCases {
+    if (_selectedTab == 0) return _allCases;
+    final cat = _categories[_selectedTab];
+    return _allCases.where((c) => c['fraud_type']?.toString() == cat).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('案例库', Icons.library_books_outlined, const Color(0xFF22C55E)),
+        // 分类Tab
+        if (_categories.length > 1)
+          SizedBox(
+            height: 36,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: _categories.length,
+              itemBuilder: (context, i) => Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: _categoryChip(_categories[i], i),
+              ),
             ),
           ),
-        Expanded(
-          child: _errorMessage != null
-              ? SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: SizedBox(
-                    height: MediaQuery.of(context).size.height - 300,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildServerErrorCard(),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: _loadCases,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('重试'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _kAccent,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : _cases.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.folder_open_outlined, size: 56, color: Colors.grey.shade300),
-                          const SizedBox(height: 12),
-                          const Text('暂无案例', style: TextStyle(fontSize: 15, color: Color(0xFF9CA3AF))),
-                        ],
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _loading
+              ? const SizedBox(
+                  height: 100,
+                  child: Center(child: CircularProgressIndicator(color: _accent)))
+              : _filteredCases.isEmpty
+                  ? const SizedBox(
+                      height: 60,
+                      child: Center(
+                        child: Text('暂无案例',
+                            style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)),
                       ),
                     )
-                  : RefreshIndicator(
-                      onRefresh: _loadCases,
-                      color: _kAccent,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                        itemCount: _cases.length,
-                        itemBuilder: (context, index) => _buildCaseCard(_cases[index]),
+                  : GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: 1.45,
                       ),
+                      itemCount: _filteredCases.length,
+                      itemBuilder: (context, i) => CaseCard(item: _filteredCases[i]),
                     ),
         ),
       ],
     );
   }
 
-  Widget _buildServerErrorCard() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFEE2E2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFCA5A5), width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 20),
-              const SizedBox(width: 8),
-              const Text(
-                '后端服务异常',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFFDC2626),
-                ),
-              ),
-            ],
+  Widget _categoryChip(String label, int i) {
+    final selected = _selectedTab == i;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedTab = i),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF22C55E) : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected ? const Color(0xFF22C55E) : const Color(0xFFE5E7EB),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            '教育API服务暂时不可用，请稍后重试或联系管理员。',
-            style: TextStyle(
-              fontSize: 12,
-              color: Color(0xFF7F1D1D),
-              height: 1.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCaseCard(Map<String, dynamic> case_) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  case_['title'] ?? '未知案例',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF0F1923),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF22C55E).withValues(alpha: 0.25),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF3B82F6).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  case_['fraud_type'] ?? '未分类',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF3B82F6),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : const Color(0xFF6B7280),
           ),
-          const SizedBox(height: 8),
-          Text(
-            case_['description'] ?? case_['content'] ?? '暂无描述',
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF6B7280),
-              height: 1.5,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-// ==================== 法律库标签页 ====================
-class LawsTab extends StatefulWidget {
+// ==================== 法律库（分类Tab + 折叠列表） ====================
+class _SectionLawList extends StatefulWidget {
   final Map<String, dynamic>? userInfo;
 
-  const LawsTab({super.key, this.userInfo});
+  const _SectionLawList({this.userInfo});
 
   @override
-  State<LawsTab> createState() => _LawsTabState();
+  State<_SectionLawList> createState() => _SectionLawListState();
 }
 
-class _LawsTabState extends State<LawsTab> {
-  bool _isLoading = true;
-  List<dynamic> _laws = [];
-  String? _errorMessage;
+class _SectionLawListState extends State<_SectionLawList> {
+  bool _loading = true;
+  List<Map<String, dynamic>> _allLaws = [];
+  List<String> _categories = ['全部'];
+  int _selectedTab = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadLaws();
+    _load();
   }
 
-  Future<void> _loadLaws() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
+  Future<void> _load() async {
+    final userId = widget.userInfo?['user_id'];
+    if (userId == null) {
+      setState(() => _loading = false);
+      return;
+    }
     try {
-      final userId = widget.userInfo?['user_id'];
-      if (userId == null) {
-        setState(() {
-          _errorMessage = '用户未登录';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      print('📚 加载法律库: userId=$userId');
-      final response = await dioRequest.get(
+      final res = await dioRequest.get(
         '/api/education/recommendations/library/$userId',
-        params: {'limit': 20},
+        params: {'limit': 50},
       );
-
-      if (response != null && response['data'] != null) {
-        final data = response['data'];
-        final laws = (data['laws'] as List?) ?? [];
-
+      if (res != null && res['data'] != null) {
+        final laws = (res['data']['laws'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+        final fraudTypes = laws
+            .map((l) => l['fraud_type']?.toString())
+            .where((t) => t != null && t.isNotEmpty)
+            .toSet()
+            .cast<String>()
+            .toList();
+        fraudTypes.sort();
         setState(() {
-          _laws = laws;
-          _isLoading = false;
+          _allLaws = laws;
+          _categories = ['全部', ...fraudTypes];
+          _loading = false;
         });
       } else {
-        setState(() {
-          _laws = [];
-          _isLoading = false;
-        });
+        setState(() => _loading = false);
       }
     } catch (e) {
-      print('❌ 加载法律库失败: $e');
-      setState(() {
-        _errorMessage = '加载失败: $e';
-        _isLoading = false;
-      });
+      setState(() => _loading = false);
     }
+  }
+
+  List<Map<String, dynamic>> get _filteredLaws {
+    if (_selectedTab == 0) return _allLaws;
+    final cat = _categories[_selectedTab];
+    return _allLaws.where((l) => l['fraud_type']?.toString() == cat).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: _kAccent));
-    }
-
-    if (_errorMessage != null) {
-      return SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: SizedBox(
-          height: MediaQuery.of(context).size.height - 200,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildServerErrorCard(),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: _loadLaws,
-                icon: const Icon(Icons.refresh),
-                label: const Text('重试'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _kAccent,
-                  foregroundColor: Colors.white,
-                ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('法律库', Icons.gavel_outlined, const Color(0xFF10B981)),
+        // 分类Tab
+        if (_categories.length > 1)
+          SizedBox(
+            height: 36,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: _categories.length,
+              itemBuilder: (context, i) => Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: _lawCategoryChip(_categories[i], i),
               ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (_laws.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.gavel_outlined, size: 56, color: Colors.grey.shade300),
-            const SizedBox(height: 12),
-            const Text('暂无法律条款', style: TextStyle(fontSize: 15, color: Color(0xFF9CA3AF))),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadLaws,
-      color: _kAccent,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        itemCount: _laws.length,
-        itemBuilder: (context, index) => _buildLawCard(_laws[index]),
-      ),
-    );
-  }
-
-  Widget _buildServerErrorCard() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFEE2E2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFCA5A5), width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 20),
-              const SizedBox(width: 8),
-              const Text(
-                '后端服务异常',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFFDC2626),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            '教育API服务暂时不可用，请稍后重试或联系管理员。',
-            style: TextStyle(
-              fontSize: 12,
-              color: Color(0xFF7F1D1D),
-              height: 1.5,
             ),
           ),
-        ],
-      ),
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _loading
+              ? const SizedBox(
+                  height: 100,
+                  child: Center(child: CircularProgressIndicator(color: _accent)))
+              : _filteredLaws.isEmpty
+                  ? const SizedBox(
+                      height: 60,
+                      child: Center(
+                        child: Text('暂无法律条款',
+                            style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)),
+                      ),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _filteredLaws.length,
+                      itemBuilder: (context, i) => LawExpandTile(item: _filteredLaws[i]),
+                    ),
+        ),
+      ],
     );
   }
 
-  Widget _buildLawCard(Map<String, dynamic> law) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+  Widget _lawCategoryChip(String label, int i) {
+    final selected = _selectedTab == i;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedTab = i),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF10B981) : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected ? const Color(0xFF10B981) : const Color(0xFFE5E7EB),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.gavel, color: Color(0xFF10B981), size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  law['title'] ?? '未知法律',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF0F1923),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
-                ),
-              ),
-            ],
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : const Color(0xFF6B7280),
           ),
-          const SizedBox(height: 8),
-          Text(
-            law['content'] ?? '暂无内容',
-            maxLines: 4,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF6B7280),
-              height: 1.5,
-            ),
-          ),
-          if (law['penalty'] != null) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFDC2626).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '处罚: ${law['penalty']}',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFFDC2626),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
 }
 
+// Section 标题通用组件
+Widget _sectionTitle(String title, IconData icon, Color color) {
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+    child: Row(
+      children: [
+        Icon(icon, color: color, size: 18),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
+      ],
+    ),
+  );
+}

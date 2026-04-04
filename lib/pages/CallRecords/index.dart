@@ -12,18 +12,38 @@ const _kBg = Color(0xFFF8FAF9);
 class _RiskConfig {
   final String label;
   final IconData icon;
-  final Color color;
-  const _RiskConfig(this.label, this.icon, this.color);
+  final Color color;     // 卡片背景色
+  final Color textColor; // 文字色
+  final Color bgColor;   // 浅色背景
+
+  const _RiskConfig(this.label, this.icon, this.color, this.textColor, this.bgColor);
 }
 
 _RiskConfig _riskConfig(String result) {
   switch (result) {
-    case 'safe':      return const _RiskConfig('安全',  Icons.verified_rounded,      Color(0xFF059669));
-    case 'suspicious':return const _RiskConfig('可疑',  Icons.warning_amber_rounded,  Color(0xFFD97706));
-    case 'fake':      return const _RiskConfig('危险',  Icons.gpp_bad_rounded,        Color(0xFFDC2626));
-    default:          return const _RiskConfig('未检测',Icons.help_outline_rounded,   Color(0xFF9CA3AF));
+    case 'safe':
+      return const _RiskConfig(
+        '安全', Icons.verified_rounded,
+        Color(0xFF059669), Colors.white, Color(0xFF58A183),
+      );
+    case 'suspicious':
+      return const _RiskConfig(
+        '可疑', Icons.warning_amber_rounded,
+        Color(0xFFD97706), Color(0xFF92400E), Color(0xFFFFEDD5),
+      );
+    case 'fake':
+      return const _RiskConfig(
+        '危险', Icons.gpp_bad_rounded,
+        Color(0xFFDC2626), Color(0xFF7F1D1D), Color(0xFFFEE2E2),
+      );
+    default:
+      return const _RiskConfig(
+        '未检测', Icons.help_outline_rounded,
+        Color(0xFF9CA3AF), Color(0xFF374151), Color(0xFFF3F4F6),
+      );
+  }
 }
-}
+
 
 // ==================== 主页面 ====================
 class CallRecordsPage extends StatefulWidget {
@@ -429,67 +449,62 @@ class _CallRecordsListState extends State<CallRecordsList>
       child: Center(
         child: FractionallySizedBox(
           widthFactor: 0.9,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
               onTap: () => _showRecordDetail(record),
               borderRadius: BorderRadius.circular(16),
-              child: Ink(
-                      decoration: BoxDecoration(
-                  color: const Color(0xFF58A183),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                decoration: BoxDecoration(
+                  color: cfg.bgColor,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF58A183).withOpacity(0.22),
+                      color: cfg.color.withOpacity(0.2),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
                   ],
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                  child: Row(
-                    children: [
-                      // 图标（白色，无背景）
-                      Icon(cfg.icon, color: Colors.white.withOpacity(0.92), size: 24),
-                      const SizedBox(width: 12),
-                      // 通话类型 + 时间（不显示号码）
+                child: Row(
+                  children: [
+                    Icon(cfg.icon, color: cfg.textColor, size: 24),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                              callTypeLabel,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                            callTypeLabel,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: cfg.textColor,
                             ),
                           ),
-                            const SizedBox(height: 3),
-                            Row(
-                              children: [
-                                Icon(Icons.schedule_rounded, size: 11, color: Colors.white.withOpacity(0.7)),
-                                const SizedBox(width: 3),
-                                Text(_formatDateTime(startTime),
-                                    style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.8))),
-                                const SizedBox(width: 8),
-                                Icon(Icons.timer_outlined, size: 11, color: Colors.white.withOpacity(0.7)),
-                                const SizedBox(width: 3),
-                                Text(_formatDuration(duration),
-                                    style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.8))),
-                              ],
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              Icon(Icons.schedule_rounded, size: 11, color: cfg.textColor.withOpacity(0.7)),
+                              const SizedBox(width: 3),
+                              Text(_formatDateTime(startTime),
+                                  style: TextStyle(fontSize: 11, color: cfg.textColor.withOpacity(0.8))),
+                              const SizedBox(width: 8),
+                              Icon(Icons.timer_outlined, size: 11, color: cfg.textColor.withOpacity(0.7)),
+                              const SizedBox(width: 3),
+                              Text(_formatDuration(duration),
+                                  style: TextStyle(fontSize: 11, color: cfg.textColor.withOpacity(0.8))),
+                            ],
                           ),
                         ],
                       ),
                     ),
-                      // 右侧：删除
-                      GestureDetector(
-                        onTap: () => _deleteRecord(callId),
-                        child: Icon(Icons.delete_outline_rounded, size: 18, color: Colors.white.withOpacity(0.6)),
+                    GestureDetector(
+                      onTap: () => _deleteRecord(callId),
+                      child: Icon(Icons.delete_outline_rounded, size: 18, color: cfg.textColor.withOpacity(0.5)),
                     ),
                   ],
-                ),
                 ),
               ),
             ),
@@ -1035,19 +1050,8 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionCard(children: [
-            _detailRow('通话时长', '${widget.record['duration'] ?? 0} 秒'),
-            _detailRowWidget(
-              '检测结果',
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                decoration: BoxDecoration(
-                  color: cfg.color.withOpacity(0.10),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: cfg.color.withOpacity(0.35)),
-                ),
-                child: Text(cfg.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: cfg.color)),
-              ),
-            ),
+          _detailRow('通话时长', '${widget.record['duration'] ?? 0} 秒'),
+          _detailRow('检测结果', cfg.label, valueColor: cfg.color),
           ]),
           const SizedBox(height: 12),
           _sectionCard(children: [
@@ -1480,22 +1484,12 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet>
         ),
       );
 
-  Widget _detailRow(String label, String value) => Padding(
+  Widget _detailRow(String label, String value, {Color? valueColor}) => Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: Row(
           children: [
             SizedBox(width: 72, child: Text(label, style: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)))),
-            Expanded(child: Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF0F1923)))),
-          ],
-        ),
-      );
-
-  Widget _detailRowWidget(String label, Widget w) => Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Row(
-          children: [
-            SizedBox(width: 72, child: Text(label, style: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)))),
-            w,
+            Expanded(child: Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: valueColor ?? const Color(0xFF0F1923)))),
           ],
         ),
       );

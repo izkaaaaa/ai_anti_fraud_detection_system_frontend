@@ -95,4 +95,31 @@ class FloatingWindowService {
       print('❌ [FloatingWindow] updateScene: $e');
     }
   }
+
+  // ── Alert 通知 ─────────────────────────────────────────────
+
+  /// [level]   : "medium" | "high"
+  /// [title]   : 通知/弹窗标题
+  /// [message] : 通知/弹窗内容
+  Future<void> showAlertNotification(String level, String title, String message) async {
+    try {
+      await _ch.invokeMethod('showAlertNotification', {
+        'level': level,
+        'title': title,
+        'message': message,
+      });
+      print('✅ [FloatingWindow] Alert 触发: level=$level title=$title');
+    } catch (e) {
+      print('❌ [FloatingWindow] showAlertNotification: $e');
+    }
+  }
+
+  /// 关闭全屏预警遮罩（用户确认后由 App 侧调用）
+  Future<void> dismissFullScreenWarning() async {
+    try {
+      await _ch.invokeMethod('dismissFullScreenWarning');
+    } catch (e) {
+      print('❌ [FloatingWindow] dismissFullScreenWarning: $e');
+    }
+  }
 }

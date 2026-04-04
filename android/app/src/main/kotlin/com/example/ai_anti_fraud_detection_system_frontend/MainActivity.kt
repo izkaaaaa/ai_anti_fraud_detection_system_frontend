@@ -153,6 +153,26 @@ class MainActivity : FlutterActivity() {
                             result.error("UPDATE_SCENE_FAILED", e.message, null)
                         }
                     }
+                    "showAlertNotification" -> {
+                        // medium→系统通知，high→全屏遮罩
+                        try {
+                            val level   = call.argument<String>("level") ?: "medium"
+                            val title   = call.argument<String>("title") ?: "风险提醒"
+                            val message = call.argument<String>("message") ?: ""
+                            FloatingWindowService.showAlert(this, level, title, message)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("ALERT_FAILED", e.message, null)
+                        }
+                    }
+                    "dismissFullScreenWarning" -> {
+                        try {
+                            FloatingWindowService.dismissFullScreenWarning()
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("DISMISS_FAILED", e.message, null)
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }

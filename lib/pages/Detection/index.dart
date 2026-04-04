@@ -274,7 +274,13 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
       // 可以在这里显示发送状态（可选）
       // print('✅ $msgType 已确认: $status');
     };
-    
+
+    // ✅ Alert 回调（medium→系统通知，high→全屏遮罩）
+    _detectionService.onAlertReceived = (level, message, title) {
+      if (!mounted) return;
+      FloatingWindowService.instance.showAlertNotification(level, title, message);
+    };
+
     // 新增：监听真实音频波形数据
     _detectionService.onAudioWaveformUpdate = (waveformData) {
       if (mounted) {
@@ -442,8 +448,8 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
       );
     }
   }
-  
-  /// 展示截图对话框
+
+  // 展示截图对话框（仅由用户主动触发）
   void _showScreenshotsDialog(List<dynamic> screenshots) {
     showDialog(
       context: context,

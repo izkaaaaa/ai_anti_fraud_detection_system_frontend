@@ -6,6 +6,7 @@ import 'package:ai_anti_fraud_detection_system_frontend/pages/Settings/Permissio
 import 'package:ai_anti_fraud_detection_system_frontend/pages/SecurityReport/index.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/pages/UserAgreement/index.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/pages/AudioRecordingTestPage.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/pages/LearningCenter/PostDetailPage.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
 import 'package:flutter/material.dart';
 
@@ -31,5 +32,6 @@ Map<String, Widget Function(BuildContext)> getRootRoutes(){
     "/security-report": (context) => SecurityReportPage(), // 安全报告路由
     "/user-agreement": (context) => UserAgreementPage(), // 用户协议路由
     "/audio-test": (context) => AudioRecordingTestPage(), // 音频录制 POC 测试路由
+    // PostDetailPage 通过 Navigator.push + arguments 传参，不在此注册
   };
 }

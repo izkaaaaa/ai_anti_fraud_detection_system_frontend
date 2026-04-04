@@ -81,7 +81,8 @@ class RealTimeDetectionService {
   Function(Map<String, dynamic>)? onControlMessage;   // 控制消息回调（防御升级等）
   Function(String, String)? onAckReceived;            // ACK 确认回调
   Function(int)? onDefenseLevelChanged;               // 防御等级变化回调
-  
+  Function(String, String, String)? onAlertReceived; // alert 弹窗回调（level, message, title）
+
   // WebSocket URL - 动态获取，与 HTTP 地址保持一致
   String get _wsBaseUrl {
     // 将 http:// 替换为 ws://
@@ -507,6 +508,27 @@ class RealTimeDetectionService {
           }
           break;
           
+        case 'alert':
+          // 预警弹窗消息（来自后端 AI 判定）
+          final alertLevel = data['risk_level'] ?? 'low';
+          final alertMessage = data['message'] ?? '';
+          final alertTitle = data['title'] ?? '风险提醒';
+          final alertDetails = data['details'] ?? '';
+
+          print('🚨 [Alert] 收到预警:');
+          print('   风险等级: $alertLevel');
+          print('   标题: $alertTitle');
+          print('   消息: $alertMessage');
+          print('   详情: $alertDetails');
+
+          // 只在 medium / high 时触发弹窗
+          if (alertLevel == 'medium' || alertLevel == 'high') {
+            onAlertReceived?.call(alertLevel, alertMessage, alertTitle);
+          } else {
+            print('   → 低风险，仅记录日志，不弹窗');
+          }
+          break;
+
         case 'environment_detected':
           // ✅ 环境识别结果（来自后端）
           final envData = (data['data'] as Map<String, dynamic>?) ?? {};
