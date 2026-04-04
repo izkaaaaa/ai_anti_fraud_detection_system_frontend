@@ -231,27 +231,9 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
           
           // ✅ 根据后端文档 warning_mode 决定显示方式
           // Level 0=安全(无提示), Level 1=警戒(modal), Level 2=高危(fullscreen)
-          final warningMode = config['warning_mode'] ?? 'modal';
-          final uiMessage = config['ui_message'] ?? '⚠️ 检测到风险，请提高警惕！';
+          final uiMessage = config['ui_message'] ?? 'Risk detected, please stay alert!';
+          print('App risk popup disabled, targetLevel=$targetLevel, reason=$reason, message=$uiMessage');
 
-          if (warningMode == 'fullscreen' || targetLevel >= 2) {
-            // 全屏警告（Level 2 高危）
-            _showFullScreenWarning(uiMessage, targetLevel, reason, config);
-          } else if (warningMode == 'modal' || targetLevel == 1) {
-            // 弹窗警告（Level 1 警戒）
-            _showModalWarning(uiMessage, targetLevel, reason, config);
-          } else {
-            // 轻量提示（Level 0，通常不会走到这里）
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(uiMessage),
-                backgroundColor: AppColors.warning,
-                duration: const Duration(seconds: 3),
-              ),
-            );
-          }
-          
-          // 更新状态为警告
           setState(() {
             _currentState = DetectionState.warning;
           });
