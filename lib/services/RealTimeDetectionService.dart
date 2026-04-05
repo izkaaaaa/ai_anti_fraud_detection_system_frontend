@@ -60,6 +60,8 @@ class RealTimeDetectionService {
   // 连接状态
   bool _isConnected = false;
   bool _isDisconnecting = false;  // ✅ 主动断开标志：主动断开时不触发 onDisconnected
+  bool _isStartingDetection = false;
+  bool _isStoppingDetection = false;
   String? _callRecordId;
   
   // ✅ 三级防御机制（Level 0=安全/5fps, 1=警戒/15fps, 2=高危/30fps）
@@ -91,6 +93,12 @@ class RealTimeDetectionService {
   
   /// 开始实时监测
   Future<bool> startDetection() async {
+    if (_isConnected || _isStartingDetection || _callRecordId != null) {
+      print('⚠️ startDetection: 实时监测已在进行中，忽略重复启动');
+      return true;
+    }
+
+    _isStartingDetection = true;
     try {
       // ✅ 0. 检查 CallDetectionService 是否启用
       print('🔍 检查 CallDetectionService 状态...');
@@ -115,12 +123,16 @@ class RealTimeDetectionService {
       
       // 2. 创建通话记录（读取 CallDetectionService 当前通话 app，自动映射 platform）
       final callApp = CallDetectionService.instance?.currentCall.value?.app ?? '';
+      final targetIdentifier = CallDetectionService.instance?.currentCall.value?.caller ?? 'realtime_detection';
       final detectedPlatform = {
-        'QQ': 'QQ',
-        'WeChat': 'WECHAT',
-      }[callApp] ?? 'OTHER';
+        'QQ': 'qq',
+        'WeChat': 'wechat',
+      }[callApp] ?? 'other';
       print('📞 检测到通话 app: "$callApp" → platform=$detectedPlatform');
-      final recordId = await _createCallRecord(platform: detectedPlatform);
+      final recordId = await _createCallRecord(
+        platform: detectedPlatform,
+        targetIdentifier: targetIdentifier.isEmpty ? 'realtime_detection' : targetIdentifier,
+      );
       if (recordId == null) {
         onError?.call('创建通话记录失败');
         await _stopForegroundService();
@@ -132,13 +144,14 @@ class RealTimeDetectionService {
       final connected = await _connectWebSocket();
       if (!connected) {
         onError?.call('连接服务器失败');
+        await _endCallRecord();
         await _stopForegroundService();
         return false;
       }
       
       // 3.5 注册通话接通回调：如果开始检测时还未接通，接通后打印日志（platform 不更新后端）
       CallDetectionService.instance?.onCallDetectedCallback = (app, caller) {
-        final updatedPlatform = {'QQ': 'QQ', 'WeChat': 'WECHAT'}[app] ?? 'OTHER';
+        final updatedPlatform = {'QQ': 'qq', 'WeChat': 'wechat'}[app] ?? 'other';
         print('📞 [通话接通回调] app=$app → platform=$updatedPlatform（后端 platform 不更新）');
       };
 
@@ -147,6 +160,7 @@ class RealTimeDetectionService {
       if (!recordingStarted) {
         onError?.call('启动录音失败');
         await _disconnectWebSocket();
+        await _endCallRecord();
         await _stopForegroundService();
         return false;
       }
@@ -179,11 +193,24 @@ class RealTimeDetectionService {
     } catch (e) {
       onError?.call('启动失败: $e');
       return false;
+    } finally {
+      _isStartingDetection = false;
     }
   }
   
   /// 停止实时监测
   Future<void> stopDetection() async {
+    if (_isStoppingDetection) {
+      print('⚠️ stopDetection: 正在停止实时监测，忽略重复调用');
+      return;
+    }
+
+    if (!_isConnected && _callRecordId == null) {
+      print('⚠️ stopDetection: 当前没有进行中的实时监测');
+      return;
+    }
+
+    _isStoppingDetection = true;
     try {
       // 0. 清除通话接通回调，防止 stopDetection 后仍被触发
       CallDetectionService.instance?.onCallDetectedCallback = null;
@@ -221,6 +248,8 @@ class RealTimeDetectionService {
       onStatusChange?.call('监测已停止');
     } catch (e) {
       onError?.call('停止失败: $e');
+    } finally {
+      _isStoppingDetection = false;
     }
   }
 
@@ -265,10 +294,10 @@ class RealTimeDetectionService {
   
   /// 创建通话记录
   ///
-  /// [platform]：通话平台，必须是 PHONE / WECHAT / QQ / OTHER
+  /// [platform]：通话平台，必须是 phone / wechat / qq / video_call / other
   /// [targetIdentifier]：对方号码或名称，可选
   Future<String?> _createCallRecord({
-    String platform = 'OTHER',
+    String platform = 'other',
     String targetIdentifier = 'realtime_detection',
   }) async {
     try {
@@ -375,17 +404,22 @@ class RealTimeDetectionService {
   /// POST /api/call-records/{call_id}/end
   /// 调用后后端异步生成 analysis 和 advice 字段
   Future<void> _endCallRecord() async {
-    if (_callRecordId == null) {
+    final callRecordId = _callRecordId;
+    if (callRecordId == null) {
       print('⚠️ _endCallRecord: 无 call_id，跳过');
       return;
     }
     try {
-      print('📞 结束通话记录: call_id=$_callRecordId');
-      await dioRequest.post('/api/call-records/$_callRecordId/end');
+      print('📞 结束通话记录: call_id=$callRecordId');
+      await dioRequest.post('/api/call-records/$callRecordId/end');
       print('✅ 通话记录已结束，AI 总结生成中...');
     } catch (e) {
       // 结束接口失败不阻断主流程
       print('⚠️ 结束通话记录失败（不影响主流程）: $e');
+    } finally {
+      if (_callRecordId == callRecordId) {
+        _callRecordId = null;
+      }
     }
   }
 
@@ -911,17 +945,25 @@ class RealTimeDetectionService {
       final token = AuthService().getToken();
       if (token.isEmpty) return;
 
+      final callRecordId = _callRecordId;
+      if (callRecordId == null) {
+        print('⚠️ OCR 上传跳过: 当前无 call_id');
+        return;
+      }
+
       final formData = FormData.fromMap({
         'file': MultipartFile.fromBytes(
           imageData,
           filename: 'ocr_${DateTime.now().millisecondsSinceEpoch}.jpg',
         ),
-        if (_callRecordId != null) 'call_id': int.tryParse(_callRecordId!),
       });
 
       final dio = Dio();
       final response = await dio.post(
         '${GlobalConstants.BASE_URL}/api/detection/upload/image',
+        queryParameters: {
+          'call_id': int.tryParse(callRecordId),
+        },
         data: formData,
         options: Options(
           headers: {'Authorization': 'Bearer $token'},

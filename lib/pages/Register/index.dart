@@ -458,49 +458,49 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
       children: [
         Text(
           label,
-          style: TextStyle(
-            fontSize: AppTheme.fontSizeSmall,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1F2937),
           ),
         ),
-        SizedBox(height: AppTheme.paddingSmall),
+        const SizedBox(height: 8),
         TextFormField(
           controller: controller,
           obscureText: isPassword && !isPasswordVisible,
           keyboardType: keyboardType,
           validator: validator,
           enabled: !_isLoading,
-          style: TextStyle(
-            fontSize: AppTheme.fontSizeMedium,
-            color: AppColors.textPrimary,
+          style: const TextStyle(
+            fontSize: 15,
+            color: Color(0xFF111827),
           ),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: AppColors.textLight, fontSize: AppTheme.fontSizeSmall),
+            hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
             suffixIcon: isPassword
                 ? IconButton(
                     icon: Icon(
                       isPasswordVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                      color: AppColors.textLight,
+                      color: const Color(0xFF6B7280),
                       size: 20,
                     ),
                     onPressed: onTogglePassword,
                   )
                 : null,
             filled: true,
-            fillColor: AppColors.inputBackground,
+            fillColor: const Color(0xFFFFFCF7),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide.none,
+              borderSide: const BorderSide(color: Color(0xFFE5E7EB), width: 1.2),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide.none,
+              borderSide: const BorderSide(color: Color(0xFFE5E7EB), width: 1.2),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppColors.primary, width: 1.0),
+              borderSide: const BorderSide(color: Color(0xFF58A183), width: 1.6),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
@@ -654,9 +654,9 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
             children: [
               Text(
                 '我已阅读并同意',
-                style: TextStyle(
-                  fontSize: AppTheme.fontSizeSmall,
-                  color: AppColors.textSecondary,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: Color(0xFF5F6B70),
                 ),
               ),
               GestureDetector(
@@ -667,17 +667,17 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
                   '《用户协议》',
                   style: TextStyle(
                     fontSize: AppTheme.fontSizeSmall,
-                    color: AppColors.primary.withOpacity(0.8),
+                    color: const Color(0xFF2F6F5C),
                     decoration: TextDecoration.underline,
-                    decorationColor: AppColors.primary.withOpacity(0.8),
+                    decorationColor: const Color(0xFF2F6F5C),
                   ),
                 ),
               ),
               Text(
                 '和',
-                style: TextStyle(
-                  fontSize: AppTheme.fontSizeSmall,
-                  color: AppColors.textSecondary,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: Color(0xFF5F6B70),
                 ),
               ),
               GestureDetector(
@@ -688,9 +688,9 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
                   '《隐私政策》',
                   style: TextStyle(
                     fontSize: AppTheme.fontSizeSmall,
-                    color: AppColors.primary.withOpacity(0.8),
+                    color: const Color(0xFF2F6F5C),
                     decoration: TextDecoration.underline,
-                    decorationColor: AppColors.primary.withOpacity(0.8),
+                    decorationColor: const Color(0xFF2F6F5C),
                   ),
                 ),
               ),
@@ -715,24 +715,25 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
           vertical: AppTheme.paddingSmall,
         ),
         decoration: BoxDecoration(
-          color: AppColors.inputBackground,
+          color: const Color(0xFFEFF6F2),
           borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          border: Border.all(color: const Color(0xFFD7E6DE), width: 1.2),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               _showAdvancedOptions ? Icons.expand_less : Icons.expand_more,
-              color: AppColors.primary,
+              color: const Color(0xFF2F6F5C),
               size: 20,
             ),
             SizedBox(width: 8),
             Text(
               _showAdvancedOptions ? '收起完善资料' : '完善资料（选填）',
-              style: TextStyle(
-                fontSize: AppTheme.fontSizeSmall,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primary,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF2F6F5C),
               ),
             ),
             
