@@ -1,9 +1,13 @@
 import 'package:flutter/services.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/index.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/services/local_notification_service.dart';
 
 /// 悬浮窗服务（Flutter 侧封装）
+///
 /// 通过 MethodChannel 驱动原生 FloatingWindowService。
 /// 单例，外部统一通过 [FloatingWindowService.instance] 访问。
+///
+/// Alert 通知：后端发送 alert 消息时，根据 level 调用 LocalNotificationService 发送系统通知
 class FloatingWindowService {
   static const _ch = MethodChannel(
     'com.example.ai_anti_fraud_detection_system_frontend/floating_window',
@@ -14,6 +18,9 @@ class FloatingWindowService {
 
   bool _showing = false;
   bool get isShowing => _showing;
+
+  /// 本地通知服务（用于 alert 通知）
+  final LocalNotificationService _notificationService = LocalNotificationService();
 
   // ── 权限 ──────────────────────────────────────────────────────
 
@@ -96,30 +103,47 @@ class FloatingWindowService {
     }
   }
 
-  // ── Alert 通知 ─────────────────────────────────────────────
+  // ── Alert 通知（改为系统通知）────────────────────────────
 
   /// [level]   : "medium" | "high"
-  /// [title]   : 通知/弹窗标题
-  /// [message] : 通知/弹窗内容
+  /// [title]   : 通知标题
+  /// [message] : 通知内容
+  ///
+  /// ✅ 已移除全屏遮罩弹窗，改为根据 level 发送系统通知
+  /// - "medium" → showMediumRiskAlert（中风险警告）
+  /// - "high" → showHighRiskAlert（高风险警告）
   Future<void> showAlertNotification(String level, String title, String message) async {
     try {
-      await _ch.invokeMethod('showAlertNotification', {
-        'level': level,
-        'title': title,
-        'message': message,
-      });
-      print('✅ [FloatingWindow] Alert 触发: level=$level title=$title');
+      // 确保通知服务已初始化
+      await _notificationService.initialize();
+
+      // 根据 level 选择对应的通知方法
+      if (level == 'high') {
+        await _notificationService.showHighRiskAlert(
+          title: title,
+          message: message,
+          payload: 'alert_high',
+        );
+        print('✅ [FloatingWindow] 高风险通知已发送: $title');
+      } else if (level == 'medium') {
+        await _notificationService.showMediumRiskAlert(
+          title: title,
+          message: message,
+          payload: 'alert_medium',
+        );
+        print('✅ [FloatingWindow] 中风险通知已发送: $title');
+      } else {
+        // low 级别只记录日志
+        print('ℹ️ [FloatingWindow] 低风险预警（不发送通知）: $title');
+      }
     } catch (e) {
       print('❌ [FloatingWindow] showAlertNotification: $e');
     }
   }
 
-  /// 关闭全屏预警遮罩（用户确认后由 App 侧调用）
+  /// 关闭全屏预警遮罩（已废弃，保留接口兼容性）
   Future<void> dismissFullScreenWarning() async {
-    try {
-      await _ch.invokeMethod('dismissFullScreenWarning');
-    } catch (e) {
-      print('❌ [FloatingWindow] dismissFullScreenWarning: $e');
-    }
+    // ✅ 全屏遮罩已移除，此方法不再需要
+    print('ℹ️ [FloatingWindow] dismissFullScreenWarning: 全屏遮罩已移除，无需关闭');
   }
 }

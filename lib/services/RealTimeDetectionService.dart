@@ -84,6 +84,11 @@ class RealTimeDetectionService {
   Function(String, String)? onAckReceived;            // ACK 确认回调
   Function(int)? onDefenseLevelChanged;               // 防御等级变化回调
   Function(String, String, String)? onAlertReceived; // alert 弹窗回调（level, message, title）
+  // 监护人通知相关回调
+  Function(String, String, String)? onFamilyAlertReceived;     // family_alert 监护人预警
+  Function(String, String, String)? onSosAlertReceived;       // sos_alert 求助预警
+  Function(String, String, String)? onEmergencyAlertReceived; // emergency_alert 紧急报警
+  Function(Map<String, dynamic>)? onRemoteControlReceived;    // remote_control 远程干预
 
   // WebSocket URL - 动态获取，与 HTTP 地址保持一致
   String get _wsBaseUrl {
@@ -561,6 +566,77 @@ class RealTimeDetectionService {
           } else {
             print('   → 低风险，仅记录日志，不弹窗');
           }
+          break;
+
+        // =============================================
+        // 监护人通知相关消息（发送给监护人 App）
+        // =============================================
+
+        case 'family_alert':
+          // 家人遭遇风险预警（监护人收到）
+          final familyAlertLevel  = data['risk_level']   ?? 'low';
+          final familyAlertMessage = data['message']     ?? '';
+          final familyAlertTitle   = data['title']       ?? '家人安全预警';
+          final victimName         = data['victim_name'] ?? '';
+          final victimPhone        = data['victim_phone']?? '';
+
+          print('👨‍👩‍👧 [Family Alert] 收到家人预警:');
+          print('   风险等级: $familyAlertLevel');
+          print('   被监护人: $victimName ($victimPhone)');
+          print('   消息: $familyAlertMessage');
+
+          onFamilyAlertReceived?.call(familyAlertLevel, familyAlertMessage, familyAlertTitle);
+          break;
+
+        case 'sos_alert':
+          // 用户主动求助（监护人收到）
+          final sosMessage    = data['message']     ?? '';
+          final sosTitle      = data['title']       ?? '紧急求助';
+          final victimName    = data['victim_name'] ?? '';
+          final urgency       = data['urgency']     ?? 'high';
+
+          print('🆘 [SOS Alert] 收到求助信号:');
+          print('   发起人: $victimName');
+          print('   紧急程度: $urgency');
+          print('   消息: $sosMessage');
+
+          onSosAlertReceived?.call(urgency, sosMessage, sosTitle);
+          break;
+
+        case 'emergency_alert':
+          // 用户触发紧急报警（监护人收到）
+          final emergencyMessage = data['message']    ?? '';
+          final emergencyTitle   = data['title']      ?? '紧急报警';
+          final alertType        = data['alert_type'] ?? 'emergency';
+          final victimName       = data['victim_name']?? '';
+
+          print('🚨 [Emergency Alert] 收到紧急报警:');
+          print('   发起人: $victimName');
+          print('   报警类型: $alertType');
+          print('   消息: $emergencyMessage');
+
+          onEmergencyAlertReceived?.call(alertType, emergencyMessage, emergencyTitle);
+          break;
+
+        case 'remote_control':
+          // 监护人远程干预指令（被监护人收到）
+          final controlAction  = data['action']  ?? '';
+          final controlConfig = (data['control'] as Map<String, dynamic>?) ?? {};
+          final adminName     = data['from_admin_name'] ?? '监护人';
+          final uiMessage    = controlConfig['ui_message'] ?? '监护人已采取行动';
+
+          print('🎮 [Remote Control] 收到远程干预:');
+          print('   动作: $controlAction');
+          print('   来源: $adminName');
+          print('   提示: $uiMessage');
+
+          onRemoteControlReceived?.call({
+            'action':     controlAction,
+            'admin_name': adminName,
+            'ui_message': uiMessage,
+            'block_call': controlConfig['block_call'] ?? false,
+            'warning_mode': controlConfig['warning_mode'] ?? 'popup',
+          });
           break;
 
         case 'environment_detected':
@@ -1091,41 +1167,33 @@ class RealTimeDetectionService {
   // ✅ 定时通知功能
   // ============================================================
   
-  /// 启动定时通知（每10秒弹一次，仅Level 1）
+  /// 启动定时通知（每8秒弹一次）
   void _startPeriodicNotifications() {
     _notificationTimer?.cancel();
     _notificationCount = 0;
     
-    // 立即发送第一次通知
-    _sendPeriodicNotification();
+    // ✅ 已移除保活通知，不再每8秒发送提示
+    // 如需重新启用，取消下面注释并恢复 _sendPeriodicNotification() 调用
+    // _sendPeriodicNotification();
+    // _notificationTimer = Timer.periodic(const Duration(seconds: 8), (timer) {
+    //   _sendPeriodicNotification();
+    // });
     
-    // 每10秒发送一次通知
-    _notificationTimer = Timer.periodic(Duration(seconds: 10), (timer) {
-      _sendPeriodicNotification();
-    });
-    
-    print('🔔 定时通知已启动（每10秒一次，仅Level 1）');
+    print('ℹ️ 定时通知已禁用');
   }
   
-  /// 发送定时通知（仅在Level 1时发送）
+  /// 发送定时通知（已禁用）
   void _sendPeriodicNotification() {
     _notificationCount++;
     
-    print('🔔 [定时通知] 第 $_notificationCount 次，当前防御等级: Level $_currentDefenseLevel');
-    
-    // ✅ 只在 Level 0（安全模式）时发送定时通知
-    // Level 1 和 Level 2 只在检测到风险时才发送通知
-    if (_currentDefenseLevel == 0) {
-      print('🔔 [定时通知] 发送正在检测通知...');
-      _notificationService.showLowRiskAlert(
-        title: '🛡️ 实时监测中',
-        message: '正在保护您的通话安全（第 $_notificationCount 次检测）',
-        payload: 'periodic_level_1',
-      );
-      print('🔔 [定时通知] 已发送第 $_notificationCount 次定时通知');
-    } else {
-      print('🔔 [定时通知] Level $_currentDefenseLevel - 跳过定时通知（仅在检测到风险时提示）');
-    }
+    print('🔔 [定时通知] 第 $_notificationCount 次，发送保活提示');
+    // ✅ 已禁用，不再发送通知
+    // _notificationService.showLowRiskAlert(
+    //   title: 'AI智能通话检测',
+    //   message: 'AI智能通话检测正在为您保驾护航',
+    //   payload: 'periodic_guardian_message',
+    // );
+    print('🔔 [定时通知] 已发送第 $_notificationCount 次保活提示');
   }
   
   /// 停止定时通知
@@ -1194,8 +1262,8 @@ class RealTimeDetectionService {
       // 3. 启动前台服务（只使用 microphone 类型）
       // ⚠️ 注意：mediaProjection 类型需要在获取权限后才能使用
       final serviceResult = await FlutterForegroundTask.startService(
-        notificationTitle: '🛡️ 实时监测中',
-        notificationText: '正在保护您的通话安全',
+        notificationTitle: 'AI智能通话检测',
+        notificationText: 'AI智能通话检测正在为您保驾护航',
         callback: startCallback,
         // ✅ 暂时只使用 microphone 类型启动服务
         // mediaProjection 会在用户授权后自动生效

@@ -154,24 +154,12 @@ class MainActivity : FlutterActivity() {
                         }
                     }
                     "showAlertNotification" -> {
-                        // medium→系统通知，high→全屏遮罩
-                        try {
-                            val level   = call.argument<String>("level") ?: "medium"
-                            val title   = call.argument<String>("title") ?: "风险提醒"
-                            val message = call.argument<String>("message") ?: ""
-                            FloatingWindowService.showAlert(this, level, title, message)
-                            result.success(true)
-                        } catch (e: Exception) {
-                            result.error("ALERT_FAILED", e.message, null)
-                        }
-                    }
-                    "dismissFullScreenWarning" -> {
-                        try {
-                            FloatingWindowService.dismissFullScreenWarning()
-                            result.success(true)
-                        } catch (e: Exception) {
-                            result.error("DISMISS_FAILED", e.message, null)
-                        }
+                        // ✅ 已移除全屏遮罩，showAlertNotification 只记录日志
+                        // 实际通知由 Flutter 侧 LocalNotificationService 处理
+                        val level = call.argument<String>("level") ?: ""
+                        val title = call.argument<String>("title") ?: ""
+                        android.util.Log.d("MainActivity", "showAlertNotification called: level=$level, title=$title (handled by Flutter)")
+                        result.success(true)
                     }
                     else -> result.notImplemented()
                 }

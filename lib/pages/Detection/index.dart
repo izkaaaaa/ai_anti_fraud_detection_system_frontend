@@ -257,10 +257,66 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
       // print('✅ $msgType 已确认: $status');
     };
 
-    // ✅ Alert 回调（medium→系统通知，high→全屏遮罩）
+    // ✅ Alert 回调（可疑/危险都使用弹窗通知）
     _detectionService.onAlertReceived = (level, message, title) {
       if (!mounted) return;
       FloatingWindowService.instance.showAlertNotification(level, title, message);
+    };
+
+    // =============================================
+    // 监护人通知相关回调
+    // =============================================
+
+    // 家人遭遇风险预警（监护人 App 收到）
+    _detectionService.onFamilyAlertReceived = (level, message, title) {
+      if (!mounted) return;
+      _showGuardianNotification(
+        title: title,
+        message: message,
+        riskLevel: level,
+        icon: Icons.family_restroom,
+      );
+    };
+
+    // 收到 SOS 求助（监护人 App 收到）
+    _detectionService.onSosAlertReceived = (urgency, message, title) {
+      if (!mounted) return;
+      _showGuardianNotification(
+        title: title,
+        message: message,
+        riskLevel: 'high',
+        icon: Icons.sos,
+        isUrgency: urgency == 'high',
+      );
+    };
+
+    // 收到紧急报警（监护人 App 收到）
+    _detectionService.onEmergencyAlertReceived = (alertType, message, title) {
+      if (!mounted) return;
+      _showGuardianNotification(
+        title: title,
+        message: message,
+        riskLevel: 'critical',
+        icon: Icons.emergency,
+        isUrgency: true,
+      );
+    };
+
+    // 收到监护人远程干预指令（被监护人 App 收到）
+    _detectionService.onRemoteControlReceived = (controlData) {
+      if (!mounted) return;
+      final action     = controlData['action']     as String? ?? '';
+      final adminName  = controlData['admin_name'] as String? ?? '监护人';
+      final uiMessage  = controlData['ui_message'] as String? ?? '';
+      final blockCall  = controlData['block_call'] as bool?  ?? false;
+
+      print('🎮 [UI] 收到远程干预: action=$action, blockCall=$blockCall');
+
+      if (blockCall) {
+        // 强制挂断：停止监测 + 显示警告
+        _stopMonitoring();
+        _showBlockingWarning(adminName, uiMessage);
+      }
     };
 
     // 新增：监听真实音频波形数据
@@ -972,6 +1028,110 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     return RiskLevel.safe;
   }
 
+  // =============================================
+  // 监护人通知辅助方法
+  // =============================================
+
+  /// 显示监护人预警通知弹窗
+  void _showGuardianNotification({
+    required String title,
+    required String message,
+    required String riskLevel,
+    required IconData icon,
+    bool isUrgency = false,
+  }) {
+    Color bgColor;
+    Color iconColor;
+    switch (riskLevel) {
+      case 'critical':
+        bgColor   = const Color(0xFFD32F2F);
+        iconColor = Colors.white;
+        break;
+      case 'high':
+        bgColor   = const Color(0xFFF57C00);
+        iconColor = Colors.white;
+        break;
+      default:
+        bgColor   = const Color(0xFF1976D2);
+        iconColor = Colors.white;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: !isUrgency,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: bgColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(icon, color: iconColor, size: 28),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(title, style: const TextStyle(color: Colors.white, fontSize: 18)),
+            ),
+          ],
+        ),
+        content: Text(message, style: const TextStyle(color: Colors.white, fontSize: 15)),
+        actions: [
+          if (!isUrgency)
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('知道了', style: TextStyle(color: Colors.white70)),
+            ),
+          if (isUrgency)
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: bgColor),
+              onPressed: () {
+                Navigator.pop(ctx);
+                // TODO: 导航到被监护人详情页
+              },
+              child: const Text('查看详情'),
+            ),
+        ],
+      ),
+    );
+
+    // 震动反馈
+    if (isUrgency) {
+      // Future.microtask(() => Vibration.vibrate(duration: 1000));
+    }
+  }
+
+  /// 显示监护人强制挂断警告
+  void _showBlockingWarning(String adminName, String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFFD32F2F),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 28),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '监护人 $adminName 已挂断通话',
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message.isNotEmpty ? message : '为保护您的安全，监护人已强制结束了当前通话。',
+          style: const TextStyle(color: Colors.white, fontSize: 15),
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFFD32F2F)),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('我知道了'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - 50;
@@ -1000,7 +1160,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
         body: Container(
           decoration: BoxDecoration(
             image: DecorationImage(
-              image: AssetImage('lib/UIimages/检测页背景.png'),
+              image: AssetImage('lib/UIimages/新检测页背景.png'),
               fit: BoxFit.cover,
             ),
           ),

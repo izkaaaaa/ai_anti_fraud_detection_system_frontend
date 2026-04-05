@@ -119,6 +119,34 @@ class FamilyService {
     }
   }
 
+  /// 紧急报警（向家庭组管理员发送紧急报警通知）
+  Future<Map<String, dynamic>?> sendEmergencyAlert({
+    required int callId,
+    String alertType = 'emergency',
+    String? message,
+  }) async {
+    try {
+      final params = <String, dynamic>{
+        'call_id': callId,
+        'alert_type': alertType,
+      };
+      if (message != null) {
+        params['message'] = message;
+      }
+
+      final response = await dioRequest.post(
+        '/api/call-records/$callId/emergency-alert',
+        params: params,
+      );
+      if (response != null && response['code'] == 200) {
+        return response['data'];
+      }
+      return null;
+    } catch (_) {
+      rethrow;
+    }
+  }
+
   Future<bool> remoteIntervene({
     required int targetUserId,
     required String action,

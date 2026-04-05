@@ -408,25 +408,47 @@ class _CallRecordsListState extends State<CallRecordsList>
     if (_isLoading && _records.isEmpty) {
       return const Center(child: CircularProgressIndicator(color: _kAccent));
     }
-    if (_errorMessage != null && _records.isEmpty) return _buildErrorView();
-    if (_records.isEmpty) return _buildEmptyView();
 
+    final bodyChild = _errorMessage != null && _records.isEmpty
+        ? _buildRefreshableStateView(_buildErrorView())
+        : _records.isEmpty
+            ? _buildRefreshableStateView(_buildEmptyView())
+            : RefreshIndicator(
+                onRefresh: () => _loadRecords(refresh: true),
+                color: _kAccent,
+                child: ListView.builder(
+                  controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 32),
+                  itemCount: _records.length + (_isLoading ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index == _records.length) {
+                      return const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Center(child: CircularProgressIndicator(color: _kAccent)),
+                      );
+                    }
+                    return _buildRecordCard(_records[index]);
+                  },
+                ),
+              );
+
+    return bodyChild;
+  }
+
+  Widget _buildRefreshableStateView(Widget child) {
     return RefreshIndicator(
       onRefresh: () => _loadRecords(refresh: true),
       color: _kAccent,
-      child: ListView.builder(
-        controller: _scrollController,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 32),
-        itemCount: _records.length + (_isLoading ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == _records.length) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator(color: _kAccent)),
-            );
-          }
-          return _buildRecordCard(_records[index]);
-        },
+        children: [
+          SizedBox(
+            height: 420,
+            child: Center(child: child),
+          ),
+        ],
       ),
     );
   }
