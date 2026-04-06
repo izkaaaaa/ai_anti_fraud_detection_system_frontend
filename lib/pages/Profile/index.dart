@@ -580,67 +580,99 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+  // =============================================
+  // 配色（参考通话记录页：白绿色系）
+  // =============================================
+  static const Color _bg       = Color(0xFFF8FAF9);  // 浅灰绿背景
+  static const Color _white    = Colors.white;
+  static const Color _accent   = Color(0xFF58A183);  // 主绿（与通话记录一致）
+  static const Color _accentDark = Color(0xFF059669); // 深绿文字/强调
+  static const Color _textDark = Color(0xFF0F1923);  // 深色文字
+  static const Color _textGray = Color(0xFF6B7280);  // 灰色文字
+  static const Color _border   = Color(0xFFE5E7EB);  // 浅灰边框
+  static const Color _tagBg    = Color(0xFFE9F2EC);  // 浅绿标签背景
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: simpleAppBar(context, '修改个人资料'),
+      backgroundColor: _bg,
+      appBar: AppBar(
+        backgroundColor: _accent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('修改个人资料', style: TextStyle(fontWeight: FontWeight.w600)),
+        centerTitle: true,
+      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.secondary.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 1),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: AppColors.primary, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text('完善资料可获得更精准的 AI 防骗建议', style: TextStyle(fontSize: 13, color: AppColors.textLight))),
-                ],
-              ),
+            // 角色类型
+            _fieldLabel('角色类型'),
+            const SizedBox(height: 6),
+            _dropdownField(
+              value: _selectedRoleType,
+              items: const ['青壮年', '老人', '学生', '其他'],
+              onChanged: (v) => setState(() => _selectedRoleType = v),
+              hint: '请选择角色类型',
             ),
             const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.cardBackground,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.secondary, width: 1.5),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 10, offset: const Offset(0, 3))],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _dropdownField(label: '角色类型', value: _selectedRoleType, items: ['青壮年', '老人', '学生', '其他'], onChanged: (v) => setState(() => _selectedRoleType = v)),
-                  const SizedBox(height: 16),
-                  _dropdownField(label: '性别', value: _selectedGender, items: ['男', '女', '未知'], onChanged: (v) => setState(() => _selectedGender = v)),
-                  const SizedBox(height: 16),
-                  _textField(controller: _professionController, label: '职业', hint: '如：工程师、教师、学生等', icon: Icons.work_outline),
-                  const SizedBox(height: 16),
-                  _dropdownField(label: '婚姻状况', value: _selectedMaritalStatus, items: ['单身', '已婚', '离异'], onChanged: (v) => setState(() => _selectedMaritalStatus = v)),
-                ],
-              ),
+
+            // 性别
+            _fieldLabel('性别'),
+            const SizedBox(height: 6),
+            _dropdownField(
+              value: _selectedGender,
+              items: const ['男', '女', '未知'],
+              onChanged: (v) => setState(() => _selectedGender = v),
+              hint: '请选择性别',
             ),
-            const SizedBox(height: 24),
-            GestureDetector(
-              onTap: _isLoading ? null : _handleUpdate,
-              child: Container(
-              height: 50,
-              decoration: BoxDecoration(
-                  color: _isLoading ? AppColors.secondary.withOpacity(0.3) : AppColors.primary,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: _isLoading ? [] : [BoxShadow(color: AppColors.primary.withOpacity(0.35), blurRadius: 14, spreadRadius: 1)],
-                  ),
-                child: Center(
+            const SizedBox(height: 20),
+
+            // 职业
+            _fieldLabel('职业'),
+            const SizedBox(height: 6),
+            _textField(
+              controller: _professionController,
+              hint: '如：工程师、教师、学生等',
+              icon: Icons.work_outline,
+            ),
+            const SizedBox(height: 20),
+
+            // 婚姻状况
+            _fieldLabel('婚姻状况'),
+            const SizedBox(height: 6),
+            _dropdownField(
+              value: _selectedMaritalStatus,
+              items: const ['单身', '已婚', '离异'],
+              onChanged: (v) => setState(() => _selectedMaritalStatus = v),
+              hint: '请选择婚姻状况',
+            ),
+            const SizedBox(height: 36),
+
+            // 保存按钮
+            SizedBox(
+              height: 52,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _handleUpdate,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _accent,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: _tagBg,
+                  disabledForegroundColor: _textGray,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 1,
+                  shadowColor: _accent.withOpacity(0.3),
+                ),
                 child: _isLoading
-                      ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                      : const Text('保存', style: TextStyle(color: AppColors.textDark, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 1)),
+                    ? const SizedBox(
+                        width: 22, height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                      )
+                    : const Text(
+                        '保存',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 1),
                       ),
               ),
             ),
@@ -650,59 +682,66 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  Widget _textField({required TextEditingController controller, required String label, required String hint, required IconData icon}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: controller,
-          enabled: !_isLoading,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: TextStyle(color: AppColors.textLight, fontSize: 13),
-            prefixIcon: Icon(icon, color: AppColors.primary, size: 18),
-            filled: true,
-            fillColor: AppColors.inputBackground,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.secondary, width: 1.5)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.secondary, width: 1.5)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.primary, width: 2)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          ),
-        ),
-      ],
+  Widget _fieldLabel(String text) {
+    return Text(
+      text,
+      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _textDark),
     );
   }
 
-  Widget _dropdownField({required String label, required String? value, required List<String> items, required Function(String?) onChanged}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: AppColors.inputBackground,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.secondary, width: 1.5),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: value,
-              hint: Text('请选择$label', style: TextStyle(color: AppColors.textLight, fontSize: 13)),
-              isExpanded: true,
-              icon: Icon(Icons.arrow_drop_down, color: AppColors.primary),
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
-              dropdownColor: AppColors.cardBackground,
-              items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-              onChanged: _isLoading ? null : onChanged,
-            ),
-          ),
+  Widget _textField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+  }) {
+    return TextFormField(
+      controller: controller,
+      enabled: !_isLoading,
+      style: const TextStyle(color: _textDark, fontSize: 14),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: _textGray, fontSize: 13),
+        prefixIcon: Icon(icon, color: _accent, size: 18),
+        filled: true,
+        fillColor: _white,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: _border, width: 1.5),
         ),
-      ],
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: _accent, width: 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      ),
+    );
+  }
+
+  Widget _dropdownField({
+    required String? value,
+    required List<String> items,
+    required Function(String?) onChanged,
+    required String hint,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: _white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _border, width: 1.5),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value,
+          hint: Text(hint, style: TextStyle(color: _textGray, fontSize: 13)),
+          isExpanded: true,
+          icon: const Icon(Icons.arrow_drop_down, color: _accent),
+          style: const TextStyle(color: _textDark, fontSize: 14),
+          dropdownColor: _white,
+          items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+          onChanged: _isLoading ? null : onChanged,
+        ),
+      ),
     );
   }
 }
