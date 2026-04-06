@@ -83,7 +83,7 @@ class RealTimeDetectionService {
   Function(Map<String, dynamic>)? onControlMessage;   // 控制消息回调（防御升级等）
   Function(String, String)? onAckReceived;            // ACK 确认回调
   Function(int)? onDefenseLevelChanged;               // 防御等级变化回调
-  Function(String, String, String)? onAlertReceived; // alert 弹窗回调（level, message, title）
+  Function(String, String, String, String)? onAlertReceived; // level, message, title, displayMode
   // 监护人通知相关回调
   Function(String, String, String)? onFamilyAlertReceived;     // family_alert 监护人预警
   Function(String, String, String)? onSosAlertReceived;       // sos_alert 求助预警
@@ -549,20 +549,24 @@ class RealTimeDetectionService {
           
         case 'alert':
           // 预警弹窗消息（来自后端 AI 判定）
-          final alertLevel = data['risk_level'] ?? 'low';
-          final alertMessage = data['message'] ?? '';
-          final alertTitle = data['title'] ?? '风险提醒';
-          final alertDetails = data['details'] ?? '';
+          // 文档格式：{ type, data: { title, message, risk_level, confidence, display_mode, ... } }
+          final alertData = (data['data'] as Map<String, dynamic>?) ?? {};
+          final alertLevel     = alertData['risk_level']    ?? 'low';
+          final alertMessage   = alertData['message']       ?? '';
+          final alertTitle     = alertData['title']         ?? '风险提醒';
+          final alertDetails   = alertData['details']       ?? '';
+          final displayMode    = alertData['display_mode']  ?? 'popup';
 
           print('🚨 [Alert] 收到预警:');
           print('   风险等级: $alertLevel');
+          print('   展示模式: $displayMode');
           print('   标题: $alertTitle');
           print('   消息: $alertMessage');
           print('   详情: $alertDetails');
 
-          // 只在 medium / high 时触发弹窗
-          if (alertLevel == 'medium' || alertLevel == 'high') {
-            onAlertReceived?.call(alertLevel, alertMessage, alertTitle);
+          // medium / high / critical 时触发弹窗通知
+          if (alertLevel == 'medium' || alertLevel == 'high' || alertLevel == 'critical') {
+            onAlertReceived?.call(alertLevel, alertMessage, alertTitle, displayMode);
           } else {
             print('   → 低风险，仅记录日志，不弹窗');
           }
@@ -574,11 +578,13 @@ class RealTimeDetectionService {
 
         case 'family_alert':
           // 家人遭遇风险预警（监护人收到）
-          final familyAlertLevel  = data['risk_level']   ?? 'low';
-          final familyAlertMessage = data['message']     ?? '';
-          final familyAlertTitle   = data['title']       ?? '家人安全预警';
-          final victimName         = data['victim_name'] ?? '';
-          final victimPhone        = data['victim_phone']?? '';
+          // 文档格式：{ type, data: { title, message, risk_level, victim_name, victim_phone, ... } }
+          final alertData = (data['data'] as Map<String, dynamic>?) ?? {};
+          final familyAlertLevel   = alertData['risk_level']   ?? 'low';
+          final familyAlertMessage = alertData['message']       ?? '';
+          final familyAlertTitle   = alertData['title']         ?? '家人安全预警';
+          final victimName         = alertData['victim_name']   ?? '';
+          final victimPhone        = alertData['victim_phone']  ?? '';
 
           print('👨‍👩‍👧 [Family Alert] 收到家人预警:');
           print('   风险等级: $familyAlertLevel');
@@ -590,10 +596,11 @@ class RealTimeDetectionService {
 
         case 'sos_alert':
           // 用户主动求助（监护人收到）
-          final sosMessage    = data['message']     ?? '';
-          final sosTitle      = data['title']       ?? '紧急求助';
-          final victimName    = data['victim_name'] ?? '';
-          final urgency       = data['urgency']     ?? 'high';
+          final alertData = (data['data'] as Map<String, dynamic>?) ?? {};
+          final sosMessage  = alertData['message']     ?? '';
+          final sosTitle    = alertData['title']       ?? '紧急求助';
+          final victimName  = alertData['victim_name'] ?? '';
+          final urgency     = alertData['urgency']     ?? 'high';
 
           print('🆘 [SOS Alert] 收到求助信号:');
           print('   发起人: $victimName');
@@ -605,10 +612,11 @@ class RealTimeDetectionService {
 
         case 'emergency_alert':
           // 用户触发紧急报警（监护人收到）
-          final emergencyMessage = data['message']    ?? '';
-          final emergencyTitle   = data['title']      ?? '紧急报警';
-          final alertType        = data['alert_type'] ?? 'emergency';
-          final victimName       = data['victim_name']?? '';
+          final alertData = (data['data'] as Map<String, dynamic>?) ?? {};
+          final emergencyMessage = alertData['message']    ?? '';
+          final emergencyTitle   = alertData['title']      ?? '紧急报警';
+          final alertType        = alertData['alert_type'] ?? 'emergency';
+          final victimName       = alertData['victim_name']?? '';
 
           print('🚨 [Emergency Alert] 收到紧急报警:');
           print('   发起人: $victimName');

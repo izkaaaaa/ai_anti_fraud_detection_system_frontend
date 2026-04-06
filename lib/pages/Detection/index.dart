@@ -3,6 +3,7 @@ import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/PermissionManager.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/RealTimeDetectionService.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/floating_window_service.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/services/alert_popup_service.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:get/get.dart';
 import 'package:action_slider/action_slider.dart';
@@ -258,9 +259,17 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     };
 
     // ✅ Alert 回调（可疑/危险都使用弹窗通知）
-    _detectionService.onAlertReceived = (level, message, title) {
+    _detectionService.onAlertReceived = (level, message, title, displayMode) {
       if (!mounted) return;
-      FloatingWindowService.instance.showAlertNotification(level, title, message);
+      // 1. 系统通知（后台也能收到）
+      FloatingWindowService.instance.showAlertNotification(level, title, message, displayMode);
+      // 2. App 内弹窗（App 打开时显示）
+      AlertPopupService.instance.show(
+        level: level,
+        title: title,
+        message: message,
+        displayMode: displayMode,
+      );
     };
 
     // =============================================

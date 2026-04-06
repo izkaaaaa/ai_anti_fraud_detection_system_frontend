@@ -55,7 +55,8 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
       
       print('🔍 用户信息: family_id=${_userInfo?['family_id']}');
       
-      // 检查是否加入了家庭组（可能有多个）
+      // 检查是否加入了家庭组（family_id 有值 -> 普通成员或管理员成员）
+      // 如果 family_id 为空，还需要检查是否是以管理员身份创建的/加入的家庭组
       if (_userInfo != null && _userInfo!['family_id'] != null) {
 
         // 获取家庭组详情（group_name、统计数据）
@@ -79,7 +80,36 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
           print('ℹ️ 用户是普通成员');
         }
       } else {
-        print('ℹ️ 用户未加入家庭组');
+        // family_id 为空，尝试检查是否以管理员身份加入了家庭组（创建者 family_id 为 None）
+        print('ℹ️ 用户 family_id 为空，检查是否以管理员身份加入了家庭组...');
+        try {
+          final adminFamilies = await _familyService.getMyAdminFamilies();
+          print('📊 管理员家庭组列表: ${adminFamilies.length} 个');
+          if (adminFamilies.isNotEmpty) {
+            // 用户是某个家庭组的管理员，获取其详情
+            _isAdmin = true;
+            _myAdminRole = adminFamilies[0]['my_role']?.toString().toLowerCase() ?? 'primary';
+            try {
+              _familyInfo = await _familyService.getFamilyInfo();
+            } catch (_) {
+              _familyInfo = null;
+            }
+            // 更新 _userInfo 中的 family_id（如果后端没有返回）
+            if (_userInfo != null && adminFamilies.isNotEmpty) {
+              final adminFamilyId = adminFamilies[0]['family_id'];
+              if (adminFamilyId != null) {
+                _userInfo = Map<String, dynamic>.from(_userInfo!);
+                _userInfo!['family_id'] = adminFamilyId;
+                print('🔧 已更新用户 family_id 为管理员家庭组: $adminFamilyId');
+              }
+            }
+            print('✅ 用户是管理员（my_role=$_myAdminRole）');
+          } else {
+            print('ℹ️ 用户未加入家庭组');
+          }
+        } catch (e) {
+          print('ℹ️ 检查管理员家庭组失败，用户未加入家庭组: $e');
+        }
       }
 
       setState(() {
@@ -232,7 +262,7 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
       ),
     );
 
-    // 创建成功后立即刷新并跳转到家庭组页面
+    // 创建家庭组成功后立即刷新并跳转到家庭组页面
     if (result != null && mounted) {
       print('🎉 开始刷新页面，跳转到家庭组管理');
       _showSuccess('家庭组创建成功！正在进入...');
@@ -240,7 +270,17 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
       // 等待一小段时间让后端完全处理完
       await Future.delayed(Duration(milliseconds: 300));
       
-      // 强制刷新数据
+      // 强制刷新数据（使用 setState 方式重置状态并重新加载）
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+        _isAdmin = false;
+        _myAdminRole = 'none';
+        _userInfo = null;
+        _familyInfo = null;
+      });
+      
+      // 从头重新加载数据
       await _loadData(forceRefresh: true);
       
       print('✅ 页面刷新完成，family_id=${_userInfo?['family_id']}, isAdmin=$_isAdmin');

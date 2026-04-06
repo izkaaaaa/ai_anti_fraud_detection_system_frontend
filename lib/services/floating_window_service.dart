@@ -6,8 +6,6 @@ import 'package:ai_anti_fraud_detection_system_frontend/services/local_notificat
 ///
 /// 通过 MethodChannel 驱动原生 FloatingWindowService。
 /// 单例，外部统一通过 [FloatingWindowService.instance] 访问。
-///
-/// Alert 通知：后端发送 alert 消息时，根据 level 调用 LocalNotificationService 发送系统通知
 class FloatingWindowService {
   static const _ch = MethodChannel(
     'com.example.ai_anti_fraud_detection_system_frontend/floating_window',
@@ -103,22 +101,21 @@ class FloatingWindowService {
     }
   }
 
-  // ── Alert 通知（改为系统通知）────────────────────────────
+  // ── Alert 通知（系统通知弹窗）─────────────────────────────
 
-  /// [level]   : "medium" | "high"
-  /// [title]   : 通知标题
-  /// [message] : 通知内容
+  /// [level]        : "medium" | "high" | "critical"
+  /// [title]        : 通知标题
+  /// [message]      : 通知内容（来自后端 alert.message）
+  /// [displayMode]  : "toast" | "popup" | "fullscreen"
   ///
-  /// ✅ 已移除全屏遮罩弹窗，改为根据 level 发送系统通知
-  /// - "medium" → showMediumRiskAlert（中风险警告）
-  /// - "high" → showHighRiskAlert（高风险警告）
-  Future<void> showAlertNotification(String level, String title, String message) async {
+  /// ✅ 发送系统通知弹窗（和8秒一次的"AI智能通话检测正在为您保驾护航"一样）
+  /// - high / critical → showHighRiskAlert（大红色通知）
+  /// - medium         → showMediumRiskAlert（橙色通知）
+  Future<void> showAlertNotification(String level, String title, String message, [String displayMode = 'popup']) async {
     try {
-      // 确保通知服务已初始化
       await _notificationService.initialize();
 
-      // 根据 level 选择对应的通知方法
-      if (level == 'high') {
+      if (level == 'high' || level == 'critical') {
         await _notificationService.showHighRiskAlert(
           title: title,
           message: message,
@@ -133,7 +130,6 @@ class FloatingWindowService {
         );
         print('✅ [FloatingWindow] 中风险通知已发送: $title');
       } else {
-        // low 级别只记录日志
         print('ℹ️ [FloatingWindow] 低风险预警（不发送通知）: $title');
       }
     } catch (e) {
@@ -143,7 +139,6 @@ class FloatingWindowService {
 
   /// 关闭全屏预警遮罩（已废弃，保留接口兼容性）
   Future<void> dismissFullScreenWarning() async {
-    // ✅ 全屏遮罩已移除，此方法不再需要
-    print('ℹ️ [FloatingWindow] dismissFullScreenWarning: 全屏遮罩已移除，无需关闭');
+    print('ℹ️ [FloatingWindow] dismissFullScreenWarning: 无需操作');
   }
 }
