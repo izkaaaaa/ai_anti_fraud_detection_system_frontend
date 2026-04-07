@@ -46,6 +46,12 @@ class AuthService {
   /// 是否已登录
   bool get isLoggedIn => _accessToken.isNotEmpty;
 
+  /// 是否为老年人模式（role_type 为"老人"）
+  bool get isElderMode {
+    final role = _userInfo?['role_type']?.toString() ?? '';
+    return role == '老人';
+  }
+
   /// 初始化 - 从本地存储读取 Token 和用户信息
   Future<void> init() async {
     try {

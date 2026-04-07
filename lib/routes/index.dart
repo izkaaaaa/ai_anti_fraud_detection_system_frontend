@@ -14,12 +14,27 @@ import 'package:flutter/material.dart';
 Widget getRootWidget(){
   // 根据登录状态决定初始路由
   final isLoggedIn = AuthService().isLoggedIn;
-  
+
   return MaterialApp(
     // 命名路由
     initialRoute: isLoggedIn ? "/" : "/login",  // 已登录显示主页，未登录显示登录页
  //   initialRoute: "/audio-test",  // 临时改为测试页面
     routes: getRootRoutes(),
+    builder: (context, child) {
+      // 老年人模式：全局字体放大 1.25 倍
+      if (AuthService().isElderMode) {
+        final mediaQuery = MediaQuery.of(context);
+        return MediaQuery(
+          data: mediaQuery.copyWith(
+            textScaler: TextScaler.linear(
+              (mediaQuery.textScaler.scale(1.0) * 1.25).clamp(1.0, 1.6),
+            ),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      }
+      return child ?? const SizedBox.shrink();
+    },
   );
 }
 

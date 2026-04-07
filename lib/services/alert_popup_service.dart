@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/services/tts_service.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/utils/report_speech_text.dart';
 
 /// 预警弹窗服务（App 内弹窗）
 ///
@@ -13,6 +16,7 @@ class AlertPopupService {
 
   OverlayEntry? _overlayEntry;
   Timer? _autoDismissTimer;
+  final _tts = TtsService();
 
   /// 颜色常量（与前台通知、前台服务保持一致）
   static const Color _primaryColor = Color(0xFF58A183);
@@ -37,17 +41,28 @@ class AlertPopupService {
       WidgetsBinding.instance.rootElement!,
     );
 
+    // 获取全局 textScaler（老年人模式已在外层设置）
+    final rootContext = WidgetsBinding.instance.rootElement!;
+    final textScaler = MediaQuery.textScalerOf(rootContext);
+
     _overlayEntry = OverlayEntry(
       builder: (context) => _AlertPopupWidget(
         level: level,
         title: title,
         message: message,
+        textScaler: textScaler,
         onDismiss: _dismiss,
       ),
     );
 
     overlay.insert(_overlayEntry!);
     print('✅ [AlertPopup] 已显示弹窗: $title ($level)');
+
+    // 朗读弹窗内容
+    final speechText = plainTextForSecurityReportSpeech('风险警告。$message');
+    if (speechText.isNotEmpty) {
+      _tts.speak(speechText);
+    }
   }
 
   void _dismiss() {
@@ -55,6 +70,7 @@ class AlertPopupService {
     _autoDismissTimer = null;
     _overlayEntry?.remove();
     _overlayEntry = null;
+    _tts.stop();
   }
 
   /// 关闭弹窗
@@ -69,12 +85,14 @@ class _AlertPopupWidget extends StatefulWidget {
   final String level;
   final String title;
   final String message;
+  final TextScaler textScaler;
   final VoidCallback onDismiss;
 
   const _AlertPopupWidget({
     required this.level,
     required this.title,
     required this.message,
+    required this.textScaler,
     required this.onDismiss,
   });
 
@@ -181,140 +199,137 @@ class _AlertPopupWidgetState extends State<_AlertPopupWidget>
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
 
-    return Positioned(
-      top: screenSize.height * 0.18,
-      left: 20,
-      right: 20,
-      child: FadeTransition(
-        opacity: _fadeAnimation,
-        child: ScaleTransition(
-          scale: _scaleAnimation,
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              decoration: BoxDecoration(
-                color: _accentColor,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: _accentColor.withOpacity(0.4),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // 顶部装饰条
-                  Container(
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(20),
+    // 老年人模式：进一步放大弹窗内的图标和字号
+    final isElder = AuthService().isElderMode;
+    final scaleFactor = isElder ? 1.35 : 1.0;
+
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaler: widget.textScaler,
+      ),
+      child: Positioned(
+        top: screenSize.height * 0.18,
+        left: 20,
+        right: 20,
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: ScaleTransition(
+            scale: _scaleAnimation,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: _accentColor,
+                  borderRadius: BorderRadius.circular(20 * scaleFactor),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _accentColor.withOpacity(0.4),
+                      blurRadius: 16 * scaleFactor,
+                      offset: Offset(0, 6 * scaleFactor),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 顶部装饰条
+                    Container(
+                      height: 6 * scaleFactor,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(20 * scaleFactor),
+                        ),
                       ),
                     ),
-                  ),
-                  // 内容区域
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 左侧图标
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            _icon,
-                            color: Colors.white,
-                            size: 26,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        // 右侧文字
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // 标题行
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      _levelLabel,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      widget.title,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 0.3,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              // 消息内容
-                              Text(
-                                widget.message,
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.92),
-                                  fontSize: 13,
-                                  height: 1.5,
-                                ),
-                                maxLines: 4,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                        // 关闭按钮
-                        GestureDetector(
-                          onTap: _dismissWithAnimation,
-                          child: Container(
-                            width: 28,
-                            height: 28,
+                    // 内容区域
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        20 * scaleFactor,
+                        16 * scaleFactor,
+                        12 * scaleFactor,
+                        16 * scaleFactor,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 左侧图标
+                          Container(
+                            width: 44 * scaleFactor,
+                            height: 44 * scaleFactor,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
+                              color: Colors.white.withOpacity(0.2),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(
-                              Icons.close_rounded,
+                            child: Icon(
+                              _icon,
                               color: Colors.white,
-                              size: 16,
+                              size: 26 * scaleFactor,
                             ),
                           ),
-                        ),
-                      ],
+                          SizedBox(width: 14 * scaleFactor),
+                          // 右侧文字
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // 标题行
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 8 * scaleFactor,
+                                        vertical: 2 * scaleFactor,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(6 * scaleFactor),
+                                      ),
+                                      child: Text(
+                                        _levelLabel,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11 * scaleFactor,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 8 * scaleFactor),
+                                    Expanded(
+                                      child: Text(
+                                        widget.title,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 15 * scaleFactor,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 0.3,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 8 * scaleFactor),
+                                // 消息内容
+                                Text(
+                                  widget.message,
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.92),
+                                    fontSize: 13 * scaleFactor,
+                                    height: 1.5,
+                                  ),
+                                  maxLines: 4,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
