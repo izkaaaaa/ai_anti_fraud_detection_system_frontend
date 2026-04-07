@@ -507,13 +507,17 @@ class RealTimeDetectionService {
           });
 
           // 更新悬浮窗风险等级
+          // 判定策略:
+          //   is_fraud=false && overall_score<60  → safe（安全）
+          //   is_fraud=false && overall_score>=60 → suspicious（可疑）
+          //   is_fraud=true                        → danger（诈骗）
           String wLevel;
-          if (!isFraud) {
-            wLevel = 'safe';
-          } else if (overallScore >= 80) {
+          if (isFraud) {
             wLevel = 'danger';
-          } else {
+          } else if (overallScore >= 60) {
             wLevel = 'suspicious';
+          } else {
+            wLevel = 'safe';
           }
           FloatingWindowService.instance.updateRiskLevel(wLevel, overallScore / 100.0);
           break;

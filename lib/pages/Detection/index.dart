@@ -182,15 +182,14 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
             _textKeywords = [];
           }
 
-          // 计算综合风险等级（基于 overall_score：>=80 严重, >=60 高, >=40 中, >=20 低）
-          if (overallScore >= 80) {
+          // 计算综合风险等级（基于 is_fraud 和 overall_score：
+          //   is_fraud=true → critical（诈骗）
+          //   is_fraud=false && overall_score>=60 → high（可疑）
+          //   is_fraud=false && overall_score<60 → safe（安全））
+          if (isFraud) {
             _overallRisk = RiskLevel.critical;
           } else if (overallScore >= 60) {
             _overallRisk = RiskLevel.high;
-          } else if (overallScore >= 40) {
-            _overallRisk = RiskLevel.medium;
-          } else if (overallScore >= 20) {
-            _overallRisk = RiskLevel.low;
           } else {
             _overallRisk = RiskLevel.safe;
           }
