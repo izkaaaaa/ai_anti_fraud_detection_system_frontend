@@ -39,6 +39,20 @@ String plainTextForSecurityReportSpeech(String raw) {
   // 去掉仍可能残留的 Markdown 符号（避免读「星号」「井号」）
   text = text.replaceAll(RegExp(r'[*_`#>]+'), '');
 
+  // 百分号、大于小于号等数字相关符号 → 转为文字
+  // >90% → 大于百分之90  |  <5% → 小于百分之5  |  1.2% → 百分之1.2
+  text = text.replaceAllMapped(
+    RegExp(r'([<>])(\d+(?:\.\d+)?%?)'),
+    (m) => m[1] == '>' ? '大于${m[2]}' : '小于${m[2]}',
+  );
+  text = text.replaceAllMapped(
+    RegExp(r'(\d+(?:\.\d+)?)%'),
+    (m) => '百分之${m[1]}',
+  );
+
+  // 美元符号 $ → 元
+  text = text.replaceAll(RegExp(r'\$'), '元');
+
   // 合并空白
   text = text.replaceAll(RegExp(r'[ \t]+'), ' ');
   text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n');
