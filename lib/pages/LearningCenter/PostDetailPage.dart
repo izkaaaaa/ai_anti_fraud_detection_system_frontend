@@ -76,7 +76,11 @@ class _PostDetailPageState extends State<PostDetailPage> {
       // 优先使用本地视频
       _videoCtrl = VideoPlayerController.asset(localAsset)
         ..initialize().then((_) {
-          if (mounted) setState(() => _videoReady = true);
+          if (mounted) {
+            _videoCtrl?.seekTo(Duration.zero);
+            _videoCtrl?.pause();
+            setState(() => _videoReady = true);
+          }
         }).catchError((_) {
           if (mounted) setState(() => _videoError = true);
         });
@@ -84,7 +88,11 @@ class _PostDetailPageState extends State<PostDetailPage> {
       // 兜底网络视频
       _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(url))
         ..initialize().then((_) {
-          if (mounted) setState(() => _videoReady = true);
+          if (mounted) {
+            _videoCtrl?.seekTo(Duration.zero);
+            _videoCtrl?.pause();
+            setState(() => _videoReady = true);
+          }
         }).catchError((_) {
           if (mounted) setState(() => _videoError = true);
         });

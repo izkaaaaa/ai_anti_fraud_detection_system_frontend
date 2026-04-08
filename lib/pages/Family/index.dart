@@ -2353,6 +2353,38 @@ class _MemberRecordsPageState extends State<MemberRecordsPage> {
     final startTime = record['start_time']?.toString() ?? '';
     final duration = _toInt(record['duration']) ?? 0;
 
+    // 根据风险等级获取背景色
+    Color bgColor;
+    switch (result) {
+      case 'safe':
+        bgColor = const Color(0xFF58A183);
+        break;
+      case 'suspicious':
+        bgColor = const Color(0xFFFFEDD5);
+        break;
+      case 'fake':
+        bgColor = const Color(0xFFFEE2E2);
+        break;
+      default:
+        bgColor = const Color(0xFFF3F4F6);
+    }
+
+    // 文字颜色根据背景色深浅适配
+    Color textColor;
+    switch (result) {
+      case 'safe':
+        textColor = Colors.white;
+        break;
+      case 'suspicious':
+        textColor = const Color(0xFF92400E);
+        break;
+      case 'fake':
+        textColor = const Color(0xFF7F1D1D);
+        break;
+      default:
+        textColor = const Color(0xFF374151);
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Center(
@@ -2365,11 +2397,11 @@ class _MemberRecordsPageState extends State<MemberRecordsPage> {
               borderRadius: BorderRadius.circular(16),
               child: Ink(
                 decoration: BoxDecoration(
-                  color: _accent,
+                  color: bgColor,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: _accent.withOpacity(0.22),
+                      color: color.withOpacity(0.2),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
@@ -2379,7 +2411,7 @@ class _MemberRecordsPageState extends State<MemberRecordsPage> {
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                   child: Row(
                     children: [
-                      Icon(icon, color: Colors.white.withOpacity(0.92), size: 24),
+                      Icon(icon, color: textColor.withOpacity(0.9), size: 24),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -2387,27 +2419,27 @@ class _MemberRecordsPageState extends State<MemberRecordsPage> {
                           children: [
                             Text(
                               title,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                                color: textColor,
                               ),
                             ),
                             const SizedBox(height: 3),
                             Row(
                               children: [
-                                Icon(Icons.schedule_rounded, size: 11, color: Colors.white.withOpacity(0.7)),
+                                Icon(Icons.schedule_rounded, size: 11, color: textColor.withOpacity(0.7)),
                                 const SizedBox(width: 3),
                                 Text(
                                   _formatDateTime(startTime),
-                                  style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.8)),
+                                  style: TextStyle(fontSize: 11, color: textColor.withOpacity(0.8)),
                                 ),
                                 const SizedBox(width: 8),
-                                Icon(Icons.timer_outlined, size: 11, color: Colors.white.withOpacity(0.7)),
+                                Icon(Icons.timer_outlined, size: 11, color: textColor.withOpacity(0.7)),
                                 const SizedBox(width: 3),
                                 Text(
                                   _formatDuration(duration),
-                                  style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.8)),
+                                  style: TextStyle(fontSize: 11, color: textColor.withOpacity(0.8)),
                                 ),
                               ],
                             ),
@@ -2420,9 +2452,9 @@ class _MemberRecordsPageState extends State<MemberRecordsPage> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
+                              color: textColor.withOpacity(0.12),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.white.withOpacity(0.35)),
+                              border: Border.all(color: textColor.withOpacity(0.3)),
                             ),
                             child: Text(
                               label,

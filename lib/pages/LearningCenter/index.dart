@@ -49,19 +49,19 @@ class CaseCard extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               Image.asset(bgAsset, fit: BoxFit.cover),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.white.withValues(alpha: 0.92),
-                      Colors.white.withValues(alpha: 0.85),
-                    ],
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white.withValues(alpha: 0.77),
+                        Colors.white.withValues(alpha: 0.66),
+                      ],
+                    ),
                   ),
-                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -427,7 +427,7 @@ class _SectionRecommendState extends State<_SectionRecommend> {
     return Column(
       children: [
         SizedBox(
-          height: 165,
+          height: 220,  // 拉高卡片高度，宽高比约 1:2
           child: _loading
               ? const Center(child: CircularProgressIndicator(color: _accent))
               : _items.isEmpty
@@ -513,7 +513,7 @@ class _RecommendCard extends StatelessWidget {
   String get _coverAsset {
     final idx = _videoIndex;
     if (idx != null) {
-      return 'lib/UIimages/edu_video/cover_$idx.png';
+      return 'lib/UIimages/edu_video/$idx.png';  // 直接使用编号.png
     }
     return '';
   }
@@ -525,100 +525,102 @@ class _RecommendCard extends StatelessWidget {
     final fraudType = item['fraud_type']?.toString() ?? '';
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 8, 4, 20),
-      child: InkWell(
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => PostDetailPage(data: item, source: 'recommendation'),
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 16),  // 减小底部padding
+      child: AspectRatio(
+        aspectRatio: 1 / 2,  // 宽高比 1:2
+        child: InkWell(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => PostDetailPage(data: item, source: 'recommendation'),
+            ),
           ),
-        ),
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          decoration: BoxDecoration(
-            color: _cardColor,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: _cardColor.withValues(alpha: 0.3),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(14),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // 视频类型优先显示封面图片，否则使用渐变
-                if (type == 'video' && _videoIndex != null)
-                  Image.asset(
-                    _coverAsset,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildGradientBackground(),
-                  )
-                else
-                  _buildGradientBackground(),
-                // 渐变叠加层（底部文字区域更清晰）
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withValues(alpha: 0.1),
-                          Colors.transparent,
-                          Colors.black.withValues(alpha: 0.5),
-                        ],
-                        stops: const [0, 0.4, 0.85],
-                      ),
-                    ),
-                  ),
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            decoration: BoxDecoration(
+              color: _cardColor,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: _cardColor.withValues(alpha: 0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
-                // 播放按钮（视频类）
-                if (type == 'video')
-                  Center(
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // 视频类型优先显示封面图片，否则使用渐变
+                  if (type == 'video' && _videoIndex != null)
+                    Image.asset(
+                      _coverAsset,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _buildGradientBackground(),
+                    )
+                  else
+                    _buildGradientBackground(),
+                  // 渐变叠加层（底部文字区域更清晰）
+                  Positioned.fill(
                     child: Container(
-                      width: 50,
-                      height: 50,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        Icons.play_arrow_rounded,
-                        color: _cardColor,
-                        size: 32,
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.1),
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.5),
+                          ],
+                          stops: const [0, 0.4, 0.85],
+                        ),
                       ),
                     ),
                   ),
-                // 内容（标题 + 诈骗类型标签）
-                Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: 16,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (fraudType.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.25),
-                              borderRadius: BorderRadius.circular(4),
+                  // 播放按钮（视频类）
+                  if (type == 'video')
+                    Center(
+                      child: Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
                             ),
-                            child: Text(
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.play_arrow_rounded,
+                          color: _cardColor,
+                          size: 32,
+                        ),
+                      ),
+                    ),
+                  // 内容（标题 + 诈骗类型标签）
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: 16,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (fraudType.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.25),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
                               fraudType,
                               style: TextStyle(
                                 fontSize: 11,
@@ -654,7 +656,7 @@ class _RecommendCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
+      ),),
     );
   }
 
