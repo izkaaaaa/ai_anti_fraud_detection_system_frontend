@@ -3,6 +3,22 @@ import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
 
+/// 将视频 URL/ID 映射为本地 assets 路径
+/// 本地视频存放在 lib/UIimages/edu_video/ 目录下，文件名为 1.mp4 ~ 10.mp4
+String? _mapToLocalVideoAsset(String? url) {
+  if (url == null || url.isEmpty) return null;
+  // 优先通过 video_id（若有） 取本地文件
+  // 如果 url 本身形如 "1.mp4" / "1" / "/api/.../1.mp4"，则直接映射
+  final numMatch = RegExp(r'(\d+)(?:\.mp4)?($|\?)').firstMatch(url);
+  if (numMatch != null) {
+    final idx = int.tryParse(numMatch.group(1) ?? '');
+    if (idx != null && idx >= 1 && idx <= 10) {
+      return 'lib/UIimages/edu_video/$idx.mp4';
+    }
+  }
+  return null;
+}
+
 class PostDetailPage extends StatefulWidget {
   final Map<String, dynamic> data;
   final String source;
@@ -47,15 +63,32 @@ class _PostDetailPageState extends State<PostDetailPage> {
     if (widget.source != 'recommendation') return;
     final type = widget.data['type']?.toString() ?? '';
     if (type != 'video') return;
+
+    // 尝试从 video_url / url / video_id 中解析本地 assets 路径
     final url = widget.data['video_url']?.toString() ??
-        widget.data['url']?.toString() ?? '';
+        widget.data['url']?.toString() ??
+        widget.data['video_id']?.toString() ??
+        '';
     if (url.isEmpty) return;
-    _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(url))
-      ..initialize().then((_) {
-        if (mounted) setState(() => _videoReady = true);
-      }).catchError((_) {
-        if (mounted) setState(() => _videoError = true);
-      });
+
+    final localAsset = _mapToLocalVideoAsset(url);
+    if (localAsset != null) {
+      // 优先使用本地视频
+      _videoCtrl = VideoPlayerController.asset(localAsset)
+        ..initialize().then((_) {
+          if (mounted) setState(() => _videoReady = true);
+        }).catchError((_) {
+          if (mounted) setState(() => _videoError = true);
+        });
+    } else {
+      // 兜底网络视频
+      _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(url))
+        ..initialize().then((_) {
+          if (mounted) setState(() => _videoReady = true);
+        }).catchError((_) {
+          if (mounted) setState(() => _videoError = true);
+        });
+    }
   }
 
   @override
