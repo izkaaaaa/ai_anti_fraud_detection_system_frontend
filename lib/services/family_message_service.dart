@@ -34,15 +34,15 @@ class Message {
 
   factory Message.fromJson(Map<String, dynamic> json) {
     return Message(
-      messageId: json['message_id'] ?? 0,
-      type: _parseMessageType(json['type'] ?? json['message_type']),
+      messageId: json['id'] ?? 0,
+      type: _parseMessageType(json['msg_type'] ?? json['type'] ?? ''),
       title: json['title'] ?? '新消息',
       content: json['content'] ?? json['message'] ?? '',
       isRead: json['is_read'] ?? false,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
-      extraData: json['extra_data'] ?? json,
+      extraData: json,
     );
   }
 
@@ -206,7 +206,10 @@ class FamilyMessageService {
     try {
       final response = await dioRequest.get('/api/messages/my/unread-count');
       if (response != null && response['data'] != null) {
-        _unreadCount = response['data']['unread_count'] ?? 0;
+        // 支持多种可能的字段名
+        _unreadCount = response['data']['unread_count'] ??
+                       response['data']['total_unread'] ??
+                       response['data']['unread'] ?? 0;
         _notifyUnreadCountChanged();
         return _unreadCount;
       }
@@ -232,7 +235,8 @@ class FamilyMessageService {
       final response = await dioRequest.get('/api/messages/my', params: params);
 
       if (response != null && response['data'] != null) {
-        final messagesData = response['data']['messages'] as List? ?? [];
+        // 后端返回 items 字段
+        final messagesData = response['data']['items'] as List? ?? [];
         final messages = messagesData
             .map((json) => Message.fromJson(json))
             .toList();
@@ -244,10 +248,13 @@ class FamilyMessageService {
           }
         }
 
+        // 更新未读数量
         if (response['data']['unread_count'] != null) {
           _unreadCount = response['data']['unread_count'];
-          _notifyUnreadCountChanged();
+        } else if (response['data']['total_unread'] != null) {
+          _unreadCount = response['data']['total_unread'];
         }
+        _notifyUnreadCountChanged();
 
         for (final message in messages) {
           _notifyNewMessage(message);
