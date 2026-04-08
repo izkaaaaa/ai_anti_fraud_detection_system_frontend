@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
-import 'package:ai_anti_fraud_detection_system_frontend/services/tts_service.dart';
-import 'package:ai_anti_fraud_detection_system_frontend/utils/report_speech_text.dart';
 
 /// 预警弹窗服务（App 内弹窗）
 ///
@@ -16,7 +14,6 @@ class AlertPopupService {
 
   OverlayEntry? _overlayEntry;
   Timer? _autoDismissTimer;
-  final _tts = TtsService();
 
   /// 颜色常量（与前台通知、前台服务保持一致）
   static const Color _primaryColor = Color(0xFF58A183);
@@ -57,12 +54,6 @@ class AlertPopupService {
 
     overlay.insert(_overlayEntry!);
     print('✅ [AlertPopup] 已显示弹窗: $title ($level)');
-
-    // 朗读弹窗内容
-    final speechText = plainTextForSecurityReportSpeech('风险警告。$message');
-    if (speechText.isNotEmpty) {
-      _tts.speak(speechText);
-    }
   }
 
   void _dismiss() {
@@ -70,7 +61,6 @@ class AlertPopupService {
     _autoDismissTimer = null;
     _overlayEntry?.remove();
     _overlayEntry = null;
-    _tts.stop();
   }
 
   /// 关闭弹窗

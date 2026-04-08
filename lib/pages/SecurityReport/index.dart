@@ -93,56 +93,15 @@ class _SecurityReportPageState extends State<SecurityReportPage> {
           child: Column(
             children: [
               SizedBox(
-                height: MediaQuery.of(context).size.height * 0.25,
+                height: MediaQuery.of(context).size.height * 0.18,
                 width: double.infinity,
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2E5D50),
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(
-                      color: const Color(0xFF22483D),
-                      width: 1.2,
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x1A21463B),
-                        blurRadius: 18,
-                        offset: Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.verified_user_rounded,
-                            color: Colors.white,
-                            size: 26,
-                          ),
-                          SizedBox(width: 10),
-                          Text(
-                            '智能安全报告',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 12),
-                      Text(
-                        '结合近期检测结果，快速生成你的风险总结与防骗提醒。',
-                        style: TextStyle(
-                          fontSize: 14,
-                          height: 1.6,
-                          color: Color(0xFFE4F1EB),
-                        ),
-                      ),
-                    ],
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: Image.asset(
+                    'lib/UIimages/智能安全报告背景.png',
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
                   ),
                 ),
               ),
