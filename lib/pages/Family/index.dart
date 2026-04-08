@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/family_service.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/services/family_message_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/DioRequest.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/pages/CallRecords/index.dart';
 import 'dart:ui';
@@ -29,7 +30,7 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _loadData();
   }
 
@@ -110,6 +111,11 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
         } catch (e) {
           print('ℹ️ 检查管理员家庭组失败，用户未加入家庭组: $e');
         }
+      }
+
+      // 加入家庭组后初始化消息服务
+      if (_userInfo?['family_id'] != null) {
+        await FamilyMessageService.instance.initialize();
       }
 
       setState(() {
@@ -517,6 +523,7 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                           Tab(text: '我的家庭组'),
                           Tab(text: '成员管理'),
                           Tab(text: '申请管理'),
+                          Tab(text: '消息中心'),
                         ],
                       ),
                     )
@@ -625,6 +632,10 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                                       ApplicationsTab(
                                         familyService: _familyService,
                                         onApplicationProcessed: _loadData,
+                                      ),
+                                      // 第四个标签页：消息中心
+                                      FamilyMessagesTab(
+                                        familyId: _userInfo!['family_id'] as int,
                                       ),
                                     ],
                                   )
@@ -1413,6 +1424,10 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
         final success = await _familyService.leaveFamily();
         if (success && mounted) {
           print('✅ 退出家庭组成功');
+
+          // 停止消息服务
+          FamilyMessageService.instance.dispose();
+
           _showSuccess('已退出家庭组');
           
           // 等待一小段时间让后端完全处理完
@@ -2551,5 +2566,450 @@ class _MemberRecordsPageState extends State<MemberRecordsPage> {
   }
 }
 
+// ==================== 家庭组消息中心标签页 ====================
+class FamilyMessagesTab extends StatefulWidget {
+  final int familyId;
+
+  const FamilyMessagesTab({
+    super.key,
+    required this.familyId,
+  });
+
+  @override
+  State<FamilyMessagesTab> createState() => _FamilyMessagesTabState();
+}
+
+class _FamilyMessagesTabState extends State<FamilyMessagesTab> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  final List<Message> _messages = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMessages();
+
+    // 监听新消息
+    FamilyMessageService.instance.addMessageListener(_onNewMessage);
+  }
+
+  @override
+  void dispose() {
+    FamilyMessageService.instance.removeMessageListener(_onNewMessage);
+    super.dispose();
+  }
+
+  void _onNewMessage(Message message) {
+    if (mounted) {
+      setState(() {
+        _messages.insert(0, message);
+      });
+    }
+  }
+
+  Future<void> _loadMessages() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final messages = await FamilyMessageService.instance.fetchMessages(limit: 100);
+      setState(() {
+        _messages.clear();
+        _messages.addAll(messages);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = '加载失败';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _markAsRead(Message message) async {
+    await FamilyMessageService.instance.markAsRead(message.messageId);
+    setState(() {
+      final index = _messages.indexWhere((m) => m.messageId == message.messageId);
+      if (index != -1) {
+        _messages[index] = Message(
+          messageId: message.messageId,
+          type: message.type,
+          title: message.title,
+          content: message.content,
+          isRead: true,
+          createdAt: message.createdAt,
+          extraData: message.extraData,
+        );
+      }
+    });
+  }
+
+  Future<void> _markAllAsRead() async {
+    await FamilyMessageService.instance.markAllAsRead();
+    _loadMessages();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF58A183)));
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Color(0xFF9CA3AF)),
+            const SizedBox(height: 12),
+            Text(_errorMessage!, style: const TextStyle(color: Color(0xFF6B7280))),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadMessages,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF58A183),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('重试'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_messages.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.mail_outline, size: 56, color: Color(0xFFCBD5E1)),
+            SizedBox(height: 12),
+            Text(
+              '暂无消息',
+              style: TextStyle(fontSize: 15, color: Color(0xFF9CA3AF)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // 全部已读按钮
+        if (_messages.any((m) => !m.isRead))
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                GestureDetector(
+                  onTap: _markAllAsRead,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF58A183).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      '全部已读',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF58A183),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _loadMessages,
+            color: const Color(0xFF58A183),
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              itemCount: _messages.length,
+              itemBuilder: (context, index) {
+                final message = _messages[index];
+                return _FamilyMessageCard(
+                  message: message,
+                  onTap: () {
+                    if (!message.isRead) {
+                      _markAsRead(message);
+                    }
+                    _showMessageDetail(message);
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showMessageDetail(Message message) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => _FamilyMessageDetailSheet(message: message),
+    );
+  }
+}
+
+/// 家庭组消息卡片
+class _FamilyMessageCard extends StatelessWidget {
+  final Message message;
+  final VoidCallback onTap;
+
+  const _FamilyMessageCard({
+    required this.message,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: message.isRead
+            ? null
+            : Border.all(color: message.color.withOpacity(0.3), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: message.color.withOpacity(0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    message.icon,
+                    color: message.color,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              message.title,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: message.isRead ? FontWeight.w500 : FontWeight.w700,
+                                color: const Color(0xFF0F1923),
+                              ),
+                            ),
+                          ),
+                          if (!message.isRead)
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: message.color,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        message.content,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _formatTime(message.createdAt),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatTime(DateTime time) {
+    final now = DateTime.now();
+    final diff = now.difference(time);
+
+    if (diff.inMinutes < 1) {
+      return '刚刚';
+    } else if (diff.inHours < 1) {
+      return '${diff.inMinutes}分钟前';
+    } else if (diff.inDays < 1) {
+      return '${diff.inHours}小时前';
+    } else if (diff.inDays < 7) {
+      return '${diff.inDays}天前';
+    } else {
+      return '${time.month}/${time.day}';
+    }
+  }
+}
+
+/// 家庭组消息详情弹窗
+class _FamilyMessageDetailSheet extends StatelessWidget {
+  final Message message;
+
+  const _FamilyMessageDetailSheet({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFFF8FAF9),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE5E7EB),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: message.color.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _getTypeLabel(message.type),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: message.color,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  message.title,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F1923),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _formatDateTime(message.createdAt),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF9CA3AF),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    message.content,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      height: 1.6,
+                      color: Color(0xFF374151),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getTypeLabel(MessageType type) {
+    switch (type) {
+      case MessageType.familyAlert:
+        return '家人预警';
+      case MessageType.sosAlert:
+        return '紧急求助';
+      case MessageType.emergencyAlert:
+        return '紧急报警';
+      case MessageType.remoteControl:
+        return '远程干预';
+      case MessageType.system:
+        return '系统通知';
+      case MessageType.unknown:
+        return '消息';
+    }
+  }
+
+  String _formatDateTime(DateTime time) {
+    return '${time.year}-${time.month.toString().padLeft(2, '0')}-${time.day.toString().padLeft(2, '0')} '
+        '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
+}
 
 
