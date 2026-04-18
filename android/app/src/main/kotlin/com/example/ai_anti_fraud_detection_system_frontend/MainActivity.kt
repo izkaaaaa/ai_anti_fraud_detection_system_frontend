@@ -3,9 +3,14 @@ package com.example.ai_anti_fraud_detection_system_frontend
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.AudioManager
+import android.media.MediaPlayer
 import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.util.Base64
 import android.util.Log
@@ -18,11 +23,14 @@ class MainActivity : FlutterActivity() {
     private val AUDIO_RECORDING_CHANNEL = "com.example.ai_anti_fraud_detection_system_frontend/audio_recording"
     private val CALL_DETECTION_CHANNEL = "com.example.ai_anti_fraud_detection_system_frontend/call_detection"
     private val FLOATING_WINDOW_CHANNEL = "com.example.ai_anti_fraud_detection_system_frontend/floating_window"
+    private val ALERT_AUDIO_CHANNEL = "com.example.ai_anti_fraud_detection_system_frontend/alert_audio"
     private val REQUEST_MEDIA_PROJECTION = 1001
 
     private var pendingResult: MethodChannel.Result? = null
     private var audioRecordingMethodChannel: MethodChannel? = null
     private var callDetectionMethodChannel: MethodChannel? = null
+    private var alertAudioPlayer: MediaPlayer? = null
+    private var alertAudioHandler: Handler? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -159,6 +167,23 @@ class MainActivity : FlutterActivity() {
                         val level = call.argument<String>("level") ?: ""
                         val title = call.argument<String>("title") ?: ""
                         android.util.Log.d("MainActivity", "showAlertNotification called: level=$level, title=$title (handled by Flutter)")
+                        result.success(true)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+
+        // ✅ 告警音频 Channel（后台播放用原生 MediaPlayer）
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, ALERT_AUDIO_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "playAlertSound" -> {
+                        val resourceName = call.argument<String>("resourceName") ?: "high_risk_alert"
+                        playAlertSound(resourceName)
+                        result.success(true)
+                    }
+                    "stopAlertSound" -> {
+                        stopAlertSound()
                         result.success(true)
                     }
                     else -> result.notImplemented()
@@ -344,5 +369,86 @@ class MainActivity : FlutterActivity() {
         super.onDestroy()
         stopCapture()
         AudioRecordingService.stopService(this)
+        stopAlertSound()
+    }
+
+    /// 通过原生 MediaPlayer 播放 res/raw 中的告警音
+    /// 使用 ALARM 音频流，确保即使手机静音也会响
+    private fun playAlertSound(resourceName: String) {
+        try {
+            stopAlertSound() // 停止之前的播放（如果在释放前有残留）
+
+            val resId = resources.getIdentifier(resourceName, "raw", packageName)
+            if (resId == 0) {
+                Log.e("MainActivity", "AlertAudio: resource not found: $resourceName")
+                return
+            }
+
+            // ✅ 使用构造方法而非 create()，确保在 setDataSource 前设置音频属性
+            val player = MediaPlayer()
+            player.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            )
+            val afd = resources.openRawResourceFd(resId)
+            player.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+            afd.close()
+
+            player.setOnCompletionListener {
+                Log.d("MainActivity", "AlertAudio: playback completed")
+                releasePlayer()
+            }
+            player.setOnErrorListener { _, what, extra ->
+                Log.e("MainActivity", "AlertAudio: playback error what=$what extra=$extra")
+                releasePlayer()
+                true
+            }
+
+            player.prepare()
+            alertAudioPlayer = player
+            player.start()
+
+            // 请求音频焦点（确保不被其他音频抢占）
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            audioManager.requestAudioFocus(
+                null,
+                AudioManager.STREAM_ALARM,
+                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
+            )
+
+            Log.d("MainActivity", "AlertAudio: started playing $resourceName")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "AlertAudio: playAlertSound error: ${e.message}")
+        }
+    }
+
+    /// 停止告警音播放
+    private fun stopAlertSound() {
+        try {
+            alertAudioPlayer?.apply {
+                if (isPlaying) stop()
+                release()
+            }
+            alertAudioPlayer = null
+
+            // 放弃音频焦点
+            try {
+                val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                audioManager.abandonAudioFocus(null)
+            } catch (_: Exception) {}
+
+            Log.d("MainActivity", "AlertAudio: stopped")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "AlertAudio: stopAlertSound error: ${e.message}")
+        }
+    }
+
+    private fun releasePlayer() {
+        try {
+            alertAudioPlayer?.release()
+            alertAudioPlayer = null
+        } catch (_: Exception) {}
     }
 }

@@ -4,6 +4,7 @@ import 'package:ai_anti_fraud_detection_system_frontend/utils/PermissionManager.
 import 'package:ai_anti_fraud_detection_system_frontend/services/RealTimeDetectionService.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/floating_window_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/alert_popup_service.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/services/alert_audio_service.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:get/get.dart';
 import 'package:action_slider/action_slider.dart';
@@ -260,6 +261,8 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     // ✅ Alert 回调（可疑/危险都使用弹窗通知）
     _detectionService.onAlertReceived = (level, message, title, displayMode) {
       if (!mounted) return;
+      // 0. 播放高危告警音效（前台/后台统一处理）
+      AlertAudioService.instance.playAlertSound(level);
       // 1. 系统通知（后台也能收到）
       FloatingWindowService.instance.showAlertNotification(level, title, message, displayMode);
       // 2. App 内弹窗（App 打开时显示）
