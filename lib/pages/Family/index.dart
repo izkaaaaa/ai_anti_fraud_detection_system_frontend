@@ -15,14 +15,13 @@ class FamilyPage extends StatefulWidget {
   State<FamilyPage> createState() => _FamilyPageState();
 }
 
-class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateMixin {
+class _FamilyPageState extends State<FamilyPage> {
   bool _isLoading = true;
   Map<String, dynamic>? _userInfo;
   Map<String, dynamic>? _familyInfo;
   bool _isAdmin = false;
   String _myAdminRole = 'none';
   String? _errorMessage;
-  late TabController _tabController;
 
   final FamilyService _familyService = FamilyService();
   final AuthService _authService = AuthService();
@@ -30,14 +29,7 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
     _loadData();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadData({bool forceRefresh = false}) async {
@@ -506,28 +498,7 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                   onPressed: _loadData,
                 ),
               ],
-              bottom: _isAdmin
-                  ? PreferredSize(
-                      preferredSize: Size.fromHeight(50),
-                      child: TabBar(
-                        controller: _tabController,
-                        labelColor: Color(0xFF2D4A3E),
-                        unselectedLabelColor: Color(0xFF2D4A3E).withOpacity(0.45),
-                        indicatorColor: Color(0xFF58A183),
-                        indicatorWeight: 3,
-                        labelStyle: TextStyle(
-                          fontSize: AppTheme.fontSizeMedium,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        tabs: [
-                          Tab(text: '我的家庭组'),
-                          Tab(text: '成员管理'),
-                          Tab(text: '申请管理'),
-                          Tab(text: '消息中心'),
-                        ],
-                      ),
-                    )
-                  : null,
+              bottom: null,
             )
           : AppBar(
               backgroundColor: Colors.transparent,
@@ -607,39 +578,51 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
                               },
                             ),
                             Expanded(
-                              child: _isAdmin
-                                ? TabBarView(
-                                    controller: _tabController,
-                                    children: [
-                                      // 第一个标签页：我的家庭组
-                                      SingleChildScrollView(
-                                        padding: const EdgeInsets.all(16),
-                                        child: Column(
-                                          children: [
-                                            _buildFamilyInfoCard(),
-                                          ],
-                                        ),
+                              child: DefaultTabController(
+                                length: 3,
+                                child: Column(
+                                  children: [
+                                    _buildFamilyInfoCard(),
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                                      child: TabBar(
+                                        labelColor: const Color(0xFF58A183),
+                                        unselectedLabelColor: const Color(0xFF9CA3AF),
+                                        labelStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                                        unselectedLabelStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                                        indicatorColor: const Color(0xFF58A183),
+                                        indicatorWeight: 3,
+                                        dividerColor: Colors.transparent,
+                                        tabs: const [
+                                          Tab(text: '成员管理'),
+                                          Tab(text: '申请管理'),
+                                          Tab(text: '消息中心'),
+                                        ],
                                       ),
-                                      // 第二个标签页：成员管理
-                                      MembersTab(
-                                        familyService: _familyService,
-                                        familyId: _userInfo!['family_id'] as int,
-                                        myAdminRole: _myAdminRole,
-                                        currentUserId: _userInfo?['user_id'] as int?,
-                                        onMemberUpdated: _loadData,
+                                    ),
+                                    Expanded(
+                                      child: TabBarView(
+                                        children: [
+                                          MembersTab(
+                                            familyService: _familyService,
+                                            familyId: _userInfo!['family_id'] as int,
+                                            myAdminRole: _myAdminRole,
+                                            currentUserId: _userInfo?['user_id'] as int?,
+                                            onMemberUpdated: _loadData,
+                                          ),
+                                          ApplicationsTab(
+                                            familyService: _familyService,
+                                            onApplicationProcessed: _loadData,
+                                          ),
+                                          FamilyMessagesTab(
+                                            familyId: _userInfo!['family_id'] as int,
+                                          ),
+                                        ],
                                       ),
-                                      // 第三个标签页：申请管理
-                                      ApplicationsTab(
-                                        familyService: _familyService,
-                                        onApplicationProcessed: _loadData,
-                                      ),
-                                      // 第四个标签页：消息中心
-                                      FamilyMessagesTab(
-                                        familyId: _userInfo!['family_id'] as int,
-                                      ),
-                                    ],
-                                  )
-                                : _buildMemberView(), // 普通成员也显示成员列表
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -1226,151 +1209,101 @@ class _FamilyPageState extends State<FamilyPage> with SingleTickerProviderStateM
   }
 
   Widget _buildFamilyInfoCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: const Color(0xFF58A183).withOpacity(0.3),
-          width: 1.5,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Image.asset(
+          'lib/UIimages/家庭组页面装饰.png',
+          width: double.infinity,
+          height: 280,
+          fit: BoxFit.contain,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 10),
+              Text(
+                _familyInfo?['group_name']?.toString().isNotEmpty == true
+                    ? _familyInfo!['group_name'].toString()
+                    : '家庭组',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0F1923),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF58A183).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _isAdmin ? '管理员' : '成员',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF58A183),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'ID: ${_userInfo!['family_id']}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF9CA3AF),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: '${_userInfo!['family_id']}'));
+                      _showSuccess('ID已复制');
+                    },
+                    child: Icon(Icons.copy_rounded, size: 16, color: Color(0xFF9CA3AF)),
+                  ),
+                  const Spacer(),
+                  _buildLeaveFamilyButton(),
+                ],
+              ),
+            ],
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
-          child: Container(
-            padding: EdgeInsets.all(AppTheme.paddingLarge * 1.5),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF58A183).withOpacity(0.12),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFF58A183).withOpacity(0.4),
-                          width: 2,
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.family_restroom,
-                        size: 36,
-                        color: Color(0xFF2D4A3E),
-                      ),
-                    ),
-                    SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _familyInfo?['group_name']?.toString().isNotEmpty == true
-                                ? _familyInfo!['group_name'].toString()
-                                : '家庭组 ${_userInfo!['family_id']}',
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF0F1923),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _isAdmin ? '管理员' : '成员',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF58A183),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: AppTheme.paddingLarge),
-                Container(
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF58A183).withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: const Color(0xFF58A183).withOpacity(0.25),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.vpn_key, size: 20, color: Color(0xFF58A183)),
-                      const SizedBox(width: 12),
-                      const Text(
-                        '家庭组ID',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF2D4A3E),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Spacer(),
-                      Text(
-                        '${_userInfo!['family_id']}',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF00F5A0),
-                          letterSpacing: 2,
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      IconButton(
-                        icon: Icon(Icons.copy, size: 20, color: Color(0xFF00F5A0)),
-                        onPressed: () {
-                          Clipboard.setData(ClipboardData(text: '${_userInfo!['family_id']}'));
-                          _showSuccess('ID已复制');
-                        },
-                        padding: EdgeInsets.zero,
-                        constraints: BoxConstraints(),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: AppTheme.paddingMedium),
-                // 退出家庭组按钮
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _leaveFamily,
-                    icon: const Icon(Icons.exit_to_app, size: 18),
-                    label: const Text('退出家庭组', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF3E5E5),
-                      foregroundColor: const Color(0xFF8B5A5A),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLeaveFamilyButton() {
+    return GestureDetector(
+      onTap: _leaveFamily,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF3E5E5),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.exit_to_app, size: 15, color: Color(0xFF8B5A5A)),
+            const SizedBox(width: 5),
+            Text(
+              '退出家庭组',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF8B5A5A)),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
-  
+
   /// 退出家庭组
   Future<void> _leaveFamily() async {
     final confirm = await showDialog<bool>(
