@@ -154,7 +154,7 @@ class _ProfilePageState extends State<ProfilePage> {
         // 背景图
         Image.asset('lib/UIimages/个人中心背景.png', fit: BoxFit.cover),
         // 轻微暗色遮罩
-        Container(color: Colors.black.withOpacity(0.28)),
+        Container(color: Colors.black.withOpacity(0.10)),
         // 内容
         SafeArea(
           child: Padding(
@@ -279,7 +279,10 @@ class _ProfilePageState extends State<ProfilePage> {
         Container(
           decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.zero,
+                topRight: Radius.circular(28),
+              ),
               boxShadow: [
                 BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 2)),
               ],
@@ -356,7 +359,7 @@ class _ProfilePageState extends State<ProfilePage> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
         child: Row(
           children: [
             Icon(icon, color: iconColor, size: 22),
@@ -371,7 +374,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _line(Color color) => Divider(height: 1, indent: 66, color: color);
+  Widget _line(Color color) => Divider(height: 1, indent: 72, color: color);
 
   Widget _chip(String text, Color color) {
     return Container(
@@ -428,83 +431,225 @@ class HelpCenterPage extends StatelessWidget {
 class AboutPage extends StatelessWidget {
   const AboutPage({super.key});
 
+  static const _bg      = Color(0xFFF8FAF9);
+  static const _white   = Colors.white;
+  static const _accent  = Color(0xFF58A183);
+  static const _accentD = Color(0xFF0F1923);
+  static const _textMid = Color(0xFF374151);
+  static const _textLt  = Color(0xFF6B7280);
+  static const _border  = Color(0xFFE5E7EB);
+  static const _tagBg   = Color(0xFFE9F2EC);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: _bg,
       appBar: simpleAppBar(context, '关于我们'),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const SizedBox(height: 16),
+            const SizedBox(height: 28),
+
+            // 图标
             Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: _tagBg,
+                shape: BoxShape.circle,
+                border: Border.all(color: _accent, width: 2),
+              ),
+              child: const Icon(Icons.shield, size: 44, color: _accent),
+            ),
+            const SizedBox(height: 18),
+
+            // 标题
+            const Text(
+              'AI 反诈检测系统',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: _accentD,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Version 1.0.0',
+              style: TextStyle(fontSize: 13, color: _textLt),
+            ),
+            const SizedBox(height: 24),
+
+            // 简介卡片
+            Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.secondary.withOpacity(0.3),
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primary, width: 2.5),
+                color: _white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: _border, width: 1),
               ),
-              child: Icon(Icons.shield, size: 60, color: AppColors.primary),
-            ),
-            const SizedBox(height: 20),
-            Text('AI 反诈检测系统', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-            const SizedBox(height: 6),
-            Text('Version 1.0.0', style: TextStyle(fontSize: 13, color: AppColors.textLight)),
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: AppColors.cardBackground,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.secondary, width: 1.5),
-              ),
-              child: Text(
+              child: const Text(
                 '基于人工智能技术的反诈骗检测系统，通过视频、音频、文本多维度分析，实时识别诈骗风险，保护您和家人的财产安全。',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: AppColors.textLight, height: 1.6),
+                style: TextStyle(fontSize: 14, color: _textMid, height: 1.7),
               ),
             ),
-            const SizedBox(height: 20),
-            _featureRow(Icons.videocam, '视频检测', 'Deepfake 视频识别'),
+            const SizedBox(height: 16),
+
+            // 视频检测
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: _white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _border, width: 1),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(color: _tagBg, borderRadius: BorderRadius.circular(8)),
+                    child: const Icon(Icons.videocam, color: _accent, size: 20),
+                  ),
+                  const SizedBox(width: 14),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('视频检测', style: TextStyle(color: _accentD, fontSize: 14, fontWeight: FontWeight.w600)),
+                      SizedBox(height: 2),
+                      Text('Deepfake 视频识别', style: TextStyle(color: _textLt, fontSize: 12)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 10),
-            _featureRow(Icons.mic, '音频检测', 'AI 语音伪造识别'),
+
+            // 音频检测
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: _white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _border, width: 1),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(color: _tagBg, borderRadius: BorderRadius.circular(8)),
+                    child: const Icon(Icons.mic, color: _accent, size: 20),
+                  ),
+                  const SizedBox(width: 14),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('音频检测', style: TextStyle(color: _accentD, fontSize: 14, fontWeight: FontWeight.w600)),
+                      SizedBox(height: 2),
+                      Text('AI 语音伪造识别', style: TextStyle(color: _textLt, fontSize: 12)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 10),
-            _featureRow(Icons.text_fields, '文本检测', '诈骗话术智能分析'),
+
+            // 文本检测
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: _white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _border, width: 1),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(color: _tagBg, borderRadius: BorderRadius.circular(8)),
+                    child: const Icon(Icons.text_fields, color: _accent, size: 20),
+                  ),
+                  const SizedBox(width: 14),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('文本检测', style: TextStyle(color: _accentD, fontSize: 14, fontWeight: FontWeight.w600)),
+                      SizedBox(height: 2),
+                      Text('诈骗话术智能分析', style: TextStyle(color: _textLt, fontSize: 12)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 28),
-            Text('© 2024 AI Anti-Fraud Detection System\nAll Rights Reserved',
-              textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: AppColors.textLight, height: 1.5)),
+
+            // 版权声明
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _tagBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _accent.withOpacity(0.3), width: 1),
+              ),
+              child: Column(
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.photo_camera_outlined, color: _accent, size: 16),
+                      SizedBox(width: 6),
+                      Text(
+                        '素材来源',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: _accentD,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '检测页背景插画素材由 Storyset 提供',
+                    style: TextStyle(fontSize: 13, color: _textMid, height: 1.5),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Online illustrations by Storyset',
+                    style: TextStyle(fontSize: 12, color: _textLt, height: 1.5),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'https://storyset.com/online',
+                    style: TextStyle(fontSize: 12, color: _accent, height: 1.5),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // 底部版权
+            const Text(
+              '© 2024 AI Anti-Fraud Detection System',
+              style: TextStyle(fontSize: 12, color: _textLt),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'All Rights Reserved',
+              style: TextStyle(fontSize: 12, color: _textLt),
+            ),
+            const SizedBox(height: 40),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _featureRow(IconData icon, String title, String desc) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.secondary.withOpacity(0.6), width: 1),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.secondary.withOpacity(0.5), borderRadius: BorderRadius.circular(8)),
-            child: Icon(icon, color: AppColors.primary, size: 20),
-          ),
-          const SizedBox(width: 14),
-          Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-              Text(title, style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
-              Text(desc, style: TextStyle(color: AppColors.textLight, fontSize: 12)),
-              ],
-          ),
-        ],
       ),
     );
   }
