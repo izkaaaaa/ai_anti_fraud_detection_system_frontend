@@ -4,16 +4,14 @@ import 'package:video_player/video_player.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
 
 /// 将视频 URL/ID 映射为本地 assets 路径
-/// 本地视频存放在 lib/UIimages/edu_video/ 目录下，文件名为 1.mp4 ~ 10.mp4
+/// 本地视频存放在 lib/assets/edu_video/ 目录下，文件名为 1.mp4 ~ 10.mp4
 String? _mapToLocalVideoAsset(String? url) {
   if (url == null || url.isEmpty) return null;
-  // 优先通过 video_id（若有） 取本地文件
-  // 如果 url 本身形如 "1.mp4" / "1" / "/api/.../1.mp4"，则直接映射
   final numMatch = RegExp(r'(\d+)(?:\.mp4)?($|\?)').firstMatch(url);
   if (numMatch != null) {
     final idx = int.tryParse(numMatch.group(1) ?? '');
     if (idx != null && idx >= 1 && idx <= 10) {
-      return 'lib/UIimages/edu_video/$idx.mp4';
+      return 'lib/assets/edu_video/$idx.mp4';
     }
   }
   return null;

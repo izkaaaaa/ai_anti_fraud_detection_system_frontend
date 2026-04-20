@@ -1,8 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/pages/LearningCenter/PostDetailPage.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/DioRequest.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
-import 'package:animations/animations.dart';
 
 const _accent = Color(0xFF58A183);
 const _bg = Color(0xFFF8FAF9);
@@ -14,120 +15,63 @@ class CaseCard extends StatelessWidget {
 
   const CaseCard({super.key, required this.item, required this.index});
 
-  static const _bgImages = [
-    'lib/UIimages/案例库背景1.png',
-    'lib/UIimages/案例库背景2.png',
-    'lib/UIimages/案例库背景3.png',
-  ];
-
   @override
   Widget build(BuildContext context) {
     final title = item['title']?.toString() ?? '未知案例';
-    final bgAsset = _bgImages[index % _bgImages.length];
+    final fraudType = item['fraud_type']?.toString();
+    final bgIndex = (index % 3) + 1;
 
-    return OpenContainer(
-      transitionType: ContainerTransitionType.fadeThrough,
-      transitionDuration: const Duration(milliseconds: 500),
-      openBuilder: (context, _) => PostDetailPage(data: item, source: 'case'),
-      closedBuilder: (context, openContainer) => _ClosedCaseCard(
-        title: title,
-        bgAsset: bgAsset,
-        fraudType: item['fraud_type']?.toString() ?? '',
-        onTap: openContainer,
-      ),
-      closedElevation: 0,
-      closedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      closedColor: Colors.white,
-    );
-  }
-}
-
-class _ClosedCaseCard extends StatelessWidget {
-  final String title;
-  final String bgAsset;
-  final String fraudType;
-  final VoidCallback onTap;
-
-  const _ClosedCaseCard({
-    required this.title,
-    required this.bgAsset,
-    required this.fraudType,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PostDetailPage(data: item, source: 'case'),
           ),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.asset(bgAsset, fit: BoxFit.cover),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.white.withValues(alpha: 0.77),
-                      Colors.white.withValues(alpha: 0.66),
-                    ],
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -8,
+              bottom: -8,
+              child: Opacity(
+                opacity: 0.08,
+                child: Image.asset('lib/UIimages/案例库背景$bgIndex.png', width: 80, height: 80, fit: BoxFit.contain),
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF58A183).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    fraudType?.isNotEmpty == true ? fraudType! : '诈骗',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF58A183), fontWeight: FontWeight.w600),
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF0F1923),
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF22C55E).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        fraudType,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF22C55E),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 10),
+                Text(
+                  title,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF0F1923), height: 1.4),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -155,15 +99,15 @@ class _LawExpandTileState extends State<LawExpandTile> {
     final fraudType = widget.item['fraud_type']?.toString() ?? '';
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -171,47 +115,47 @@ class _LawExpandTileState extends State<LawExpandTile> {
         children: [
           InkWell(
             onTap: () => setState(() => _expanded = !_expanded),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
               child: Row(
                 children: [
                   Container(
-                    width: 32,
-                    height: 32,
+                    width: 40,
+                    height: 40,
                     decoration: BoxDecoration(
                       color: const Color(0xFF10B981).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.gavel, color: Color(0xFF10B981), size: 16),
+                    child: const Icon(Icons.gavel, color: Color(0xFF10B981), size: 20),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           title,
-                          maxLines: _expanded ? null : 1,
+                          maxLines: _expanded ? null : 2,
                           overflow: _expanded ? null : TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 15,
                             fontWeight: FontWeight.w700,
                             color: _expanded ? const Color(0xFF10B981) : const Color(0xFF0F1923),
                           ),
                         ),
                         if (!_expanded && fraudType.isNotEmpty) ...[
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
                               color: const Color(0xFF10B981).withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(4),
+                              borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               fraudType,
                               style: const TextStyle(
-                                fontSize: 10,
+                                fontSize: 11,
                                 color: Color(0xFF10B981),
                                 fontWeight: FontWeight.w600,
                               ),
@@ -224,7 +168,7 @@ class _LawExpandTileState extends State<LawExpandTile> {
                   AnimatedRotation(
                     duration: const Duration(milliseconds: 200),
                     turns: _expanded ? 0.5 : 0,
-                    child: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF9CA3AF), size: 20),
+                    child: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF9CA3AF), size: 22),
                   ),
                 ],
               ),
@@ -233,41 +177,41 @@ class _LawExpandTileState extends State<LawExpandTile> {
           if (_expanded)
             Container(
               width: double.infinity,
-              margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
                     height: 1,
                     color: const Color(0xFFE5E7EB),
-                    margin: const EdgeInsets.only(bottom: 12),
+                    margin: const EdgeInsets.only(bottom: 14),
                   ),
                   Text(
                     content,
                     style: const TextStyle(
-                      fontSize: 13,
+                      fontSize: 15,
                       color: Color(0xFF6B7280),
-                      height: 1.7,
+                      height: 1.9,
                     ),
                   ),
                   if (penalty != null) ...[
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: const Color(0xFFDC2626).withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 13),
-                          const SizedBox(width: 6),
+                          const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 15),
+                          const SizedBox(width: 8),
                           Flexible(
                             child: Text(
                               '处罚: $penalty',
                               style: const TextStyle(
-                                fontSize: 12,
+                                fontSize: 13,
                                 color: Color(0xFFDC2626),
                                 fontWeight: FontWeight.w600,
                               ),
@@ -277,7 +221,7 @@ class _LawExpandTileState extends State<LawExpandTile> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   Align(
                     alignment: Alignment.centerRight,
                     child: GestureDetector(
@@ -286,12 +230,19 @@ class _LawExpandTileState extends State<LawExpandTile> {
                           builder: (_) => PostDetailPage(data: widget.item, source: 'law'),
                         ),
                       ),
-                      child: const Text(
-                        '查看全文 →',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF10B981),
-                          fontWeight: FontWeight.w600,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          '查看全文 →',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF10B981),
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
@@ -350,7 +301,6 @@ class _LearningCenterPageState extends State<LearningCenterPage> {
                       userInfo: _userInfo,
                       accentColor: _accent,
                     ),
-                    _SectionCaseList(userInfo: _userInfo),
                     _SectionLawList(userInfo: _userInfo),
                     const SizedBox(height: 60),
                   ]),
@@ -373,7 +323,7 @@ class _LearningCenterPageState extends State<LearningCenterPage> {
           '学习中心',
           style: TextStyle(
             color: Color(0xFF0F1923),
-            fontSize: 20,
+            fontSize: 17,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -382,7 +332,7 @@ class _LearningCenterPageState extends State<LearningCenterPage> {
   }
 }
 
-// ==================== 为你推荐（PageView轮播，视频优先） ====================
+// ==================== 为你推荐（视频轮播 + 标语 + 案例） ====================
 class _SectionRecommend extends StatefulWidget {
   final Map<String, dynamic>? userInfo;
   final Color accentColor;
@@ -396,336 +346,255 @@ class _SectionRecommend extends StatefulWidget {
 class _SectionRecommendState extends State<_SectionRecommend> {
   bool _loading = true;
   List<Map<String, dynamic>> _items = [];
-  final PageController _pageController = PageController(viewportFraction: 0.88);
-  int _currentPage = 0;
+  final PageController _videoPageController = PageController(viewportFraction: 0.88);
+  int _videoPage = 0;
+  Timer? _sloganTimer;
+  int _sloganIndex = 0;
+
+  List<Map<String, dynamic>> get _videos =>
+      _items.where((i) => i['type'] == 'video').toList();
+
+  List<Map<String, dynamic>> get _cases =>
+      _items.where((i) => i['type'] == 'case').toList();
+
+  List<Map<String, dynamic>> get _slogans =>
+      _items.where((i) => i['type'] == 'slogan').toList();
 
   @override
   void initState() {
     super.initState();
     _load();
+    _startSloganTimer();
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
+    _videoPageController.dispose();
+    _sloganTimer?.cancel();
     super.dispose();
+  }
+
+  void _startSloganTimer() {
+    _sloganTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (_slogans.isNotEmpty && mounted) {
+        setState(() => _sloganIndex = (_sloganIndex + 1) % _slogans.length);
+      }
+    });
   }
 
   Future<void> _load() async {
     final userId = widget.userInfo?['user_id'];
-    if (userId == null) {
-      setState(() => _loading = false);
-      return;
-    }
+    if (userId == null) { setState(() => _loading = false); return; }
     try {
       final res = await dioRequest.get(
-        '/api/education/recommendations/profile/$userId',
-        params: {'limit': 6},
+        '/api/education/recommendations/profile/$userId', params: {'limit': 20},
       );
       if (res != null && res['data'] != null) {
         final data = res['data'];
-        final cases = (data['cases'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-        final slogans = (data['slogans'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-        final videos = (data['videos'] as List?)?.cast<Map<String, dynamic>>() ?? [];
         setState(() {
           _items = [
-            ...videos.map((v) => {'type': 'video', ...v}),
-            ...cases.map((c) => {'type': 'case', ...c}),
-            ...slogans.map((s) => {'type': 'slogan', ...s}),
+            ...(data['videos'] as List?)?.cast<Map<String, dynamic>>().map((v) => {'type': 'video', ...v}) ?? [],
+            ...(data['cases'] as List?)?.cast<Map<String, dynamic>>().map((c) => {'type': 'case', ...c}) ?? [],
+            ...(data['slogans'] as List?)?.cast<Map<String, dynamic>>().map((s) => {'type': 'slogan', ...s}) ?? [],
           ];
           _loading = false;
         });
-      } else {
-        setState(() => _loading = false);
-      }
-    } catch (e) {
-      setState(() => _loading = false);
-    }
+      } else { setState(() => _loading = false); }
+    } catch (e) { setState(() => _loading = false); }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.all(40),
+        child: Center(child: CircularProgressIndicator(color: _accent)),
+      );
+    }
+    if (_items.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(40),
+        child: Center(child: Text('暂无推荐内容', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13))),
+      );
+    }
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          height: 220,
-          child: _loading
-              ? const Center(child: CircularProgressIndicator(color: _accent))
-              : _items.isEmpty
-                  ? const Center(
-                      child: Text('暂无推荐内容',
-                          style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)))
-                  : Stack(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                          child: PageView.builder(
-                            controller: _pageController,
-                            itemCount: _items.length,
-                            onPageChanged: (i) => setState(() => _currentPage = i),
-                            itemBuilder: (context, i) => _RecommendCard(item: _items[i]),
+        // 视频轮播
+        if (_videos.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SizedBox(
+              height: 300,
+              child: Stack(
+                children: [
+                  PageView.builder(
+                    controller: _videoPageController,
+                    itemCount: _videos.length,
+                    onPageChanged: (i) => setState(() => _videoPage = i),
+                    itemBuilder: (context, i) => Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: _VideoCard(item: _videos[i]),
+                    ),
+                  ),
+                  if (_videos.length > 1)
+                    Positioned(
+                      bottom: 12, left: 0, right: 0,
+                      child: Center(
+                        child: SmoothPageIndicator(
+                          controller: _videoPageController,
+                          count: _videos.length,
+                          effect: const ExpandingDotsEffect(
+                            dotWidth: 8,
+                            dotHeight: 8,
+                            spacing: 6,
+                            expansionFactor: 4,
+                            activeDotColor: Color(0xFF58A183),
+                            dotColor: Color(0xFFD1D5DB),
                           ),
                         ),
-                        if (_items.length > 1)
-                          Positioned(
-                            bottom: 8,
-                            left: 0,
-                            right: 0,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: List.generate(_items.length, (i) {
-                                return AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                                  width: i == _currentPage ? 16 : 6,
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                    color: i == _currentPage
-                                        ? const Color(0xFF58A183)
-                                        : const Color(0xFFD1D5DB),
-                                    borderRadius: BorderRadius.circular(3),
-                                  ),
-                                );
-                              }),
-                            ),
-                          ),
-                      ],
+                      ),
                     ),
-        ),
+                ],
+              ),
+            ),
+          ),
+        ],
+
+        // 标语轮播
+        if (_slogans.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Image.asset('lib/UIimages/警察.png', width: 40, height: 40,
+                  errorBuilder: (_, __, ___) => Container(width: 40, height: 40,
+                    decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(8)),
+                    child: const Icon(Icons.warning_amber, color: Colors.grey))),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('安讯提醒您：', style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 4),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 500),
+                        child: Text(_slogans[_sloganIndex]['content']?.toString() ?? _slogans[_sloganIndex]['slogan']?.toString() ?? '',
+                          key: ValueKey(_sloganIndex),
+                          style: const TextStyle(fontSize: 15, color: Color(0xFF0F1923), fontWeight: FontWeight.w600, height: 1.3)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        // 参考案例
+        if (_cases.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Container(width: 4, height: 20, decoration: BoxDecoration(color: const Color(0xFF58A183), borderRadius: BorderRadius.circular(2))),
+                const SizedBox(width: 8),
+                const Text('参考案例', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF0F1923))),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _cases.asMap().entries.map<Widget>((e) {
+                return SizedBox(
+                  width: (MediaQuery.of(context).size.width - 32 - 12) / 2,
+                  child: CaseCard(item: e.value, index: e.key),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
       ],
     );
   }
 }
 
-// ==================== 推荐卡片（使用OpenContainer容器转换） ====================
-class _RecommendCard extends StatelessWidget {
+// ==================== 视频卡片（竖屏高卡片） ====================
+class _VideoCard extends StatelessWidget {
   final Map<String, dynamic> item;
-
-  const _RecommendCard({required this.item});
-
-  Color get _cardColor {
-    switch (item['type']?.toString()) {
-      case 'video':
-        return const Color(0xFF10B981);
-      case 'case':
-        return const Color(0xFF3B82F6);
-      case 'slogan':
-        return const Color(0xFFF59E0B);
-      default:
-        return const Color(0xFF58A183);
-    }
-  }
+  const _VideoCard({required this.item});
 
   int? get _videoIndex {
-    final url = item['video_url']?.toString() ??
-        item['url']?.toString() ??
-        item['video_id']?.toString() ??
-        '';
+    final url = item['video_url']?.toString() ?? item['url']?.toString() ?? item['video_id']?.toString() ?? '';
     final match = RegExp(r'(\d+)').firstMatch(url);
-    if (match != null) {
-      final idx = int.tryParse(match.group(1) ?? '');
-      if (idx != null && idx >= 1 && idx <= 10) return idx;
-    }
+    if (match != null) { final idx = int.tryParse(match.group(1) ?? ''); if (idx != null && idx >= 1 && idx <= 10) return idx; }
     return null;
   }
-
-  String get _coverAsset {
-    final idx = _videoIndex;
-    if (idx != null) {
-      return 'lib/assets/edu_video/$idx.png';
-    }
-    return '';
-  }
+  String get _coverAsset { final idx = _videoIndex; return idx != null ? 'lib/assets/edu_video/$idx.png' : ''; }
 
   @override
   Widget build(BuildContext context) {
-    final type = item['type']?.toString();
-    final title = item['title']?.toString() ?? item['content']?.toString() ?? '';
-    final fraudType = item['fraud_type']?.toString() ?? '';
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 8, 4, 16),
-      child: AspectRatio(
-        aspectRatio: 1 / 2,
-        child: OpenContainer(
-          transitionType: ContainerTransitionType.fadeThrough,
-          transitionDuration: const Duration(milliseconds: 500),
-          openBuilder: (context, _) => PostDetailPage(data: item, source: 'recommendation'),
-          closedBuilder: (context, openContainer) => _ClosedRecommendCard(
-            item: item,
-            cardColor: _cardColor,
-            videoIndex: _videoIndex,
-            coverAsset: _coverAsset,
-            onTap: openContainer,
-          ),
-          closedElevation: 4,
-          closedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          closedColor: _cardColor,
-        ),
-      ),
-    );
-  }
-}
-
-// ==================== 关闭状态的推荐卡片组件（用于OpenContainer） ====================
-class _ClosedRecommendCard extends StatelessWidget {
-  final Map<String, dynamic> item;
-  final Color cardColor;
-  final int? videoIndex;
-  final String coverAsset;
-  final VoidCallback onTap;
-
-  const _ClosedRecommendCard({
-    required this.item,
-    required this.cardColor,
-    required this.videoIndex,
-    required this.coverAsset,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final type = item['type']?.toString();
-    final title = item['title']?.toString() ?? item['content']?.toString() ?? '';
+    final title = item['title']?.toString() ?? '';
     final fraudType = item['fraud_type']?.toString() ?? '';
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PostDetailPage(data: item, source: 'recommendation'),
+          ),
+        );
+      },
       child: Container(
         decoration: BoxDecoration(
-          color: cardColor,
           borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: cardColor.withValues(alpha: 0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 12, offset: const Offset(0, 6))],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(14),
           child: Stack(
             fit: StackFit.expand,
             children: [
-              if (type == 'video' && videoIndex != null)
-                Image.asset(
-                  coverAsset,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _buildGradientBg(),
-                )
-              else
-                _buildGradientBg(),
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.1),
-                        Colors.transparent,
-                        Colors.black.withValues(alpha: 0.5),
-                      ],
-                      stops: const [0, 0.4, 0.85],
-                    ),
-                  ),
-                ),
-              ),
-              if (type == 'video')
-                Center(
-                  child: Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.play_arrow_rounded,
-                      color: cardColor,
-                      size: 32,
-                    ),
-                  ),
-                ),
-              Positioned(
-                left: 16,
-                right: 16,
-                bottom: 16,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (fraudType.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.25),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            fraudType,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.white.withValues(alpha: 0.95),
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
-                      ),
-                    Text(
-                      title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        height: 1.3,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black26,
-                            blurRadius: 4,
-                            offset: Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                    ),
+              if (_coverAsset.isNotEmpty)
+                Image.asset(_coverAsset, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: const Color(0xFF10B981)))
+              else Container(color: const Color(0xFF10B981)),
+              Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                colors: [Colors.black.withValues(alpha: 0.05), Colors.transparent, Colors.black.withValues(alpha: 0.65)], stops: const [0, 0.35, 0.85]))),
+              Center(child: Container(width: 52, height: 52, decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.92), shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 10, offset: const Offset(0, 2))]),
+                child: const Icon(Icons.play_arrow_rounded, color: Color(0xFF10B981), size: 34))),
+              Positioned(top: 10, right: 10, child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(4)),
+                child: const Text('视频', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600)))),
+              Positioned(left: 12, right: 12, bottom: 14, child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                  if (fraudType.isNotEmpty) ...[
+                    Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(4)),
+                      child: Text(fraudType, style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600))),
+                    const SizedBox(height: 6),
                   ],
-                ),
-              ),
+                  Text(title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white, height: 1.3)),
+                ])),
             ],
           ),
         ),
       ),
     );
   }
-
-  Widget _buildGradientBg() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            cardColor.withValues(alpha: 0.85),
-            cardColor,
-          ],
-        ),
-      ),
-    );
-  }
 }
+
 
 // ==================== 案例库（分类Tab + 两列Grid） ====================
 class _SectionCaseList extends StatefulWidget {
@@ -955,7 +824,7 @@ class _SectionLawListState extends State<_SectionLawList> {
               ),
             ),
           ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: _loading
@@ -970,11 +839,8 @@ class _SectionLawListState extends State<_SectionLawList> {
                             style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)),
                       ),
                     )
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _filteredLaws.length,
-                      itemBuilder: (context, i) => LawExpandTile(item: _filteredLaws[i]),
+                  : Column(
+                      children: _filteredLaws.map((law) => LawExpandTile(item: law)).toList(),
                     ),
         ),
       ],
@@ -1020,7 +886,7 @@ class _SectionLawListState extends State<_SectionLawList> {
 // Section 标题通用组件
 Widget _sectionTitle(String title, IconData icon, Color color) {
   return Padding(
-    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+    padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
     child: Row(
       children: [
         Icon(icon, color: color, size: 18),
