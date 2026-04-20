@@ -46,24 +46,41 @@ class AuthService {
   /// 是否已登录
   bool get isLoggedIn => _accessToken.isNotEmpty;
 
-  /// 是否为老年人模式（role_type 为"老人"）
+  /// 是否为老年人模式（role_type 为"老人"），直接从本地存储读取避免热重载后内存缓存失效
   bool get isElderMode {
-    final role = _userInfo?['role_type']?.toString() ?? '';
-    return role == '老人';
+    // 优先使用内存缓存
+    if (_userInfo != null) {
+      final role = _userInfo!['role_type']?.toString() ?? '';
+      return role == '老人';
+    }
+    // 内存缓存为空时，从本地存储读取
+    // 注意：热重载后 SharedPreferences 实例仍被缓存，isNotEmpty 判定有效
+    final prefs = _cachedPrefs;
+    if (prefs != null && prefs.containsKey(_userInfoKey)) {
+      final userInfoStr = prefs.getString(_userInfoKey);
+      if (userInfoStr != null) {
+        final userInfo = jsonDecode(userInfoStr) as Map<String, dynamic>;
+        return userInfo['role_type']?.toString() == '老人';
+      }
+    }
+    return false;
   }
+
+  SharedPreferences? _cachedPrefs;
 
   /// 初始化 - 从本地存储读取 Token 和用户信息
   Future<void> init() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+      _cachedPrefs = prefs;
+
       // 加载 Token
       _accessToken = prefs.getString(_tokenKey) ?? '';
-      
+
       // 加载 Token Type，统一使用 Bearer（首字母大写）
       String savedTokenType = prefs.getString(_tokenTypeKey) ?? 'Bearer';
       _tokenType = savedTokenType.toLowerCase() == 'bearer' ? 'Bearer' : savedTokenType;
-      
+
       // 加载用户信息
       final userInfoStr = prefs.getString(_userInfoKey);
       if (userInfoStr != null && userInfoStr.isNotEmpty) {
@@ -292,7 +309,7 @@ class AuthService {
     _userInfo = null;
 
     // 清除本地存储
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = _cachedPrefs ?? await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_tokenTypeKey);
     await prefs.remove(_userInfoKey);
@@ -303,7 +320,7 @@ class AuthService {
   /// 保存到本地存储
   Future<void> _saveToLocal() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = _cachedPrefs ?? await SharedPreferences.getInstance();
       
       // 保存 Token
       if (_accessToken.isNotEmpty) {

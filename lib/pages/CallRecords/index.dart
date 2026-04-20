@@ -3,6 +3,7 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:timeline_tile/timeline_tile.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/DioRequest.dart';
 
 const _kAccent = Color(0xFF58A183);
@@ -84,6 +85,8 @@ class _CallRecordsListState extends State<CallRecordsList>
   DateTime? _dateFilter;   // 选定日期
   
   final ScrollController _scrollController = ScrollController();
+
+  bool get isElderMode => AuthService().isElderMode;
 
   static const _riskFilters = [
     {'label': '全部',  'value': null},
@@ -285,12 +288,12 @@ class _CallRecordsListState extends State<CallRecordsList>
 
   // 标题（与个人中心"我的"同尺寸：20, w700）
   Widget _buildHeader() {
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
       child: Text(
         '通话记录',
         style: TextStyle(
-          fontSize: 20,
+          fontSize: isElderMode ? 26 : 20,
           fontWeight: FontWeight.w700,
           color: Color(0xFF0F1923),
           letterSpacing: 1,
@@ -341,7 +344,7 @@ class _CallRecordsListState extends State<CallRecordsList>
                       child: Text(
                         f['label'] as String,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: isElderMode ? 15 : 12,
                           fontWeight: FontWeight.w600,
                           color: selected ? Colors.white : const Color(0xFF6B7280),
                         ),
@@ -380,7 +383,7 @@ class _CallRecordsListState extends State<CallRecordsList>
           Text(
                     dateLabel,
             style: TextStyle(
-                      fontSize: 12,
+                      fontSize: isElderMode ? 15 : 12,
                       fontWeight: FontWeight.w600,
                       color: hasDate ? Colors.white : const Color(0xFF6B7280),
             ),
@@ -500,7 +503,7 @@ class _CallRecordsListState extends State<CallRecordsList>
                           Text(
                             callTypeLabel,
                             style: TextStyle(
-                              fontSize: 15,
+                              fontSize: isElderMode ? 18 : 15,
                               fontWeight: FontWeight.w700,
                               color: cfg.textColor,
                             ),
@@ -508,15 +511,15 @@ class _CallRecordsListState extends State<CallRecordsList>
                           const SizedBox(height: 3),
                           Row(
                             children: [
-                              Icon(Icons.schedule_rounded, size: 11, color: cfg.textColor.withOpacity(0.7)),
+                              Icon(Icons.schedule_rounded, size: isElderMode ? 13 : 11, color: cfg.textColor.withOpacity(0.7)),
                               const SizedBox(width: 3),
                               Text(_formatDateTime(startTime),
-                                  style: TextStyle(fontSize: 11, color: cfg.textColor.withOpacity(0.8))),
+                                  style: TextStyle(fontSize: isElderMode ? 14 : 11, color: cfg.textColor.withOpacity(0.8))),
                               const SizedBox(width: 8),
-                              Icon(Icons.timer_outlined, size: 11, color: cfg.textColor.withOpacity(0.7)),
+                              Icon(Icons.timer_outlined, size: isElderMode ? 13 : 11, color: cfg.textColor.withOpacity(0.7)),
                               const SizedBox(width: 3),
                               Text(_formatDuration(duration),
-                                  style: TextStyle(fontSize: 11, color: cfg.textColor.withOpacity(0.8))),
+                                  style: TextStyle(fontSize: isElderMode ? 14 : 11, color: cfg.textColor.withOpacity(0.8))),
                             ],
                           ),
                         ],
@@ -683,6 +686,8 @@ class CallRecordDetailSheet extends StatefulWidget {
 class _CallRecordDetailSheetState extends State<CallRecordDetailSheet>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+
+  bool get isElderMode => AuthService().isElderMode;
 
   Set<String> _visibleLines = {'voice', 'video', 'text', 'overall'};
   bool _isLoadingLogs = true;
@@ -1007,13 +1012,13 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet>
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                const Text('通话详情', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: Color(0xFF0F1923))),
+                Text('通话详情', style: TextStyle(fontSize: isElderMode ? 24 : 19, fontWeight: FontWeight.w800, color: Color(0xFF0F1923))),
                 const Spacer(),
                 if (widget.isFamily)
                   TextButton.icon(
                     onPressed: _reportToAdmin,
                     icon: const Icon(Icons.security, size: 14),
-                    label: const Text('提交审查', style: TextStyle(fontSize: 12)),
+                    label: Text('提交审查', style: TextStyle(fontSize: isElderMode ? 15 : 12)),
                     style: TextButton.styleFrom(foregroundColor: const Color(0xFFDC2626)),
                   ),
                 IconButton(
@@ -1078,32 +1083,32 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet>
           ]),
           const SizedBox(height: 12),
           _sectionCard(children: [
-            Row(children: const [
-              Icon(Icons.smart_toy_rounded, color: _kAccent, size: 17),
+            Row(children: [
+              Icon(Icons.smart_toy_rounded, color: _kAccent, size: isElderMode ? 20 : 17),
               SizedBox(width: 6),
-              Text('大模型智能评价', style: TextStyle(fontWeight: FontWeight.w700, color: _kAccent, fontSize: 14)),
+              Text('大模型智能评价', style: TextStyle(fontWeight: FontWeight.w700, color: _kAccent, fontSize: isElderMode ? 17 : 14)),
             ]),
             const SizedBox(height: 8),
             Text(
               widget.record['analysis']?.toString().isNotEmpty == true ? widget.record['analysis'] : '暂无智能评价',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: isElderMode ? 16 : 13,
                 height: 1.6,
                 color: widget.record['analysis']?.toString().isNotEmpty == true ? const Color(0xFF374151) : const Color(0xFF9CA3AF),
                 fontStyle: widget.record['analysis']?.toString().isNotEmpty == true ? FontStyle.normal : FontStyle.italic,
               ),
             ),
             const SizedBox(height: 12),
-            Row(children: const [
-              Icon(Icons.shield_rounded, color: Color(0xFF059669), size: 17),
+            Row(children: [
+              Icon(Icons.shield_rounded, color: Color(0xFF059669), size: isElderMode ? 20 : 17),
               SizedBox(width: 6),
-              Text('专属防骗建议', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF059669), fontSize: 14)),
+              Text('专属防骗建议', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF059669), fontSize: isElderMode ? 17 : 14)),
             ]),
             const SizedBox(height: 8),
             Text(
               widget.record['advice']?.toString().isNotEmpty == true ? widget.record['advice'] : '暂无防骗建议',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: isElderMode ? 16 : 13,
                 height: 1.6,
                 color: widget.record['advice']?.toString().isNotEmpty == true ? const Color(0xFF374151) : const Color(0xFF9CA3AF),
                 fontStyle: widget.record['advice']?.toString().isNotEmpty == true ? FontStyle.normal : FontStyle.italic,
@@ -1731,6 +1736,7 @@ class _EvidenceDetailSheet extends StatefulWidget {
 }
 
 class _EvidenceDetailSheetState extends State<_EvidenceDetailSheet> {
+  bool get isElderMode => AuthService().isElderMode;
   bool _loading = true;
   Map<String, dynamic>? _evidence;
   String? _error;

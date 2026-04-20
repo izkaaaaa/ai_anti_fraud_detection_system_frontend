@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/PermissionManager.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/RealTimeDetectionService.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/floating_window_service.dart';
@@ -59,14 +60,17 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
   
   // 连接状态
   bool _isConnected = false;
-  String _statusMessage = '点击开始按钮启动实时监测';
+  String _statusMessage = '滑动开始按钮启动实时监测';
   
   // ✅ 用户意图标志：只有用户主动滑动开关才能改变检测状态
   bool _isUserStopping = false;  // 正在执行用户主动停止流程
   
   // 实时检测服务
   final RealTimeDetectionService _detectionService = RealTimeDetectionService();
-  
+
+  // 是否中老年大字模式
+  bool get isElderMode => AuthService().isElderMode;
+
   // 真实音频波形数据
   List<double> _realAudioWaveform = List.filled(50, 0.0);
   
@@ -1178,7 +1182,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
           ),
           child: SafeArea(
             child: Padding(
-              padding: EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
               child: Column(
                 children: [
                   // 上部留白，让主卡片居中
@@ -1764,7 +1768,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Row(
             children: [
               // 左侧：线性进度条（30%宽度）
@@ -1949,7 +1953,7 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
     
     switch (_currentState) {
       case DetectionState.idle:
-        statusText = '点击开始按钮启动实时监测';
+        statusText = '滑动开始按钮启动实时监测';
         statusColor = AppColors.textLight;
         break;
       case DetectionState.preparing:

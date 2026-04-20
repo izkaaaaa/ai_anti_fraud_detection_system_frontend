@@ -26,6 +26,8 @@ class _FamilyPageState extends State<FamilyPage> {
   final FamilyService _familyService = FamilyService();
   final AuthService _authService = AuthService();
 
+  bool get isElderMode => _authService.isElderMode;
+
   @override
   void initState() {
     super.initState();
@@ -483,11 +485,11 @@ class _FamilyPageState extends State<FamilyPage> {
           ? AppBar(
               backgroundColor: const Color(0xFFF8FAF9),
               elevation: 0,
-              title: const Text(
+              title: Text(
                 '家庭组',
                 style: TextStyle(
                   color: Color(0xFF0F1923),
-                  fontSize: 20,
+                  fontSize: isElderMode ? 24 : 20,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1,
                 ),
@@ -503,11 +505,11 @@ class _FamilyPageState extends State<FamilyPage> {
           : AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
-              title: const Text(
+              title: Text(
                 '家庭组',
                 style: TextStyle(
                   color: Color(0xFF0F1923),
-                  fontSize: 20,
+                  fontSize: isElderMode ? 24 : 20,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1,
                 ),
@@ -588,8 +590,8 @@ class _FamilyPageState extends State<FamilyPage> {
                                       child: TabBar(
                                         labelColor: const Color(0xFF58A183),
                                         unselectedLabelColor: const Color(0xFF9CA3AF),
-                                        labelStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                                        unselectedLabelStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                                        labelStyle: TextStyle(fontSize: isElderMode ? 15 : 15, fontWeight: FontWeight.w700),
+                                        unselectedLabelStyle: TextStyle(fontSize: isElderMode ? 15 : 15, fontWeight: FontWeight.w500),
                                         indicatorColor: const Color(0xFF58A183),
                                         indicatorWeight: 3,
                                         dividerColor: Colors.transparent,
@@ -683,12 +685,12 @@ class _FamilyPageState extends State<FamilyPage> {
 
         // 内容区域：限定在画面上 35%（上移15%）
         Positioned(
-          top: 0,
+          top: 95,
           left: 0,
           right: 0,
-          height: screenHeight * 0.35,
+          height: screenHeight * 0.23,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(28, 0, 28, 24),
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.end,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -714,7 +716,7 @@ class _FamilyPageState extends State<FamilyPage> {
                     letterSpacing: 0.4,
               ),
             ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 28),
                 // 两个按钮并列
                 Row(
                   children: [
@@ -723,7 +725,7 @@ class _FamilyPageState extends State<FamilyPage> {
                       child: GestureDetector(
                         onTap: _createFamily,
                         child: Container(
-                          height: 50,
+                          height: 46,
                           alignment: Alignment.center,
               decoration: BoxDecoration(
                             color: const Color(0xFF58A183),
@@ -751,7 +753,7 @@ class _FamilyPageState extends State<FamilyPage> {
                       child: GestureDetector(
                   onTap: _joinFamily,
                   child: Container(
-                          height: 50,
+                          height: 46,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: const Color(0xFFD2E4D6),
@@ -1134,8 +1136,8 @@ class _FamilyPageState extends State<FamilyPage> {
                             _familyInfo?['group_name']?.toString().isNotEmpty == true
                                 ? _familyInfo!['group_name'].toString()
                                 : '家庭组 ${_userInfo!['family_id']}',
-                            style: const TextStyle(
-                              fontSize: 24,
+                            style: TextStyle(
+                              fontSize: isElderMode ? 28 : 24,
                               fontWeight: FontWeight.w900,
                               color: Color(0xFF0F1923),
                             ),
@@ -1143,8 +1145,8 @@ class _FamilyPageState extends State<FamilyPage> {
                           const SizedBox(height: 4),
                           Text(
                             _isAdmin ? '管理员' : '成员',
-                            style: const TextStyle(
-                              fontSize: 14,
+                            style: TextStyle(
+                              fontSize: isElderMode ? 17 : 14,
                               color: Color(0xFF58A183),
                               fontWeight: FontWeight.w600,
                             ),
@@ -1228,8 +1230,8 @@ class _FamilyPageState extends State<FamilyPage> {
                 _familyInfo?['group_name']?.toString().isNotEmpty == true
                     ? _familyInfo!['group_name'].toString()
                     : '家庭组',
-                style: const TextStyle(
-                  fontSize: 22,
+                style: TextStyle(
+                  fontSize: isElderMode ? 26 : 22,
                   fontWeight: FontWeight.w900,
                   color: Color(0xFF0F1923),
                 ),
@@ -1405,6 +1407,9 @@ class _ApplicationsTabState extends State<ApplicationsTab> with AutomaticKeepAli
   List<Map<String, dynamic>> _applications = [];
   String? _errorMessage;
 
+  final AuthService _authService = AuthService();
+  bool get isElderMode => _authService.isElderMode;
+
   @override
   void initState() {
     super.initState();
@@ -1569,8 +1574,8 @@ class _ApplicationsTabState extends State<ApplicationsTab> with AutomaticKeepAli
                         children: [
                           Text(
                             app['phone'] ?? '未知用户',
-                        style: const TextStyle(
-                          fontSize: 14,
+                        style: TextStyle(
+                          fontSize: isElderMode ? 17 : 14,
                               fontWeight: FontWeight.w700,
                           color: Color(0xFF0F1923),
                             ),
@@ -1578,7 +1583,7 @@ class _ApplicationsTabState extends State<ApplicationsTab> with AutomaticKeepAli
                       const SizedBox(height: 2),
                           Text(
                             app['apply_time'] ?? '',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+                        style: TextStyle(fontSize: isElderMode ? 15 : 12, color: Color(0xFF9CA3AF)),
                           ),
                         ],
                       ),
@@ -1592,8 +1597,8 @@ class _ApplicationsTabState extends State<ApplicationsTab> with AutomaticKeepAli
                       color: const Color(0xFFFEE2E2),
                       borderRadius: BorderRadius.circular(8),
                         ),
-                    child: const Text('拒绝',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFFDC2626))),
+                    child: Text('拒绝',
+                      style: TextStyle(fontSize: isElderMode ? 15 : 13, fontWeight: FontWeight.w600, color: Color(0xFFDC2626))),
                       ),
                     ),
                 const SizedBox(width: 8),
@@ -1605,8 +1610,8 @@ class _ApplicationsTabState extends State<ApplicationsTab> with AutomaticKeepAli
                       color: const Color(0xFFE8F0EE),
                       borderRadius: BorderRadius.circular(8),
                         ),
-                    child: const Text('同意',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF58A183))),
+                    child: Text('同意',
+                      style: TextStyle(fontSize: isElderMode ? 15 : 13, fontWeight: FontWeight.w600, color: Color(0xFF58A183))),
                     ),
                 ),
               ],

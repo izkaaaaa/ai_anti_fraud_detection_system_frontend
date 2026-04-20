@@ -4,6 +4,7 @@ import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/pages/LearningCenter/PostDetailPage.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/utils/DioRequest.dart';
 import 'package:ai_anti_fraud_detection_system_frontend/services/auth_service.dart';
+import 'package:ai_anti_fraud_detection_system_frontend/contants/theme.dart';
 
 const _accent = Color(0xFF58A183);
 const _bg = Color(0xFFF8FAF9);
@@ -12,8 +13,9 @@ const _bg = Color(0xFFF8FAF9);
 class CaseCard extends StatelessWidget {
   final Map<String, dynamic> item;
   final int index;
+  final bool isElderMode;
 
-  const CaseCard({super.key, required this.item, required this.index});
+  const CaseCard({super.key, required this.item, required this.index, this.isElderMode = false});
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +32,8 @@ class CaseCard extends StatelessWidget {
           ),
         );
       },
-      child: Container(
+        child: Container(
+        height: isElderMode ? 160 : 108,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -59,7 +62,7 @@ class CaseCard extends StatelessWidget {
                   ),
                   child: Text(
                     fraudType?.isNotEmpty == true ? fraudType! : '诈骗',
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF58A183), fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: isElderMode ? 14 : 11, color: Color(0xFF58A183), fontWeight: FontWeight.w600),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -67,7 +70,7 @@ class CaseCard extends StatelessWidget {
                   title,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF0F1923), height: 1.4),
+                  style: TextStyle(fontSize: isElderMode ? 17 : 14, fontWeight: FontWeight.w700, color: Color(0xFF0F1923), height: 1.4),
                 ),
               ],
             ),
@@ -81,8 +84,9 @@ class CaseCard extends StatelessWidget {
 // ==================== 法律库折叠项 ====================
 class LawExpandTile extends StatefulWidget {
   final Map<String, dynamic> item;
+  final bool isElderMode;
 
-  const LawExpandTile({super.key, required this.item});
+  const LawExpandTile({super.key, required this.item, this.isElderMode = false});
 
   @override
   State<LawExpandTile> createState() => _LawExpandTileState();
@@ -139,7 +143,7 @@ class _LawExpandTileState extends State<LawExpandTile> {
                           maxLines: _expanded ? null : 2,
                           overflow: _expanded ? null : TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: widget.isElderMode ? 18 : 15,
                             fontWeight: FontWeight.w700,
                             color: _expanded ? const Color(0xFF10B981) : const Color(0xFF0F1923),
                           ),
@@ -154,8 +158,8 @@ class _LawExpandTileState extends State<LawExpandTile> {
                             ),
                             child: Text(
                               fraudType,
-                              style: const TextStyle(
-                                fontSize: 11,
+                              style: TextStyle(
+                                fontSize: widget.isElderMode ? 14 : 11,
                                 color: Color(0xFF10B981),
                                 fontWeight: FontWeight.w600,
                               ),
@@ -188,8 +192,8 @@ class _LawExpandTileState extends State<LawExpandTile> {
                   ),
                   Text(
                     content,
-                    style: const TextStyle(
-                      fontSize: 15,
+                    style: TextStyle(
+                      fontSize: widget.isElderMode ? 18 : 15,
                       color: Color(0xFF6B7280),
                       height: 1.9,
                     ),
@@ -267,6 +271,8 @@ class LearningCenterPage extends StatefulWidget {
 class _LearningCenterPageState extends State<LearningCenterPage> {
   Map<String, dynamic>? _userInfo;
   bool _isLoading = true;
+
+  bool get isElderMode => AuthService().isElderMode;
 
   @override
   void initState() {
@@ -351,6 +357,8 @@ class _SectionRecommendState extends State<_SectionRecommend> {
   int _videoPage = 0;
   Timer? _sloganTimer;
   int _sloganIndex = 0;
+
+  bool get isElderMode => AuthService().isElderMode;
 
   List<Map<String, dynamic>> get _videos =>
       _items.where((i) => i['type'] == 'video').toList();
@@ -479,13 +487,13 @@ class _SectionRecommendState extends State<_SectionRecommend> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('安讯提醒您：', style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                      Text('安讯提醒您：', style: TextStyle(fontSize: isElderMode ? 15 : 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
                       const SizedBox(height: 4),
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 500),
                         child: Text(_slogans[_sloganIndex]['content']?.toString() ?? _slogans[_sloganIndex]['slogan']?.toString() ?? '',
                           key: ValueKey(_sloganIndex),
-                          style: const TextStyle(fontSize: 15, color: Color(0xFF0F1923), fontWeight: FontWeight.w600, height: 1.3)),
+                          style: TextStyle(fontSize: isElderMode ? 19 : 15, color: Color(0xFF0F1923), fontWeight: FontWeight.w600, height: 1.3)),
                       ),
                     ],
                   ),
@@ -504,7 +512,7 @@ class _SectionRecommendState extends State<_SectionRecommend> {
               children: [
                 Container(width: 4, height: 20, decoration: BoxDecoration(color: const Color(0xFF58A183), borderRadius: BorderRadius.circular(2))),
                 const SizedBox(width: 8),
-                const Text('参考案例', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF0F1923))),
+                Text('参考案例', style: TextStyle(fontSize: isElderMode ? 22 : 18, fontWeight: FontWeight.w700, color: Color(0xFF0F1923))),
               ],
             ),
           ),
@@ -517,7 +525,7 @@ class _SectionRecommendState extends State<_SectionRecommend> {
               children: _cases.asMap().entries.map<Widget>((e) {
                 return SizedBox(
                   width: (MediaQuery.of(context).size.width - 32 - 12) / 2,
-                  child: CaseCard(item: e.value, index: e.key),
+                  child: CaseCard(item: e.value, index: e.key, isElderMode: isElderMode),
                 );
               }).toList(),
             ),
@@ -613,6 +621,8 @@ class _SectionCaseListState extends State<_SectionCaseList> {
   List<String> _categories = ['全部'];
   int _selectedTab = 0;
 
+  bool get isElderMode => AuthService().isElderMode;
+
   @override
   void initState() {
     super.initState();
@@ -702,7 +712,7 @@ class _SectionCaseListState extends State<_SectionCaseList> {
                         childAspectRatio: 1.45,
                       ),
                       itemCount: _filteredCases.length,
-                      itemBuilder: (context, i) => CaseCard(item: _filteredCases[i], index: i),
+                      itemBuilder: (context, i) => CaseCard(item: _filteredCases[i], index: i, isElderMode: isElderMode),
                     ),
         ),
       ],
@@ -760,6 +770,8 @@ class _SectionLawListState extends State<_SectionLawList> {
   List<Map<String, dynamic>> _allLaws = [];
   List<String> _categories = ['全部'];
   int _selectedTab = 0;
+
+  bool get isElderMode => AuthService().isElderMode;
 
   @override
   void initState() {
@@ -841,7 +853,7 @@ class _SectionLawListState extends State<_SectionLawList> {
                       ),
                     )
                   : Column(
-                      children: _filteredLaws.map((law) => LawExpandTile(item: law)).toList(),
+                      children: _filteredLaws.map((law) => LawExpandTile(item: law, isElderMode: isElderMode)).toList(),
                     ),
         ),
       ],

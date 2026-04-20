@@ -75,6 +75,20 @@ class AppColors {
   static Color shadowGlowYellow = Color(0xFFEFFF86).withOpacity(0.2);
 }
 
+// 中老年大字模式字体大小（比标准大 3~5px）
+class ElderFontSize {
+  static const double small = 14.0;      // 原 12
+  static const double medium = 16.0;      // 原 14
+  static const double large = 18.0;       // 原 16
+  static const double xlarge = 21.0;      // 原 20
+  static const double xxlarge = 24.0;     // 原 24
+  static const double title = 28.0;       // 原 28
+
+  static double getSmall(double normal) => normal + 2;
+  static double getMedium(double normal) => normal + 2;
+  static double getLarge(double normal) => normal + 2;
+}
+
 /// 应用主题配置
 class AppTheme {
   // 圆角

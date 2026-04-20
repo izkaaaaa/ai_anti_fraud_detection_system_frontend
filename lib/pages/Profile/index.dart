@@ -64,6 +64,8 @@ class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? _userInfo;
   bool _isLoading = true;
 
+  bool get isElderMode => AuthService().isElderMode;
+
   @override
   void initState() {
     super.initState();
@@ -166,11 +168,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 // 顶栏
                 Row(
                   children: [
-                    const Text(
+                    Text(
                       '我的',
               style: TextStyle(
                         color: Colors.white,
-                        fontSize: 20,
+                        fontSize: isElderMode ? 20 : 18,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1,
               ),
@@ -179,7 +181,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     if (isLoggedIn) ..._buildHeaderActions(),
           ],
         ),
-                const SizedBox(height: 100),
+                const SizedBox(height: 80),
                 // 头像左置 + 右侧文字
                 GestureDetector(
                   onTap: isLoggedIn ? null : () => Navigator.of(context).pushNamed('/login'),
@@ -204,9 +206,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   children: [
                     Text(
                           username,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
-                            fontSize: 18,
+                            fontSize: isElderMode ? 18 : 17,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -215,7 +217,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           phone,
                         style: TextStyle(
                             color: Colors.white.withOpacity(0.75),
-                            fontSize: 13,
+                            fontSize: isElderMode ? 15 : 13,
                         ),
                       ),
                   ],
@@ -321,10 +323,10 @@ class _ProfilePageState extends State<ProfilePage> {
           if (isLoggedIn)
             GestureDetector(
               onTap: _handleLogout,
-              child: Container(
+                child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                margin: const EdgeInsets.only(bottom: 42),
+                padding: EdgeInsets.symmetric(vertical: isElderMode ? 17 : 14),
+                margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
                                 color: Colors.white,
                   borderRadius: BorderRadius.circular(40),
@@ -338,7 +340,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   children: [
                     Icon(Icons.logout_rounded, color: AppColors.error, size: 19),
                     const SizedBox(width: 8),
-                    Text('退出登录', style: TextStyle(color: AppColors.error, fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                    Text('退出登录', style: TextStyle(color: AppColors.error, fontSize: isElderMode ? 18 : 15, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
                   ],
                 ),
                       ),
@@ -355,19 +357,23 @@ class _ProfilePageState extends State<ProfilePage> {
     required Color iconColor,
     Widget? trailing,
   }) {
+    final labelStyle = TextStyle(
+      color: const Color(0xFF1A1A2E),
+      fontSize: isElderMode ? 18 : 15,
+      fontWeight: FontWeight.w500,
+    );
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: isElderMode ? 12 : 9),
         child: Row(
           children: [
-            Icon(icon, color: iconColor, size: 22),
+            Icon(icon, color: iconColor, size: isElderMode ? 26 : 22),
             const SizedBox(width: 14),
-            Text(label, style: const TextStyle(color: Color(0xFF1A1A2E), fontSize: 15, fontWeight: FontWeight.w500)),
-            const Spacer(),
+            Expanded(child: Text(label, style: labelStyle)),
             if (trailing != null) ...[trailing, const SizedBox(width: 6)],
-            const Icon(Icons.chevron_right, color: Color(0xFFD1D5DB), size: 18),
+            Icon(Icons.chevron_right, color: const Color(0xFFD1D5DB), size: isElderMode ? 22 : 18),
           ],
         ),
       ),
@@ -378,13 +384,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _chip(String text, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: EdgeInsets.symmetric(horizontal: isElderMode ? 10 : 8, vertical: isElderMode ? 4 : 3),
       decoration: BoxDecoration(
         color: color.withOpacity(0.10),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color.withOpacity(0.35), width: 1),
-              ),
-      child: Text(text, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+      ),
+      child: Text(text, style: TextStyle(color: color, fontSize: isElderMode ? 13 : 11, fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -395,6 +401,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
 class HelpCenterPage extends StatelessWidget {
   const HelpCenterPage({super.key});
+
+  bool get isElderMode => AuthService().isElderMode;
 
   @override
   Widget build(BuildContext context) {
@@ -409,12 +417,12 @@ class HelpCenterPage extends StatelessWidget {
             children: [
               Icon(Icons.help_outline, size: 72, color: AppColors.primary),
               const SizedBox(height: 20),
-              Text('帮助中心', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+              Text('帮助中心', style: TextStyle(fontSize: isElderMode ? 26 : 22, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
               const SizedBox(height: 12),
               Text(
                 '功能开发中...\n\n将包含：\n• 常见问题\n• 使用教程\n• 联系客服\n• 意见反馈',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: AppColors.textLight, height: 1.7),
+                style: TextStyle(fontSize: isElderMode ? 17 : 14, color: AppColors.textLight, height: 1.7),
               ),
             ],
           ),
@@ -430,6 +438,8 @@ class HelpCenterPage extends StatelessWidget {
 
 class AboutPage extends StatelessWidget {
   const AboutPage({super.key});
+
+  bool get isElderMode => AuthService().isElderMode;
 
   static const _bg      = Color(0xFFF8FAF9);
   static const _white   = Colors.white;
@@ -517,12 +527,12 @@ class AboutPage extends StatelessWidget {
                     child: const Icon(Icons.videocam, color: _accent, size: 20),
                   ),
                   const SizedBox(width: 14),
-                  const Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('视频检测', style: TextStyle(color: _accentD, fontSize: 14, fontWeight: FontWeight.w600)),
-                      SizedBox(height: 2),
-                      Text('Deepfake 视频识别', style: TextStyle(color: _textLt, fontSize: 12)),
+                      Text('视频检测', style: TextStyle(color: _accentD, fontSize: isElderMode ? 17 : 14, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text('Deepfake 视频识别', style: TextStyle(color: _textLt, fontSize: isElderMode ? 15 : 12)),
                     ],
                   ),
                 ],
@@ -548,12 +558,12 @@ class AboutPage extends StatelessWidget {
                     child: const Icon(Icons.mic, color: _accent, size: 20),
                   ),
                   const SizedBox(width: 14),
-                  const Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('音频检测', style: TextStyle(color: _accentD, fontSize: 14, fontWeight: FontWeight.w600)),
-                      SizedBox(height: 2),
-                      Text('AI 语音伪造识别', style: TextStyle(color: _textLt, fontSize: 12)),
+                      Text('音频检测', style: TextStyle(color: _accentD, fontSize: isElderMode ? 17 : 14, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text('AI 语音伪造识别', style: TextStyle(color: _textLt, fontSize: isElderMode ? 15 : 12)),
                     ],
                   ),
                 ],
@@ -579,12 +589,12 @@ class AboutPage extends StatelessWidget {
                     child: const Icon(Icons.text_fields, color: _accent, size: 20),
                   ),
                   const SizedBox(width: 14),
-                  const Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('文本检测', style: TextStyle(color: _accentD, fontSize: 14, fontWeight: FontWeight.w600)),
+                      Text('文本检测', style: TextStyle(color: _accentD, fontSize: isElderMode ? 17 : 14, fontWeight: FontWeight.w600)),
                       SizedBox(height: 2),
-                      Text('诈骗话术智能分析', style: TextStyle(color: _textLt, fontSize: 12)),
+                      Text('诈骗话术智能分析', style: TextStyle(color: _textLt, fontSize: isElderMode ? 15 : 12)),
                     ],
                   ),
                 ],
@@ -619,17 +629,28 @@ class AboutPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    '检测页背景插画素材由 Storyset 提供',
+                    '检测页插画素材由 Storyset 提供',
                     style: TextStyle(fontSize: 13, color: _textMid, height: 1.5),
                   ),
-                  const SizedBox(height: 6),
                   const Text(
                     'Online illustrations by Storyset',
                     style: TextStyle(fontSize: 12, color: _textLt, height: 1.5),
                   ),
-                  const SizedBox(height: 4),
                   const Text(
                     'https://storyset.com/online',
+                    style: TextStyle(fontSize: 12, color: _accent, height: 1.5),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    '家庭组页面插画素材由 Storyset 提供',
+                    style: TextStyle(fontSize: 13, color: _textMid, height: 1.5),
+                  ),
+                  const Text(
+                    'People illustrations by Storyset',
+                    style: TextStyle(fontSize: 12, color: _textLt, height: 1.5),
+                  ),
+                  const Text(
+                    'https://storyset.com/people',
                     style: TextStyle(fontSize: 12, color: _accent, height: 1.5),
                   ),
                 ],
