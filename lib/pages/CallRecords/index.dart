@@ -1165,11 +1165,22 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet>
     if (_timelinePoints.isEmpty) return _emptyHint(Icons.show_chart_rounded, '暂无检测数据');
 
     List<FlSpot> spots(double Function(_TimelinePoint p) getter) {
-      return _timelinePoints.map((p) => FlSpot(p.timeOffset.toDouble(), getter(p))).toList();
+      final spots = <FlSpot>[];
+      final seenX = <double>{};
+      for (final p in _timelinePoints) {
+        double x = p.timeOffset.toDouble();
+        // 如果有重复的 x 值，添加微小偏移避免插值异常
+        while (seenX.contains(x)) {
+          x += 0.01;
+        }
+        seenX.add(x);
+        spots.add(FlSpot(x, getter(p)));
+      }
+      return spots;
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1227,62 +1238,53 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet>
             ),
           ),
           const SizedBox(height: 16),
-          ..._timelinePoints.map((p) {
-            final color = p.riskLevel == 'high'
-                ? const Color(0xFFDC2626)
-                : p.riskLevel == 'medium'
-                    ? const Color(0xFFD97706)
-                    : const Color(0xFF059669);
+          ..._timelinePoints.asMap().entries.map((entry) {
+            final i = entry.key;
+            final p = entry.value;
+            final isFirst = i == 0;
 
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: color.withOpacity(0.25)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
-                    child: Center(
-                      child: Text('${p.timeOffset}s', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
-                    ),
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!isFirst)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Container(height: 1, color: const Color(0xFFE5E7EB)),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          _scoreChip('语', p.voiceScore, const Color(0xFF3B82F6)),
-                          const SizedBox(width: 4),
-                          _scoreChip('视', p.videoScore, const Color(0xFF10B981)),
-                          const SizedBox(width: 4),
-                          _scoreChip('文', p.textScore, const Color(0xFFF59E0B)),
-                          const SizedBox(width: 4),
-                          _scoreChip('综', p.overallScore, const Color(0xFFDC2626)),
-                        ]),
-                        if (p.keywords.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text('关键词: ${p.keywords}', style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
-                        ],
-                      ],
-                    ),
-                  ),
-                  if (p.logId != null)
-                    GestureDetector(
-                      onTap: () => _showEvidenceDetail(p.logId!),
-                      child: const Padding(
-                        padding: EdgeInsets.only(left: 8),
-                        child: Icon(Icons.image_search_rounded, size: 18, color: _kAccent),
+                Padding(
+                  padding: const EdgeInsets.only(left: 8, right: 8),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${p.timeOffset}s',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF374151)),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      _scoreChip('语音', p.voiceScore, const Color(0xFF3B82F6)),
+                      const SizedBox(width: 6),
+                      _scoreChip('视频', p.videoScore, const Color(0xFF10B981)),
+                      const SizedBox(width: 6),
+                      _scoreChip('文本', p.textScore, const Color(0xFFF59E0B)),
+                      const SizedBox(width: 6),
+                      _scoreChip('综合', p.overallScore, const Color(0xFFDC2626)),
+                      const Spacer(),
+                      if (p.logId != null)
+                        GestureDetector(
+                          onTap: () => _showEvidenceDetail(p.logId!),
+                          child: const Icon(Icons.image_search_rounded, size: 16, color: _kAccent),
+                        ),
+                    ],
+                  ),
+                ),
+                if (p.keywords.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Text(p.keywords, style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)), overflow: TextOverflow.ellipsis),
+                  ),
                 ],
-              ),
+                const SizedBox(height: 10),
+              ],
             );
           }),
         ],
@@ -1461,15 +1463,15 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet>
         ],
       );
 
-  Widget _scoreChip(String label, double score, Color color) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-        child: Text('$label ${score.toStringAsFixed(0)}', style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w700)),
+  Widget _scoreChip(String label, double score, Color color) => Text(
+        '$label: ${score.toStringAsFixed(0)}',
+        style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
       );
 
   LineChartBarData _lineBar(List<FlSpot> spots, Color color, {bool dotted = false}) => LineChartBarData(
         spots: spots,
         isCurved: true,
+        curveSmoothness: 0.5,
         color: color,
         barWidth: dotted ? 1.5 : 2,
         dotData: const FlDotData(show: false),

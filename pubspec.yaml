@@ -62,6 +62,7 @@ dependencies:
   table_calendar: ^3.2.0
   timeline_tile: ^2.0.0
   fl_chart: ^0.68.0
+  animations: ^2.0.0
 
 dev_dependencies:
   flutter_test:
@@ -115,6 +116,7 @@ flutter:
     - lib/UIimages/头像/老人男.png
     - lib/UIimages/头像/青壮年女.png
     - lib/UIimages/头像/青壮年男.png
+    - lib/assets/edu_video/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
