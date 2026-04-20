@@ -684,6 +684,7 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
+  Set<String> _visibleLines = {'voice', 'video', 'text', 'overall'};
   bool _isLoadingLogs = true;
   List<AuditEvent> _auditEvents = [];
   String? _logsError;
@@ -1164,133 +1165,344 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet>
     if (_timelineError != null) return Center(child: Text(_timelineError!, style: const TextStyle(color: Color(0xFFDC2626))));
     if (_timelinePoints.isEmpty) return _emptyHint(Icons.show_chart_rounded, '暂无检测数据');
 
-    List<FlSpot> spots(double Function(_TimelinePoint p) getter) {
-      final spots = <FlSpot>[];
-      final seenX = <double>{};
-      for (final p in _timelinePoints) {
-        double x = p.timeOffset.toDouble();
-        // 如果有重复的 x 值，添加微小偏移避免插值异常
-        while (seenX.contains(x)) {
-          x += 0.01;
-        }
-        seenX.add(x);
-        spots.add(FlSpot(x, getter(p)));
-      }
-      return spots;
-    }
-
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('三模态风险评分折线图', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF0F1923))),
-          const SizedBox(height: 4),
-          Row(children: [
-            _legend('语音', const Color(0xFF3B82F6)),
-            const SizedBox(width: 12),
-            _legend('视频', const Color(0xFF10B981)),
-            const SizedBox(width: 12),
-            _legend('文本', const Color(0xFFF59E0B)),
-            const SizedBox(width: 12),
-            _legend('综合', const Color(0xFFDC2626)),
-          ]),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 220,
-            child: LineChart(
-              LineChartData(
-                minY: 0,
-                maxY: 100,
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  horizontalInterval: 25,
-                  getDrawingHorizontalLine: (_) => FlLine(color: const Color(0xFFE5E7EB), strokeWidth: 1),
-                ),
-                borderData: FlBorderData(show: false),
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 32,
-                      interval: 25,
-                      getTitlesWidget: (v, _) => Text('${v.toInt()}', style: const TextStyle(fontSize: 10, color: Color(0xFF9CA3AF))),
+          // 图表卡片
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 16, offset: const Offset(0, 4)),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.area_chart_rounded, color: _kAccent, size: 18),
+                    const SizedBox(width: 6),
+                    const Text(
+                      '风险评分趋势',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F1923),
+                        letterSpacing: 0.3,
+                      ),
                     ),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 22,
-                      getTitlesWidget: (v, _) => Text('${v.toInt()}s', style: const TextStyle(fontSize: 10, color: Color(0xFF9CA3AF))),
-                    ),
-                  ),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ],
                 ),
-                lineBarsData: [
-                  _lineBar(spots((p) => p.voiceScore), const Color(0xFF3B82F6)),
-                  _lineBar(spots((p) => p.videoScore), const Color(0xFF10B981)),
-                  _lineBar(spots((p) => p.textScore), const Color(0xFFF59E0B)),
-                  _lineBar(spots((p) => p.overallScore), const Color(0xFFDC2626), dotted: true),
-                ],
-              ),
+                const SizedBox(height: 12),
+                // 图例
+                _buildChartLegend(),
+                const SizedBox(height: 16),
+                // 折线图
+                SizedBox(
+                  height: 260,
+                  child: _buildFlChart(),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
-          ..._timelinePoints.asMap().entries.map((entry) {
-            final i = entry.key;
-            final p = entry.value;
-            final isFirst = i == 0;
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (!isFirst)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Container(height: 1, color: const Color(0xFFE5E7EB)),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 8, right: 8),
-                  child: Row(
-                    children: [
-                      Text(
-                        '${p.timeOffset}s',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF374151)),
-                      ),
-                      const SizedBox(width: 12),
-                      _scoreChip('语音', p.voiceScore, const Color(0xFF3B82F6)),
-                      const SizedBox(width: 6),
-                      _scoreChip('视频', p.videoScore, const Color(0xFF10B981)),
-                      const SizedBox(width: 6),
-                      _scoreChip('文本', p.textScore, const Color(0xFFF59E0B)),
-                      const SizedBox(width: 6),
-                      _scoreChip('综合', p.overallScore, const Color(0xFFDC2626)),
-                      const Spacer(),
-                      if (p.logId != null)
-                        GestureDetector(
-                          onTap: () => _showEvidenceDetail(p.logId!),
-                          child: const Icon(Icons.image_search_rounded, size: 16, color: _kAccent),
-                        ),
-                    ],
-                  ),
-                ),
-                if (p.keywords.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4),
-                    child: Text(p.keywords, style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)), overflow: TextOverflow.ellipsis),
-                  ),
-                ],
-                const SizedBox(height: 10),
-              ],
-            );
-          }),
+          // 数据点列表
+          _buildDataPointsList(),
         ],
       ),
     );
   }
+
+  Widget _buildChartLegend() {
+    return Wrap(
+      spacing: 16,
+      runSpacing: 6,
+      children: [
+        _legendItem('语音', const Color(0xFF3B82F6), 'voice'),
+        _legendItem('视频', const Color(0xFF10B981), 'video'),
+        _legendItem('文本', const Color(0xFFF59E0B), 'text'),
+        _legendItem('综合', const Color(0xFFDC2626), 'overall'),
+      ],
+    );
+  }
+
+  Widget _legendItem(String label, Color color, String key, {bool isDashed = false}) {
+    final isActive = _visibleLines.contains(key);
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (isActive && _visibleLines.length > 1) {
+            _visibleLines = Set.from(_visibleLines)..remove(key);
+          } else if (!isActive) {
+            _visibleLines = Set.from(_visibleLines)..add(key);
+          }
+        });
+      },
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 200),
+        opacity: isActive ? 1.0 : 0.35,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 28,
+              height: 5,
+              decoration: BoxDecoration(
+                color: isDashed ? Colors.transparent : color,
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: isDashed
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: List.generate(
+                        4,
+                        (_) => Container(width: 4, height: 3, color: color),
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFlChart() {
+    List<FlSpot> spotsVoice = [];
+    List<FlSpot> spotsVideo = [];
+    List<FlSpot> spotsText = [];
+    List<FlSpot> spotsOverall = [];
+
+    for (final p in _timelinePoints) {
+      spotsVoice.add(FlSpot(p.timeOffset.toDouble(), p.voiceScore));
+      spotsVideo.add(FlSpot(p.timeOffset.toDouble(), p.videoScore));
+      spotsText.add(FlSpot(p.timeOffset.toDouble(), p.textScore));
+      spotsOverall.add(FlSpot(p.timeOffset.toDouble(), p.overallScore));
+    }
+
+    final List<LineChartBarData> bars = [];
+    if (_visibleLines.contains('voice')) {
+      bars.add(_lineBar(spotsVoice, const Color(0xFF3B82F6)));
+    }
+    if (_visibleLines.contains('video')) {
+      bars.add(_lineBar(spotsVideo, const Color(0xFF10B981)));
+    }
+    if (_visibleLines.contains('text')) {
+      bars.add(_lineBar(spotsText, const Color(0xFFF59E0B)));
+    }
+    if (_visibleLines.contains('overall')) {
+      bars.add(_lineBar(spotsOverall, const Color(0xFFDC2626)));
+    }
+
+    return LineChart(
+      LineChartData(
+        minY: null,
+        maxY: null,
+        minX: _timelinePoints.isNotEmpty ? _timelinePoints.first.timeOffset.toDouble() : 0,
+        maxX: _timelinePoints.isNotEmpty ? _timelinePoints.last.timeOffset.toDouble() : 100,
+        lineTouchData: LineTouchData(
+          enabled: true,
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (_) => const Color(0xFF1F2937),
+            tooltipRoundedRadius: 10,
+            tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                final color = spot.bar.color ?? Colors.white;
+                final label = spot.barIndex == 0
+                    ? '语音'
+                    : spot.barIndex == 1
+                        ? '视频'
+                        : spot.barIndex == 2
+                            ? '文本'
+                            : '综合';
+                return LineTooltipItem(
+                  '$label: ${spot.y.toStringAsFixed(1)}',
+                  TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+                );
+              }).toList();
+            },
+          ),
+          handleBuiltInTouches: true,
+          getTouchedSpotIndicator: (barData, spotIndexes) {
+            return spotIndexes.map((index) {
+              return TouchedSpotIndicatorData(
+                FlLine(color: barData.color?.withOpacity(0.4) ?? Colors.white, strokeWidth: 2, dashArray: [4, 4]),
+                FlDotData(
+                  show: true,
+                  getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
+                    radius: 4,
+                    color: bar.color ?? Colors.white,
+                    strokeWidth: 2,
+                    strokeColor: Colors.white,
+                  ),
+                ),
+              );
+            }).toList();
+          },
+        ),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: true,
+          verticalInterval: _maxInterval(),
+          horizontalInterval: _yInterval(),
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: const Color(0xFFE5E7EB),
+            strokeWidth: 1,
+            dashArray: value == 50 ? null : [4, 4],
+          ),
+          getDrawingVerticalLine: (value) => FlLine(
+            color: const Color(0xFFE5E7EB).withOpacity(0.5),
+            strokeWidth: 1,
+            dashArray: [4, 4],
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 36,
+              interval: _yInterval(),
+              getTitlesWidget: (v, _) => Text(
+                '${v.toInt()}',
+                style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF), fontWeight: FontWeight.w500),
+              ),
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 28,
+              interval: _maxInterval() > 0 ? _maxInterval() / 4 : 25,
+              getTitlesWidget: (v, _) => Text(
+                '${v.toInt()}s',
+                style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF), fontWeight: FontWeight.w500),
+              ),
+            ),
+          ),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        lineBarsData: bars,
+        extraLinesData: ExtraLinesData(
+          horizontalLines: [
+            HorizontalLine(
+              y: 50,
+              color: const Color(0xFFDC2626).withOpacity(0.3),
+              strokeWidth: 1.5,
+              dashArray: [6, 4],
+            ),
+          ],
+        ),
+        clipData: const FlClipData.none(),
+      ),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeInOutCubic,
+    );
+  }
+
+  double _maxInterval() {
+    if (_timelinePoints.length < 2) return 50;
+    final minT = _timelinePoints.first.timeOffset.toDouble();
+    final maxT = _timelinePoints.last.timeOffset.toDouble();
+    return maxT - minT;
+  }
+
+  double _yInterval() {
+    final allVals = <double>[];
+    for (final p in _timelinePoints) {
+      allVals.add(p.voiceScore);
+      allVals.add(p.videoScore);
+      allVals.add(p.textScore);
+      allVals.add(p.overallScore);
+    }
+    if (allVals.isEmpty) return 25;
+    final dataMin = allVals.reduce((a, b) => a < b ? a : b);
+    final dataMax = allVals.reduce((a, b) => a > b ? a : b);
+    final range = dataMax - dataMin;
+    if (range <= 0) return 25;
+    if (range <= 20) return 5;
+    if (range <= 50) return 10;
+    if (range <= 100) return 20;
+    return (range / 5).ceilToDouble();
+  }
+
+  Widget _buildDataPointsList() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 6),
+        ..._timelinePoints.asMap().entries.map((entry) {
+          final i = entry.key;
+          final p = entry.value;
+          final isFirst = i == 0;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!isFirst)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Container(height: 1, color: const Color(0xFFE5E7EB)),
+                ),
+              Padding(
+                padding: const EdgeInsets.only(left: 8, right: 8),
+                child: Row(
+                  children: [
+                    Text(
+                      '${p.timeOffset}s',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF374151)),
+                    ),
+                    const SizedBox(width: 12),
+                    _scoreChip('语音', p.voiceScore, const Color(0xFF3B82F6)),
+                    const SizedBox(width: 6),
+                    _scoreChip('视频', p.videoScore, const Color(0xFF10B981)),
+                    const SizedBox(width: 6),
+                    _scoreChip('文本', p.textScore, const Color(0xFFF59E0B)),
+                    const SizedBox(width: 6),
+                    _scoreChip('综合', p.overallScore, const Color(0xFFDC2626)),
+                    const Spacer(),
+                    if (p.logId != null)
+                      GestureDetector(
+                        onTap: () => _showEvidenceDetail(p.logId!),
+                        child: const Icon(Icons.image_search_rounded, size: 16, color: _kAccent),
+                      ),
+                  ],
+                ),
+              ),
+              if (p.keywords.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Text(p.keywords, style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)), overflow: TextOverflow.ellipsis),
+                ),
+              ],
+              const SizedBox(height: 10),
+            ],
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _scoreChip(String label, double score, Color color) => Text(
+        '$label: ${score.toStringAsFixed(0)}',
+        style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
+      );
 
   Widget _buildChatTab() {
     if (_isLoadingChat) return const Center(child: CircularProgressIndicator(color: _kAccent));
@@ -1454,28 +1666,17 @@ class _CallRecordDetailSheetState extends State<CallRecordDetailSheet>
     );
   }
 
-  Widget _legend(String label, Color color) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(width: 12, height: 3, color: color),
-          const SizedBox(width: 4),
-          Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
-        ],
-      );
-
-  Widget _scoreChip(String label, double score, Color color) => Text(
-        '$label: ${score.toStringAsFixed(0)}',
-        style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
-      );
-
-  LineChartBarData _lineBar(List<FlSpot> spots, Color color, {bool dotted = false}) => LineChartBarData(
+  LineChartBarData _lineBar(List<FlSpot> spots, Color color, {bool isDashed = false}) => LineChartBarData(
         spots: spots,
         isCurved: true,
-        curveSmoothness: 0.5,
+        curveSmoothness: 0.35,
         color: color,
-        barWidth: dotted ? 1.5 : 2,
+        barWidth: isDashed ? 2 : 1.5,
         dotData: const FlDotData(show: false),
-        belowBarData: BarAreaData(show: false),
+        belowBarData: BarAreaData(
+          show: true,
+          color: color.withOpacity(0.12),
+        ),
       );
 
   Widget _avatar(bool isUser) => Container(
