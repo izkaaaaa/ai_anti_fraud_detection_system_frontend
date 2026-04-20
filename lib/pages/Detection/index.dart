@@ -1171,8 +1171,9 @@ class _DetectionPageState extends State<DetectionPage> with TickerProviderStateM
         body: Container(
           decoration: BoxDecoration(
             image: DecorationImage(
-              image: AssetImage('lib/UIimages/新检测页背景.png'),
+              image: AssetImage('lib/UIimages/检测页背景2.png'),
               fit: BoxFit.cover,
+              alignment: Alignment(0, -0.3),
             ),
           ),
           child: SafeArea(

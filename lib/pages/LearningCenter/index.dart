@@ -316,6 +316,7 @@ class _LearningCenterPageState extends State<LearningCenterPage> {
       elevation: 0,
       scrolledUnderElevation: 0,
       pinned: true,
+      automaticallyImplyLeading: false,
       expandedHeight: 80,
       flexibleSpace: FlexibleSpaceBar(
         titlePadding: const EdgeInsets.only(left: 20, bottom: 16),

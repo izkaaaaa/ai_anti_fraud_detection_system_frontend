@@ -120,6 +120,7 @@ flutter:
     - lib/UIimages/头像/青壮年女.png
     - lib/UIimages/头像/青壮年男.png
     - lib/assets/edu_video/
+    - lib/UIimages/检测页背景2.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
